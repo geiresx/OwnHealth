@@ -1,0 +1,6 @@
+# GitGuardian / ggshield. Only synthetic values from a throwaway 0.1.1 test install are ignored here:
+# they prove that password, recovery-code and token hashes made by 0.1.1 still verify in Rust.
+version: 2
+secret:
+  ignored-paths:
+    - server/crates/ownhealth-api/tests/auth_python_rows.json

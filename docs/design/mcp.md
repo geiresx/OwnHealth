@@ -8,7 +8,7 @@ This document is the build spec for v0.1 (8 tools over personal access tokens) a
 
 | Item | Decision |
 |---|---|
-| SDK | Official MCP Python SDK, mounted inside the FastAPI process at `/mcp`. Same process, same database session, same authorization layer as the REST API and UI |
+| SDK | rmcp, the official Rust MCP SDK, mounted inside the server process at `/mcp` (0.1.1 used the official Python SDK inside FastAPI). Same process, same database session, same authorization layer as the REST API and UI |
 | Primary protocol | MCP **2026-07-28**: stateless, no `initialize`, no `Mcp-Session-Id`, mandatory `server/discover`, `_meta` with protocol version and client capabilities on every request |
 | Fallback | MCP **2025-11-25** (handshake-based) on the same endpoint, chosen by what the client sends. Kept until every client in section 13 negotiates 2026-07-28 |
 | Transport | Streamable HTTP only. Canonical resource URI `https://<host>/mcp` (no trailing slash) |

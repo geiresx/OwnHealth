@@ -17,25 +17,26 @@ The commands are in [AGENTS.md](AGENTS.md#dev-commands). In short:
 
 ```sh
 ./scripts/test-db.sh                  # test Postgres 17 on 127.0.0.1:55432
-cd backend && uv sync && uv run pytest -q
-cd ../ui && pnpm install && pnpm run check && pnpm build
+bash scripts/fetch-pdfium.sh && cd server && mkdir -p static && cargo test -p <crate>
+cd .. && bash contract-tests/run.sh rust
+cd ui && pnpm install && pnpm run check && pnpm build
 ```
 
-Each test session creates its own database and drops it afterwards. The backup tests in `backend/tests/ops` need a PostgreSQL 17 client and restic; without them they run pg_dump inside the test container, and the restic tests are skipped.
+Each test creates its own database and drops it afterwards. The backup tests in `server/crates/ownhealth-ops/tests` need pg_dump and pg_restore 17 and restic, on PATH or in `OWNHEALTH_PG_BINDIR`. Without a local client, `OWNHEALTH_PG_BINDIR=$PWD/../scripts/pg-bin` runs them inside the test container; without restic the restic tests are skipped.
 
 ## Pull requests
 
 - One change per pull request, with a test that fails without it.
 - Conventional commits (`fix(pdf): ...`, `feat(mcp): ...`). The title says why, not what.
 - Open it ready for review, never as a draft, so CI runs.
-- Database changes are new numbered files in `backend/src/ownhealth/db/migrations/`. Never edit a migration that has shipped.
+- Database changes are new numbered files in [migrations/](migrations). Never edit a migration that has shipped.
 - [CONTRACTS.md](CONTRACTS.md) says which interface lives where. Change a shared signature only together with every caller.
 
 ## How to add a lab template
 
 A template teaches the PDF importer one lab's layout. With a template, rows from that lab can be accepted without a click when every check passes. Without one, generic rules read the report and more rows go to the review queue.
 
-1. **Create the file** `backend/src/ownhealth/ingest/pdf/vendors/<country>/<lab>.yaml`. Copy [es/labnorte.yaml](backend/src/ownhealth/ingest/pdf/vendors/es/labnorte.yaml):
+1. **Create the file** `data/vendors/<country>/<lab>.yaml`. Copy [es/labnorte.yaml](data/vendors/es/labnorte.yaml), then add it to `VENDOR_FILES` in [templates.rs](server/crates/ownhealth-ingest-pdf/src/templates.rs), which builds the templates into the binary:
 
    ```yaml
    id: es/labnorte                 # <country>/<lab>, unique
@@ -60,22 +61,22 @@ A template teaches the PDF importer one lab's layout. With a template, rows from
 
 2. **Check the fingerprint.** A template is used when its score on page 1 is 0.8 or more: every `all` word present, and enough `any` words. Pick words that appear on every report from that lab and on no other lab's.
 
-3. **Add a synthetic slip.** Real reports never enter the repo. Add a `Layout` for the lab's layout to `layouts()` in [fixtures/labslips/generate.py](fixtures/labslips/generate.py), with a made-up lab name and the Rivera family, and include the template's fingerprint words. The generator writes the PDF and its row-level ground truth.
+3. **Add a synthetic slip.** Real reports never enter the repo. Add a `Layout` for the lab's layout to `layouts()` in [generate.rs](server/crates/ownhealth-ingest-pdf/tests/support/generate.rs), with a made-up lab name and the Rivera family, and include the template's fingerprint words. The generator writes the PDF and its row-level ground truth.
 
 4. **Test it.**
 
    ```sh
-   cd backend
-   uv run pytest -q tests/pdf
+   cd server
+   cargo test -p ownhealth-ingest-pdf
    ```
 
-   [test_pdf_eval.py](backend/tests/pdf/test_pdf_eval.py) scores every slip against its ground truth: no row may be dropped, and no wrong row may be accepted without review. Add a test in `tests/pdf/` that imports your slip and asserts the rows were read by your template (`extractor` is `template:<id>`).
+   [eval.rs](server/crates/ownhealth-ingest-pdf/tests/eval.rs) scores every slip against its ground truth: no row may be dropped, and no wrong row may be accepted without review. Add a test in `server/crates/ownhealth-ingest-pdf/tests/` that imports your slip and asserts the rows were read by your template (`extractor` is `template:<id>`).
 
 ## How to add an alias
 
 An alias maps a name as a lab prints it ("Colesterol LDL", "LDL-Cholesterin") to an analyte group (`ldl_c`). The group, together with the unit, specimen and method, picks the LOINC code. A name alone never does.
 
-**For everyone, in the repo.** Add a row to the language file in [backend/src/ownhealth/normalize/terminology/aliases/](backend/src/ownhealth/normalize/terminology/aliases) (`es.tsv`, `en.tsv`, `de.tsv`, `fr.tsv`). Columns are tab-separated:
+**For everyone, in the repo.** Add a row to the language file in [data/terminology/aliases/](data/terminology/aliases) (`es.tsv`, `en.tsv`, `de.tsv`, `fr.tsv`). Columns are tab-separated:
 
 ```text
 alias	alias_group	method	source	reviewed
@@ -83,20 +84,19 @@ Colesterol LDL directo	ldl_c	direct	curated	2026-11-08
 ```
 
 - `alias`: the name exactly as printed, accents included.
-- `alias_group`: an existing group from [groups.tsv](backend/src/ownhealth/normalize/terminology/groups.tsv). Never reuse a group for a different analyte.
+- `alias_group`: an existing group from [groups.tsv](data/terminology/groups.tsv). Never reuse a group for a different analyte.
 - `method`: only when the printed name says it (`direct`, `calculated`); blank otherwise.
 - `source`: `curated`. `reviewed`: today's date.
 
-**A new analyte** also needs a row in `groups.tsv` (canonical unit, SI and conventional units, plausibility limits, English and Spanish names) and its LOINC codes in [loinc/codes.tsv](backend/src/ownhealth/normalize/terminology/loinc/codes.tsv). Then rebuild the shipped LOINC subset, which needs network access:
+**A new analyte** also needs a row in `groups.tsv` (canonical unit, SI and conventional units, plausibility limits, English and Spanish names) and its LOINC codes in [loinc/codes.tsv](data/terminology/loinc/codes.tsv). Then rebuild the shipped LOINC subset, which needs network access:
 
 ```sh
-cd backend
-uv run python src/ownhealth/normalize/terminology/loinc/build_subset.py
+python3 data/terminology/loinc/build_subset.py   # standard library only
 ```
 
-Mass-to-molar conversion needs a cited row in [molar/molar_mass.tsv](backend/src/ownhealth/normalize/terminology/molar/molar_mass.tsv).
+Mass-to-molar conversion needs a cited row in [molar/molar_mass.tsv](data/terminology/molar/molar_mass.tsv).
 
-Then run `uv run pytest -q tests/normalize`. [test_norm_tables.py](backend/tests/normalize/test_norm_tables.py) checks that every alias and every code points at a known group, and that each language covers the core panel. Do not bump a version by hand: the derivation version is a hash of these files, and every stored value records the version it was derived with.
+Then run `cargo test -p ownhealth-normalize` from `server/`. [pure.rs](server/crates/ownhealth-normalize/tests/pure.rs) checks that every alias and every code points at a known group, and that each language covers the core panel. Do not bump a version by hand: the derivation version is a hash of these files, and every stored value records the version it was derived with.
 
 **Just for your household.** In the review queue, "Add alias" on an unresolved row saves the alias for your household only and re-links the rows it matches. If it would help everyone, open a pull request with the row as above.
 

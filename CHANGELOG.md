@@ -1,7 +1,14 @@
 # Changelog
 
-## Unreleased
+## 0.2.0 (2026-11-08)
 
+The backend is now Rust: one binary with the web UI built in, in place of the Python 3.13 app. Same features, same data. Upgrade in place by changing the image tag to `drumsergio/ownhealth:0.2.0`; there are no new migrations, so a 0.1.1 database is already up to date, and passkeys, passwords, sessions and access tokens keep working. The image went from 586 MB to 348 MB unpacked (129 MB to 79 MB to download, arm64).
+
+- **Same answers.** The REST API, the MCP tools, their errors and scopes, the cookies, the blob layout and the `state_hash` of every profile are the ones 0.1.1 gave. A black-box suite of 79 tests with answers recorded from 0.1.1 passes on both releases.
+- **Stack.** axum and tokio, sqlx for Postgres, rmcp (the official Rust MCP SDK), PDFium through pdfium-render for lab PDFs, noodles for the VCF and its tabix index, webauthn-rs for passkeys.
+- **Re-imports.** A lab PDF read by 0.2.0 records `pdfium` as its extraction engine, so forcing a re-import of a document 0.1.1 read adds a new extraction run. Its rows are the same.
+- **Uploads.** A form field other than a file is refused past 1 MiB, and a form past 1000 fields or 1000 files, as 0.1.1 did.
+- **Logs.** One line per request with method, route, status and latency, never the query string. Upload leftovers in `/data/blobs/tmp` that a killed process left behind are removed after an hour.
 - **Homelab backups.** The restic repository and its S3 keys move from `.env` to `restic.env`, which only the `admin` service reads, so the app container no longer holds the keys to the backups. An install that keeps them in `.env` still works; move the lines to take them away from the app ([deploy/README.md](deploy/README.md#homelab-setup)).
 
 ## 0.1.1 (2026-11-08)

@@ -4,6 +4,10 @@ name: Release
 # :<major>.<minor> (never :latest), attach an SBOM and build provenance, sign the image with cosign
 # keyless, and copy README.md to the Docker Hub description. GitHub-hosted runners: public repo.
 #
+# Each platform builds natively on its own runner (compiling Rust under QEMU would take hours), pushes
+# by digest with its SBOM and provenance, and smoke-tests that digest (scripts/smoke-image.sh); the
+# merge job joins them into one tagged manifest list and signs it.
+#
 # Verify a published image:
 #   cosign verify drumsergio/ownhealth:<version> \
 #     --certificate-identity-regexp '^https://github.com/GeiserX/OwnHealth/.github/workflows/release.yml@refs/tags/v' \
@@ -25,11 +29,8 @@ env:
   IMAGE: drumsergio/ownhealth
 
 jobs:
-  image:
+  versions:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write # cosign keyless signing through the GitHub OIDC token
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -37,14 +38,94 @@ jobs:
         run: |
           v="${GITHUB_REF_NAME#v}"
           fail=0
-          grep -qx "version = \"$v\"" backend/pyproject.toml || { echo "::error::backend/pyproject.toml is not $v"; fail=1; }
-          grep -qx "__version__ = \"$v\"" backend/src/ownhealth/__init__.py || { echo "::error::ownhealth/__init__.py is not $v"; fail=1; }
+          # [workspace.package] version, which every crate and the binary inherit
+          [ "$(sed -n 's/^version = "\(.*\)"$/\1/p' server/Cargo.toml | head -1)" = "$v" ] || { echo "::error::server/Cargo.toml is not $v"; fail=1; }
+          grep -A1 '^name = "ownhealth"$' server/Cargo.lock | grep -qx "version = \"$v\"" || { echo "::error::server/Cargo.lock is not $v (run cargo build)"; fail=1; }
           grep -q "\"version\": \"$v\"" ui/package.json || { echo "::error::ui/package.json is not $v"; fail=1; }
           for f in compose.yaml deploy/compose.homelab.yaml; do
             grep -q "image: $IMAGE:$v\$" "$f" || { echo "::error::$f does not pin $IMAGE:$v"; fail=1; }
             if grep "image: $IMAGE:" "$f" | grep -v "image: $IMAGE:$v\$"; then echo "::error::$f pins another $IMAGE tag"; fail=1; fi
           done
           exit $fail
+
+  build:
+    needs: versions
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ${{ env.IMAGE }}
+
+      - id: build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          platforms: ${{ matrix.platform }}
+          labels: ${{ steps.meta.outputs.labels }}
+          outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
+          sbom: true
+          provenance: mode=max
+
+      # the image just pushed, on its own architecture, before the merge job tags and signs it
+      - name: Smoke test the pushed platform image
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: bash scripts/smoke-image.sh "$IMAGE@$DIGEST"
+
+      - name: Keep the digest for the merge job
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/digests"
+          touch "$RUNNER_TEMP/digests/${DIGEST#sha256:}"
+          echo "PLATFORM_PAIR=$(echo '${{ matrix.platform }}' | tr / -)" >> "$GITHUB_ENV"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: digest-${{ env.PLATFORM_PAIR }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # cosign keyless signing through the GitHub OIDC token
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          path: ${{ runner.temp }}/digests
+          pattern: digest-*
+          merge-multiple: true
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - id: meta
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
@@ -55,30 +136,35 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
 
-      - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
-      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: One manifest list for both platforms, with every tag
+        working-directory: ${{ runner.temp }}/digests
+        run: |
+          n=$(find . -type f | wc -l)
+          test "$n" -eq 2 || { echo "::error::expected 2 platform digests, got $n"; exit 1; }
+          # shellcheck disable=SC2046 # one -t per tag, one source per digest
+          docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            $(printf "$IMAGE@sha256:%s " *)
 
-      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - id: build
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-        with:
-          context: .
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          sbom: true
-          provenance: mode=max
+      - id: digest
+        name: The manifest list digest, and both platforms in it
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          docker buildx imagetools inspect "$IMAGE:$VERSION"
+          docker buildx imagetools inspect "$IMAGE:$VERSION" --format '{{json .Manifest}}' > /tmp/index.json
+          for arch in amd64 arm64; do
+            jq -e --arg a "$arch" '.manifests[] | select(.platform.os == "linux" and .platform.architecture == $a)' /tmp/index.json >/dev/null \
+              || { echo "::error::linux/$arch missing from $IMAGE:$VERSION"; exit 1; }
+          done
+          digest=$(jq -r .digest /tmp/index.json)
+          case "$digest" in sha256:*) ;; *) echo "::error::no digest for $IMAGE:$VERSION"; exit 1 ;; esac
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
 
       - uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
 
       - name: Sign the image (keyless)
         env:
-          DIGEST: ${{ steps.build.outputs.digest }}
+          DIGEST: ${{ steps.digest.outputs.digest }}
         run: cosign sign --yes "$IMAGE@$DIGEST"
 
       - name: Docker Hub description from README.md

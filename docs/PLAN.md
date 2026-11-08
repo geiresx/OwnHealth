@@ -104,7 +104,7 @@ What we take from rivals:
 
 ## Architecture at a glance
 
-One Python 3.13 process: FastAPI for the REST API, the official MCP Python SDK at `/mcp` (streamable HTTP, spec 2026-07-28 with a 2025-11-25 fallback), an in-process job loop on a Postgres queue (`SELECT ... FOR UPDATE SKIP LOCKED`), and the SvelteKit UI built to static files and served by the same process. PostgreSQL 17. Blobs are content-addressed immutable files (`blobs/sha256/ab/cd/...`). No Redis, no TimescaleDB, no JVM in core.
+One Rust binary (Python 3.13 up to 0.1.1): axum for the REST API, rmcp, the official Rust MCP SDK, at `/mcp` (streamable HTTP, spec 2026-07-28 with a 2025-11-25 fallback), an in-process job loop on a Postgres queue (`SELECT ... FOR UPDATE SKIP LOCKED`), and the SvelteKit UI built to static files and served by the same process. PostgreSQL 17. Blobs are content-addressed immutable files (`blobs/sha256/ab/cd/...`). No Redis, no TimescaleDB, no JVM in core.
 
 ```mermaid
 flowchart LR
@@ -112,8 +112,8 @@ flowchart LR
     B[Browser UI]
     A[Outside agent<br/>Claude Code, other MCP clients]
   end
-  subgraph Core["ownhealth container (Python 3.13)"]
-    API[FastAPI REST]
+  subgraph Core["ownhealth container (one Rust binary)"]
+    API[axum REST]
     MCP["MCP server /mcp"]
     J[Job loop<br/>imports, normalize, rule pack]
     UI[Static SvelteKit]

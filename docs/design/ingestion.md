@@ -287,7 +287,7 @@ Resolution order:
 
 Calculated and measured values keep separate codes and a visible marker in trends (Friedewald vs direct LDL; eGFR CKD-EPI 2009 vs 2021).
 
-Sample rows of `backend/src/ownhealth/normalize/terminology/aliases/{es,en,de,fr}.tsv` (codes marked † still to be checked against the LOINC release we ship):
+Sample rows of `data/terminology/aliases/{es,en,de,fr}.tsv` (codes marked † still to be checked against the LOINC release we ship):
 
 | alias (as printed) | lang | specimen | property | method | LOINC |
 |---|---|---|---|---|---|

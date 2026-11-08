@@ -13,8 +13,14 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  RUST_TOOLCHAIN: "1.98.1" # the Dockerfile's rust image; bump both together
+  CARGO_TERM_COLOR: always
+
 jobs:
-  backend:
+  # The server (server/): format, lints, every crate's tests against a throwaway Postgres, and the
+  # deploy checks (crates/ownhealth/tests/deploy.rs: the app role, the compose files).
+  server:
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -30,16 +36,19 @@ jobs:
           --health-retries 20
     defaults:
       run:
-        working-directory: backend
+        working-directory: server
     env:
       OWNHEALTH_TEST_ADMIN_URL: postgresql://postgres:postgres@127.0.0.1:55432/postgres
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - name: Rust ${{ env.RUST_TOOLCHAIN }}
+        run: |
+          rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --component rustfmt,clippy
+          rustup default "$RUST_TOOLCHAIN"
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
-          version: "0.11.29"
-          enable-cache: true
-      - name: PostgreSQL 17 client and restic 0.18.0, the versions the image ships (tests/ops)
+          workspaces: server
+      - name: PostgreSQL 17 client and restic 0.18.0, the versions the image ships (ownhealth-ops tests)
         working-directory: .
         run: |
           sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
@@ -48,12 +57,20 @@ jobs:
           curl -fsSL -o /tmp/restic.bz2 https://github.com/restic/restic/releases/download/v0.18.0/restic_0.18.0_linux_amd64.bz2
           echo "98f6dd8bf5b59058d04bfd8dab58e196cc2a680666ccee90275a3b722374438e  /tmp/restic.bz2" | sha256sum -c -
           bunzip2 /tmp/restic.bz2 && sudo install -m 0755 /tmp/restic /usr/local/bin/restic
-      - run: uv sync --frozen
-      - run: uv run ruff check src tests ../deploy/tests
-      - run: uv run ruff format --check src tests ../deploy/tests
-      - run: uv run pytest -q
-      - name: Deploy checks (app database role, compose files)
-        run: uv run pytest -q ../deploy/tests
+      - name: PDFium (pinned, sha256-checked)
+        working-directory: .
+        run: bash scripts/fetch-pdfium.sh linux-x64
+      # uv runs the official Python MCP SDK client (pinned in its lock file) that ownhealth-mcp's
+      # tests/python_client.rs drives against the server; the test fails in CI without it
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: "0.11.29"
+          enable-cache: true
+          cache-dependency-glob: server/crates/ownhealth-mcp/tests/py/mcp_client.py.lock
+      - run: mkdir -p static # the UI build is embedded only in release builds; tests serve their own
+      - run: cargo fmt --all --check
+      - run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - run: cargo test --workspace --locked
 
   ui:
     runs-on: ubuntu-latest
@@ -73,18 +90,37 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm run check
       - run: pnpm build
-      - run: test -f ../backend/src/ownhealth/static/index.html
+      - run: test -f ../server/static/index.html
 
-  docker:
+  # The black-box suite (contract-tests/): HTTP and MCP tests with goldens recorded from 0.1.1, on a
+  # fresh demo database in the shared test Postgres that scripts/test-db.sh starts.
+  contract:
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Rust ${{ env.RUST_TOOLCHAIN }}
+        run: |
+          rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal
+          rustup default "$RUST_TOOLCHAIN"
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: server
+      - name: PDFium (pinned, sha256-checked)
+        run: bash scripts/fetch-pdfium.sh linux-x64
+      - run: mkdir -p server/static
+      - run: bash contract-tests/run.sh rust
+
+  # Both platforms the release publishes, each on its own native runner: the arm64 PDFium build and
+  # its shared libraries are checked here, not only on a developer's machine.
+  docker:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-latest, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Build the image (no push)
         run: docker build -t drumsergio/ownhealth:ci .
-      - name: Image starts its CLI as the non-root user
-        run: |
-          test "$(docker run --rm --entrypoint id drumsergio/ownhealth:ci -u)" = "10001"
-          docker run --rm drumsergio/ownhealth:ci python -c "import pysam, ownhealth; print(pysam.__version__)"
-          docker run --rm drumsergio/ownhealth:ci test -f /app/.venv/lib/python3.13/site-packages/ownhealth/static/index.html
-          docker run --rm drumsergio/ownhealth:ci pg_dump --version | grep -q "PostgreSQL) 17\."
-          docker run --rm drumsergio/ownhealth:ci restic version
+      - name: Smoke test (non-root, tools, PDFium libraries, readyz, UI, healthcheck, backup, verify-restore)
+        run: bash scripts/smoke-image.sh drumsergio/ownhealth:ci

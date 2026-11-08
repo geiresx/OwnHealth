@@ -14,7 +14,7 @@ You run it yourself.
   <img src="docs/mockup/screenshots/01-dashboard.png" alt="OwnHealth: the family dashboard in the dark theme, with synthetic data" width="800">
 </p>
 
-**Status: pre-alpha.** v0.1 is being built. Expect breaking changes until the first release.
+**Status: pre-alpha.** Expect breaking changes before 1.0. Upgrades keep your data: see the [changelog](CHANGELOG.md).
 
 ## What it does
 
@@ -35,7 +35,7 @@ Later: email and folder inboxes, local OCR, imaging (DICOM), more wearables and 
 
 ## Quick start
 
-You need Docker with Compose v2.
+You need Docker with Compose v2. OwnHealth runs as one app container, a single Rust binary with the web UI built in (a 348 MB image), next to PostgreSQL 17.
 
 ```sh
 git clone https://github.com/GeiserX/OwnHealth.git

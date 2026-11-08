@@ -6,7 +6,7 @@ Status: plan. Nothing here is built yet.
 
 ## 1. Shape in one paragraph
 
-OwnHealth is one Python 3.13 process plus PostgreSQL 17. The process serves the REST API (FastAPI), the MCP server at `/mcp` (official MCP Python SDK, streamable HTTP), the web UI (SvelteKit built to static files) and an in-process job loop that reads a Postgres table queue. Documents and other files are content-addressed immutable blobs on disk. Clinical data lives in our own Postgres tables: each row keeps a FHIR R4-shaped JSONB copy plus typed projection columns for queries. FHIR is the format at the import and export edges only. Heavy parts are opt-in compose profiles: `ocr`, `imaging`, `wearables`. There is no embedded LLM and no chat: the outside agent talks to the MCP server.
+OwnHealth is one Rust binary plus PostgreSQL 17. The binary serves the REST API (axum), the MCP server at `/mcp` (rmcp, the official Rust MCP SDK, streamable HTTP), the web UI (SvelteKit built to static files and embedded in the binary) and an in-process job loop that reads a Postgres table queue. Up to 0.1.1 the same process was Python 3.13 with FastAPI; 0.2.0 replaced it with the Rust server and kept the schema, the API and the data as they were. Documents and other files are content-addressed immutable blobs on disk. Clinical data lives in our own Postgres tables: each row keeps a FHIR R4-shaped JSONB copy plus typed projection columns for queries. FHIR is the format at the import and export edges only. Heavy parts are opt-in compose profiles: `ocr`, `imaging`, `wearables`. There is no embedded LLM and no chat: the outside agent talks to the MCP server.
 
 ## 2. Components
 
@@ -17,9 +17,9 @@ flowchart LR
     AG[Outside agent<br/>Claude Code, other MCP clients]
   end
 
-  subgraph Core["app container (one Python process)"]
+  subgraph Core["app container (one Rust process)"]
     UI[Static SvelteKit UI]
-    API[FastAPI REST /api]
+    API[axum REST /api]
     MCP[MCP server /mcp<br/>8 tools]
     AUTHZ[authz: one permission function<br/>token scopes ∩ grant minus profile locks]
     ING[Importers<br/>PDF text layer, FHIR/IPS,<br/>Apple Health zip, genome facts, manual]
@@ -73,16 +73,16 @@ Rules that follow from the diagram:
 
 | Part | How it runs |
 |---|---|
-| HTTP server | `uvicorn` with one worker, asyncio. Routes: `/api/*`, `/mcp`, `/.well-known/*`, `/healthz`, `/readyz`, `/metrics`, and the static UI at `/` |
-| MCP | The SDK's streamable HTTP app mounted at `/mcp`. Spec 2026-07-28 is stateless (no `initialize` handshake, no `Mcp-Session-Id`), so no session affinity is needed. We keep the 2025-11-25 fallback for older clients |
-| Job loop | `N` asyncio tasks started in the FastAPI lifespan (default `N=2`). Each claims one job, runs it, commits. CPU-bound steps (pdfplumber, Apple Health XML, rollups) run in a `ProcessPoolExecutor` (default 2 processes) so they never block requests |
+| HTTP server | axum on tokio, one process. Routes: `/api/*`, `/mcp`, `/.well-known/*`, `/healthz`, `/readyz`, `/metrics`, and the static UI at `/` |
+| MCP | rmcp's streamable HTTP service mounted at `/mcp`. Spec 2026-07-28 is stateless (no `initialize` handshake, no `Mcp-Session-Id`), so no session affinity is needed. We keep the 2025-11-25 fallback for older clients |
+| Job loop | `N` tokio tasks started with the server (default `N=2`). Each claims one job, runs it, commits. CPU-bound and file-bound steps (PDF text layer, Apple Health XML, rollups, export zips) run on tokio's blocking threads so they never stall requests |
 | OCR | Not in the core image. The `ocr` profile runs the same code from the image `ownhealth-ocr` with `OWNHEALTH_ROLE=worker` and `OWNHEALTH_QUEUES=ocr`: no HTTP server, only the job loop for the `ocr` queue |
 | Scheduler | A row in `job` with `run_after` is a timer. Recurring jobs (rollups, restore check, ClinVar diff in v0.3) re-enqueue themselves on completion. No cron daemon |
-| Static UI | `adapter-static` output copied into the Python package at image build time. No Node at runtime |
+| Static UI | `adapter-static` output embedded in the release binary (`rust-embed`) at image build time. No Node at runtime |
 
 One process is enough for a family. A household has a few users and one or two agents, and the slow work goes through the queue. The stateless MCP spec means a second replica would work behind a load balancer later, but we do not plan for it.
 
-Libraries in the core: FastAPI, `mcp` (official SDK), Pydantic 2, SQLAlchemy Core with psycopg 3, Alembic, pdfplumber, pypdfium2, `prometheus-client`, `webauthn` for passkeys, `authlib` for the optional OIDC client. License of each to be checked against AGPL-3.0-or-later before v0.1 (unverified for `webauthn`).
+Libraries in the core: axum, tower and tokio; sqlx for Postgres (queries checked at run time, so the build needs no database); rmcp (official MCP SDK); pdfium-render over a pinned PDFium build loaded at run time; noodles for the bgzipped VCF and its tabix index; quick-xml for the Apple Health export; webauthn-rs for passkeys; openidconnect for the optional OIDC client; jsonschema, serde_yaml and zip. The migrations, the rule pack, the CPIC snapshot, the LOINC subset and the vendor templates are compiled into the binary.
 
 ## 4. Compose profiles
 
@@ -103,7 +103,7 @@ Tags are pinned semver at release time and never `:latest`. The version numbers 
 name: ownhealth
 services:
   app:
-    image: drumsergio/ownhealth:0.1.1
+    image: drumsergio/ownhealth:0.2.0
     restart: unless-stopped
     depends_on: { db: { condition: service_healthy } }
     environment:
@@ -183,56 +183,26 @@ volumes: { blobs: {}, backups: {}, pg: {}, orthanc: {} }
 
 ```text
 OwnHealth/
-  pyproject.toml              # name ownhealth, license AGPL-3.0-or-later, extra [ocr]
-  uv.lock
-  Dockerfile                  # core image; Dockerfile.ocr adds the OCR extra
-  compose.yaml                # the sketch above
-  src/ownhealth/
-    __main__.py               # ownhealth serve | worker | migrate | backup | restore | verify-restore | recode
-    app.py                    # FastAPI factory: mounts /api, /mcp, /metrics, static UI
-    config.py                 # env vars, *_FILE secrets
-    db/
-      schema.py               # SQLAlchemy Core table objects
-      migrations/             # Alembic, forward-only
-    auth/
-      passkeys.py  oidc.py  sessions.py  tokens.py
-      authz.py                # the one permission function
-    api/                      # REST routers, one file per area
-    mcp/
-      server.py  envelope.py  budget.py   # summary-first, cursors, token budget
-      tools/                  # one module per tool, 8 in v0.1
-    jobs/
-      loop.py  queue.py  registry.py
-      kinds/                  # one module per job kind
-    ingest/
-      pdf/ textlayer.py  tables.py             # vendor templates live in templates/labs/
-      fhir/  apple_health/  genome/  manual.py
-    ocr/                      # imported only when the [ocr] extra is installed
-    normalize/
-      loinc.py  aliases.py  ucum.py  convert.py  ranges.py  grounding.py
-    state/
-      engine.py  rules.py  render.py  canonical_json.py
-    export/  fhir_bundle.py  ips.py
-    blobs/   fs.py            # s3.py later
-    audit/   writer.py
-    observability/ metrics.py logging.py
-    static/                   # built UI, filled at image build
-  rules/ownhealth-rules/      # YAML rule pack, versioned (section 11)
-  templates/labs/<country>/<provider>.yaml   # vendor table templates, reviewed like code
-  data/terminology/
-    loinc/                    # LOINC subset + its own LICENSE and notice, unmodified
-    resolver/                 # Mirobody resolver bundle: Apache-2.0 overlays
-                              # (resolver_overrides.tsv, recall_synonyms.tsv), LOINC 2.83
-                              # content under the LOINC License, UCUM under the UCUM License;
-                              # each part keeps its own licence file
-    aliases/labs.tsv          # our multilingual analyte aliases (es, en, de, fr), one lang column
-    units/molar_mass.tsv      # per-analyte molar masses with citations
-    limits/labs.tsv           # hard plausibility limits per alias_group
+  Dockerfile                  # UI build, release binary with the UI embedded, slim runtime with PDFium
+  compose.yaml                # app, admin (migrate, app role), db
+  migrations/                 # numbered SQL, forward-only, embedded in the binary
+  data/
+    terminology/              # LOINC subset (with its notice), aliases es/en/de/fr, groups, molar masses
+    vendors/<country>/<provider>.yaml   # vendor table templates, reviewed like code
+    rules/pack/  rules/cpic/  # YAML rule pack (section 11), the CPIC snapshot
+    genome/  genome-facts/    # sensitive and carrier gene lists, the genome-facts schema
+  server/                     # cargo workspace (crate map: server/RUST-CONTRACTS.md)
+    crates/ownhealth          # the binary: serve | worker | migrate | demo-seed | healthcheck | backup | restore | verify-restore
+    crates/ownhealth-core     # config, migrations, db, blobs, jobs, audit, access, review queue
+    crates/ownhealth-api      # REST routes, one module per area
+    crates/ownhealth-mcp      # the 8 tools, PAT guard, envelope, budgets, limits
+    crates/ownhealth-auth     # passkeys, OIDC, passwords, sessions, tokens
+    crates/ownhealth-normalize  ownhealth-ingest-pdf  ownhealth-ingest-structured
+    crates/ownhealth-genome   ownhealth-rules  ownhealth-ops
+  contract-tests/             # black-box HTTP and MCP tests with goldens from 0.1.1
   ui/                         # SvelteKit, adapter-static, i18n es/en, dark default
-  tests/ unit/ property/ golden/ injection/ fhir/ authz/ state/ e2e/
-  fixtures/
-    synthetic/                # the Rivera and Ortega families, all invented
-    pdf-templates/            # sources that render golden PDFs
+  deploy/                     # homelab compose, Caddy, restic, the app database role
+  fixtures/                   # synthetic Rivera and Ortega data only
   docs/
 ```
 
@@ -855,13 +825,13 @@ Recency windows in the shipped pack: HbA1c 6 months, lipids 12 months, TSH 12 mo
 
 | Layer | What | Gate |
 |---|---|---|
-| Unit | parsers, resolver, range parser, authz function | pytest |
-| Property | unit conversion with Hypothesis: value round trip within tolerance; converting a range equals converting its ends; a dimension mismatch always raises and never returns a number; `IU` and `U` never convert into each other; comparators survive conversion; decimal comma and point parse to the same value | pytest + Hypothesis |
+| Unit | parsers, resolver, range parser, authz function | `cargo test` |
+| Property | unit conversion: value round trip within tolerance; converting a range equals converting its ends; a dimension mismatch always raises and never returns a number; `IU` and `U` never convert into each other; comparators survive conversion; decimal comma and point parse to the same value | `cargo test` |
 | Golden PDFs | lab reports rendered from `fixtures/pdf-templates/` in es, en, de and fr, each as a text-layer PDF and as a rasterised scan; expected candidate rows with bboxes in JSON | exact match for the text layer; per-field recall and precision floors for OCR |
 | Injection | white-on-white text, instructions in PDF metadata, text only in the OCR layer, instructions in a FHIR `Observation.note`, in a filename and in an email subject | free text returns over MCP with `trust: untrusted_text`; raw text needs `read:documents_text`; no tool performs an outbound action; a `propose` built from such text lands in review |
 | State engine | golden snapshot per synthetic profile; the same build run twice and under different `TZ` and `LANG` gives the same bytes; `as_of` in the past reproduces an old hash after later imports | byte compare |
 | Authz | every MCP tool × scope × role, including `tools/list` filtering and family grants intersected with token scopes | matrix test |
-| MCP contract | envelope fields present, `src` on every fact, responses under 15k tokens, cursors stable; `call_state` outside `ref`, `alt`, `no_call`, `not_on_array`, `not_covered` is rejected on import and never returned; the same `state_hash` for tokens with different `lang`, `units` and `identity_mode` | pytest against the mounted app |
+| MCP contract | envelope fields present, `src` on every fact, responses under 15k tokens, cursors stable; `call_state` outside `ref`, `alt`, `no_call`, `not_on_array`, `not_covered` is rejected on import and never returned; the same `state_hash` for tokens with different `lang`, `units` and `identity_mode` | `cargo test` against the assembled app, and `contract-tests/` over HTTP |
 | Ingestion acceptance | the golden PDFs never auto-accept a row whose value, unit or code differs from the truth file (false auto-accept rate 0) | blocks merge |
 | FHIR | import, export, import gives equal rows; exports pass the HL7 validator | CI job with the validator jar |
 | Backup | compose up, load the synthetic family, backup, restore into a fresh project, compare manifest | CI job |

@@ -1,17 +1,24 @@
-# Python
-backend/.venv/
+# Python (maintainer scripts, the MCP client contract)
 __pycache__/
 *.py[cod]
-.pytest_cache/
-.ruff_cache/
 
 # UI
 ui/node_modules/
 ui/.svelte-kit/
 # Built UI: produced by `pnpm build` and the Docker image, never committed
-backend/src/ownhealth/static/
+server/static/
 
-# Runtime data and secrets
+# Rust
+server/target/
+server/vendor/
+
+# Runtime data and secrets. data/ holds the shipped reference files; a server started from the repo
+# root or server/ keeps its own files in ./data, which stay out of git.
 /data/*
 !/data/genome-facts/
+!/data/genome/
+!/data/rules/
+!/data/terminology/
+!/data/vendors/
+server/data/
 .env

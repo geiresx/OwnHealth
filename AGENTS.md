@@ -1,6 +1,6 @@
 # AGENTS.md
 
-OwnHealth is a self-hosted personal health record: a web app that keeps a person's (and a family's) labs, records, wearables, genome and imaging in one place, and an MCP server that lets an outside agent read it. Pre-alpha: v0.1 is being built; the plan lives in `docs/`, and `CONTRACTS.md` says who owns which file and which interface.
+OwnHealth is a self-hosted personal health record: a web app that keeps a person's (and a family's) labs, records, wearables, genome and imaging in one place, and an MCP server that lets an outside agent read it. Pre-alpha: v0.1 is being built; the plan lives in `docs/`, and [server/RUST-CONTRACTS.md](server/RUST-CONTRACTS.md) maps the crates and their interfaces.
 
 ## Rules for agents
 
@@ -11,23 +11,33 @@ OwnHealth is a self-hosted personal health record: a web app that keeps a person
 - `docs/mockup/index.html` is the visual spec for the UI; the real UI must match it (palette, type, cards, chips, sparklines, layout, copy, es/en).
 - Information, not diagnosis: no imperative medical advice. Status words are OK, Watch, Out, Stale and No data.
 - Free text sent over MCP is wrapped as `untrusted_text`.
-- Database changes are new numbered SQL files in your lane's range (`CONTRACTS.md` section 7). Never edit an applied migration.
+- Database changes are new numbered SQL files in `migrations/`. Never edit an applied migration.
 - Conventional commits. Every PR runs CI and is never opened as a draft.
 - License: AGPL-3.0-or-later. Every package manifest uses that SPDX id.
 
 ## Dev commands
 
-Backend (Python 3.13, uv), from `backend/`:
+Server (Rust), from `server/`:
 
 ```sh
-../scripts/test-db.sh           # shared test Postgres 17 on 127.0.0.1:55432 (idempotent)
-uv sync                         # install
-uv run pytest -q                # each session creates and drops its own database
-uv run ruff check src tests && uv run ruff format --check src tests
-uv run ownhealth migrate        # apply migrations to OWNHEALTH_DATABASE_URL
-uv run ownhealth demo-seed      # seed the synthetic Rivera family (--force to add another)
-OWNHEALTH_DEV_AUTH=1 OWNHEALTH_DEMO=1 uv run ownhealth serve   # http://127.0.0.1:8080, MCP at /mcp
+../scripts/test-db.sh                 # shared test Postgres 17 on 127.0.0.1:55432 (idempotent)
+bash ../scripts/fetch-pdfium.sh       # the pinned PDFium for this machine, once
+mkdir -p static                       # the UI build is embedded only in release builds
+cargo test -p <crate>                 # one crate; each test creates and drops its own database
+cargo fmt --all --check && cargo clippy --workspace --all-targets --locked -- -D warnings
+cargo run -p ownhealth -- migrate     # apply migrations to OWNHEALTH_DATABASE_URL
+cargo run -p ownhealth -- demo-seed   # seed the synthetic Rivera family (--force to add another)
+OWNHEALTH_DEV_AUTH=1 OWNHEALTH_DEMO=1 cargo run -p ownhealth -- serve   # http://127.0.0.1:8080, MCP at /mcp
 ```
+
+The backup tests need pg_dump and pg_restore 17 and restic. Without a local PostgreSQL client, set
+`OWNHEALTH_PG_BINDIR=$PWD/../scripts/pg-bin` to run them inside the test container. The Python MCP
+client contract (`ownhealth-mcp/tests/python_client.rs`) needs `uv` on PATH.
+
+Contract suite, from the repo root: `bash contract-tests/run.sh rust`. Its goldens were recorded from 0.1.1.
+
+The crate map is in [server/RUST-CONTRACTS.md](server/RUST-CONTRACTS.md). Migrations live in `migrations/`, the
+shipped reference files (LOINC subset, aliases, rule pack, CPIC snapshot, vendor templates, genome lists) in `data/`.
 
 UI (SvelteKit, pnpm), from `ui/`:
 
@@ -35,7 +45,7 @@ UI (SvelteKit, pnpm), from `ui/`:
 pnpm install
 pnpm dev                        # proxies /api and /mcp to OWNHEALTH_BACKEND (default 127.0.0.1:8080)
 pnpm run check                  # svelte-check, warnings fail
-pnpm build                      # writes backend/src/ownhealth/static, served by FastAPI
+pnpm build                      # writes server/static, which the release binary embeds
 ```
 
 Container: `cp .env.example .env`, fill it in, `docker compose up -d`. The image is `drumsergio/ownhealth`; Postgres is pinned to a full 17.x version.

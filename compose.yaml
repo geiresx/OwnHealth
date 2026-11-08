@@ -6,7 +6,7 @@ name: ownhealth
 # nothing, so it cannot ALTER a table, disable a trigger, or UPDATE, DELETE or TRUNCATE the audit log.
 services:
   admin:
-    image: drumsergio/ownhealth:0.1.1
+    image: drumsergio/ownhealth:0.2.0
     build: .
     restart: "no"
     depends_on:
@@ -23,7 +23,7 @@ services:
       - ownhealth-data:/data
 
   app:
-    image: drumsergio/ownhealth:0.1.1
+    image: drumsergio/ownhealth:0.2.0
     build: .
     restart: unless-stopped
     depends_on:
