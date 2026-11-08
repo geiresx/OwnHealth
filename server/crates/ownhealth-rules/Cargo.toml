@@ -1,0 +1,42 @@
+[package]
+name = "ownhealth-rules"
+description = "Lane E: the rule pack, the state body and state_hash, status words, dashboard and drug check."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+# The genome stand-in seam (`genome::set_genome_source`) for this crate's tests.
+testing = []
+
+[dependencies]
+ownhealth-core.workspace = true
+ownhealth-normalize.workspace = true
+ownhealth-genome.workspace = true
+anyhow.workspace = true
+chrono.workspace = true
+futures.workspace = true
+hex.workspace = true
+regex.workspace = true
+rust_decimal.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+serde_yaml.workspace = true
+sha2.workspace = true
+sqlx.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+unicode-normalization.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+ownhealth-core = { workspace = true, features = ["testing"] }
+ownhealth-rules = { path = ".", features = ["testing"] }
+anyhow.workspace = true
+tokio.workspace = true
+

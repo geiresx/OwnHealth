@@ -1,0 +1,34 @@
+[package]
+name = "ownhealth-genome"
+description = "Lane D: genome-facts import, findings, tabix lookups and gating."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+ownhealth-core.workspace = true
+base64.workspace = true
+chrono.workspace = true
+futures.workspace = true
+hex.workspace = true
+jsonschema.workspace = true
+noodles.workspace = true
+regex.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+sqlx.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+ownhealth-core = { workspace = true, features = ["testing"] }
+anyhow.workspace = true
+tempfile.workspace = true
+
