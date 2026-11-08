@@ -1,0 +1,232 @@
+{
+  "generated_by": "OwnHealth 0.1.1 (Python), auth_python_rows.py",
+  "passkey": {
+    "credential_id": "GfmnPBAsCrtbfO3y_2Jh_oYOgtVdfEAVRUl-s5tEoO8",
+    "private_scalar_hex": "c193291e31e2c6e38e44d3e81a1ca6dbe75e616a932367c63903c9d31917fb4e",
+    "sign_count": 1,
+    "user_handle": "F8lLu4jyT9qMi8QpXTheBw"
+  },
+  "password": "carmen-ortega-labnorte-2026",
+  "recovery_codes": [
+    "EA3M-6ZZZ-Q856",
+    "R3H6-DA9N-H9TS",
+    "CPGB-2AZB-ARNQ",
+    "PMWZ-ECEZ-V0R2",
+    "YH5E-RFNK-V4HM",
+    "ZH40-2G4T-RVG1",
+    "F1BR-0E6F-HWGN",
+    "VNN7-0HK4-RBSB",
+    "T640-D1N4-GJQB",
+    "F3PV-D6NS-JP8W"
+  ],
+  "rows": {
+    "api_token": [
+      {
+        "created_at": "2026-11-08T13:13:33.441177+00:00",
+        "default_profile": "58a5dbb3-397a-4431-8de2-597419370c49",
+        "document_pages_per_day": 300,
+        "egress_bytes_per_day": 2000000,
+        "egress_facts_per_day": 2000,
+        "expires_at": "2027-02-06T13:13:33.366624+00:00",
+        "genome_raw_lookups_per_day": 200,
+        "id": "784d89d8-ba06-4f81-b9c3-6dd24c5709f7",
+        "identity_mode": "full",
+        "label": "Claude Desktop",
+        "lang": "es",
+        "last_used_at": null,
+        "prefix": "oh_pat_bzlUw9Bx",
+        "profile_ids": [
+          "58a5dbb3-397a-4431-8de2-597419370c49"
+        ],
+        "proposals_per_day": 50,
+        "rate_per_min": 60,
+        "revoked_at": null,
+        "scopes": [
+          "read:labs",
+          "read:summary"
+        ],
+        "secret_sha256": "\\x655ea5d6328a847c330272479259e1147cbaa9fff2b63a6b55fa412e76f44844",
+        "units": "si",
+        "user_id": "17c94bbb-88f2-4fda-8c8b-c4295d385e07"
+      }
+    ],
+    "app_user": [
+      {
+        "created_at": "2026-11-08T13:13:33.365812+00:00",
+        "disabled_at": null,
+        "display_name": "Carmen Ortega",
+        "household_id": "a0aacdac-dd35-464e-b3a2-34035a4b083c",
+        "id": "17c94bbb-88f2-4fda-8c8b-c4295d385e07",
+        "locale": "es",
+        "oidc_subject": null,
+        "password_hash": "scrypt$16384$8$1$o6t1Snlqx1uVDsfAsT5IYw==$zga3nP2cXIHg25UMEBiPbNtrH/wCHSBcOYZhHZMaytA="
+      }
+    ],
+    "household": [
+      {
+        "created_at": "2026-11-08T13:13:33.365812+00:00",
+        "id": "a0aacdac-dd35-464e-b3a2-34035a4b083c",
+        "name": "Ortega"
+      }
+    ],
+    "passkey": [
+      {
+        "created_at": "2026-11-08T13:13:33.365812+00:00",
+        "id": "\\x19f9a73c102c0abb5b7cedf2ff6261fe860e82d55d7c401545497eb39b44a0ef",
+        "label": "laptop",
+        "last_used_at": null,
+        "public_key": "\\xa5010203262001215820d25f95dc923570e67c0a15fe056d19fb8651911bde429f39c5991b2c3e97b8d2225820190b266833bf1f425f4fe765deae64facd94727e229c045608b2194c92eea82c",
+        "sign_count": 1,
+        "transports": [
+          "internal"
+        ],
+        "user_id": "17c94bbb-88f2-4fda-8c8b-c4295d385e07"
+      }
+    ],
+    "profile": [
+      {
+        "birth_date": null,
+        "country": null,
+        "created_at": "2026-11-08T13:13:33.365812+00:00",
+        "deceased": false,
+        "display_name": "Carmen Ortega",
+        "genome_sensitive_agents": false,
+        "genome_sensitive_ui": false,
+        "household_id": "a0aacdac-dd35-464e-b3a2-34035a4b083c",
+        "id": "58a5dbb3-397a-4431-8de2-597419370c49",
+        "locks": [],
+        "relationship": "self",
+        "sex_at_birth": null,
+        "slug": "carmen",
+        "unit_pref": "si",
+        "user_id": "17c94bbb-88f2-4fda-8c8b-c4295d385e07"
+      }
+    ],
+    "profile_grant": [
+      {
+        "break_glass": false,
+        "categories": [
+          "read:documents_text",
+          "read:genome",
+          "read:genome_raw",
+          "read:labs",
+          "read:records",
+          "read:sensitive",
+          "read:summary",
+          "read:vitals",
+          "read:wearables",
+          "write:propose"
+        ],
+        "expires_at": null,
+        "granted_at": "2026-11-08T13:13:33.365812+00:00",
+        "granted_by": null,
+        "profile_id": "58a5dbb3-397a-4431-8de2-597419370c49",
+        "role": "owner",
+        "user_id": "17c94bbb-88f2-4fda-8c8b-c4295d385e07"
+      }
+    ],
+    "recovery_code": [
+      {
+        "code_sha256": "\\x7d76cd5ab4016cd21d37346a29d65117a356d68592ad27d149209aa8fd8f3c01",
+        "created_at": "2026-11-08T13:13:33.365812+00:00",
+        "id": "f5d5fd54-b525-4255-a75b-e44e122af936",
+        "used_at": null,
+        "user_id": "17c94bbb-88f2-4fda-8c8b-c4295d385e07"
+      },
+      {
+        "code_sha256": "\\x9a572b3e16732885b3ba0a16002d336ab0780bc9621585fafc00a65b2f888fb6",
+        "created_at": "2026-11-08T13:13:33.365812+00:00",
+        "id": "7b13366a-8b49-499b-a55d-a0129105c7f2",
+        "used_at": null,
+        "user_id": "17c94bbb-88f2-4fda-8c8b-c4295d385e07"
+      },
+      {
+        "code_sha256": "\\x8fafcd80b1194d77143de8845a0f639e6acc6a476306ea13cdc3ad80d0f32b41",
+        "created_at": "2026-11-08T13:13:33.365812+00:00",
+        "id": "96b08966-4593-4d17-8e16-0a60accb26a9",
+        "used_at": null,
+        "user_id": "17c94bbb-88f2-4fda-8c8b-c4295d385e07"
+      },
+      {
+        "code_sha256": "\\xb5ea3e90a1b6f23559a9725d506fda57d9fd6d84ac5c5212850bee7e21a9ef52",
+        "created_at": "2026-11-08T13:13:33.365812+00:00",
+        "id": "f5890174-4709-41fa-8122-31346419bc90",
+        "used_at": null,
+        "user_id": "17c94bbb-88f2-4fda-8c8b-c4295d385e07"
+      },
+      {
+        "code_sha256": "\\x7a7b75aead7d2329b504c5443f944ead4c9b66c5a26dc5780cb78bc6d63a26d4",
+        "created_at": "2026-11-08T13:13:33.365812+00:00",
+        "id": "f5f54f1b-f00b-407b-a002-0ca13d0b9d97",
+        "used_at": null,
+        "user_id": "17c94bbb-88f2-4fda-8c8b-c4295d385e07"
+      },
+      {
+        "code_sha256": "\\xc68dc6122d9b0879ff95d86ecd801ec0626006e9e9575aa08cac547fbdae28b5",
+        "created_at": "2026-11-08T13:13:33.365812+00:00",
+        "id": "6bc5a2f5-ea67-412d-9be8-059709e5ba91",
+        "used_at": null,
+        "user_id": "17c94bbb-88f2-4fda-8c8b-c4295d385e07"
+      },
+      {
+        "code_sha256": "\\x54f0058b167c99f5ef219c7333df917865cd8d6f2d5527e0c6ec3189dd9b843e",
+        "created_at": "2026-11-08T13:13:33.365812+00:00",
+        "id": "f365c8b9-4f30-470c-bc5c-88b03bb9ae40",
+        "used_at": null,
+        "user_id": "17c94bbb-88f2-4fda-8c8b-c4295d385e07"
+      },
+      {
+        "code_sha256": "\\x846fc0944af68835361096fd71d101786f50027ba93f357337b6a60de5527452",
+        "created_at": "2026-11-08T13:13:33.365812+00:00",
+        "id": "ae196fdf-7be1-4bb6-ad97-ceb673cf9ccf",
+        "used_at": null,
+        "user_id": "17c94bbb-88f2-4fda-8c8b-c4295d385e07"
+      },
+      {
+        "code_sha256": "\\x13180e2c774a6d1553fbb7e7f94dbb7ebc71a8a1ed537d8c46177561d95a45e0",
+        "created_at": "2026-11-08T13:13:33.365812+00:00",
+        "id": "7a27482a-c002-4474-9d1b-aa37b2cd88ed",
+        "used_at": null,
+        "user_id": "17c94bbb-88f2-4fda-8c8b-c4295d385e07"
+      },
+      {
+        "code_sha256": "\\x7911486c6727e34c82f5d7c580bfbe76192270f4f9cc641d01c44d3cf17e1b4e",
+        "created_at": "2026-11-08T13:13:33.365812+00:00",
+        "id": "252e0ca0-4a1e-4a51-9902-03bc6152096f",
+        "used_at": null,
+        "user_id": "17c94bbb-88f2-4fda-8c8b-c4295d385e07"
+      }
+    ],
+    "user_session": [
+      {
+        "created_at": "2026-11-08T13:13:33.365812+00:00",
+        "expires_at": "2026-11-09T01:13:33.307815+00:00",
+        "id": "555c3a71-d908-4766-9514-a601ceb42ede",
+        "ip": null,
+        "last_seen_at": "2026-11-08T13:13:33.365812+00:00",
+        "method": "passkey",
+        "revoked_at": null,
+        "secret_sha256": "\\x1814fd1b830f62b1c4a9136b15ed816da134a624cc21e5763bf8cf0a403a29cd",
+        "step_up_at": "2026-11-08T13:13:33.30782+00:00",
+        "user_agent": "testclient",
+        "user_id": "17c94bbb-88f2-4fda-8c8b-c4295d385e07"
+      },
+      {
+        "created_at": "2026-11-08T13:13:33.441177+00:00",
+        "expires_at": "2026-11-09T01:13:33.359603+00:00",
+        "id": "900ca8d2-a347-48aa-978c-779564de306d",
+        "ip": null,
+        "last_seen_at": "2026-11-08T13:13:33.441177+00:00",
+        "method": "passkey",
+        "revoked_at": null,
+        "secret_sha256": "\\xb8c57ceecf16f85064c6c835304512d65b74a272bf8ce63161e944e3fb9da1f2",
+        "step_up_at": "2026-11-08T13:13:33.35961+00:00",
+        "user_agent": "python 0.1.1",
+        "user_id": "17c94bbb-88f2-4fda-8c8b-c4295d385e07"
+      }
+    ]
+  },
+  "session_secret": "IJhw3wljimpcVJG-57H-rG4bkuSQVhPiGhGQbWvkspk",
+  "token_plaintext": "oh_pat_bzlUw9Bx_E7BPzO3GikrajTyfGgxdj_K7WeMx3eqWe3rjE8kpJi4",
+  "user_id": "17c94bbb-88f2-4fda-8c8b-c4295d385e07"
+}

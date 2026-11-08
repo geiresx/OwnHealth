@@ -1,0 +1,42 @@
+[package]
+name = "ownhealth-api"
+description = "Lane I: the REST surface under /api: error mapping, extractors, and every area's router."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+ownhealth-core.workspace = true
+ownhealth-auth.workspace = true
+ownhealth-genome.workspace = true
+ownhealth-ingest-pdf.workspace = true
+ownhealth-ingest-structured.workspace = true
+ownhealth-mcp.workspace = true
+ownhealth-normalize.workspace = true
+ownhealth-ops.workspace = true
+ownhealth-rules.workspace = true
+axum.workspace = true
+axum-extra.workspace = true
+chrono.workspace = true
+http.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sqlx.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+tracing.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+ownhealth-auth = { workspace = true, features = ["testing"] }
+ownhealth-core = { workspace = true, features = ["testing"] }
+anyhow.workspace = true
+regex.workspace = true
+tempfile.workspace = true
+tokio.workspace = true
+tower.workspace = true
