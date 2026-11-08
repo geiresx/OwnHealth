@@ -1,0 +1,113 @@
+[workspace]
+resolver = "3"
+members = ["crates/*", "../contract-tests"]
+
+[workspace.package]
+version = "0.2.0"
+edition = "2024"
+rust-version = "1.94"
+license = "AGPL-3.0-or-later"
+repository = "https://github.com/GeiserX/OwnHealth"
+publish = false
+
+[workspace.dependencies]
+# the workspace crates
+ownhealth-core = { path = "crates/ownhealth-core" }
+ownhealth-normalize = { path = "crates/ownhealth-normalize" }
+ownhealth-ingest-pdf = { path = "crates/ownhealth-ingest-pdf" }
+ownhealth-ingest-structured = { path = "crates/ownhealth-ingest-structured" }
+ownhealth-genome = { path = "crates/ownhealth-genome" }
+ownhealth-rules = { path = "crates/ownhealth-rules" }
+ownhealth-mcp = { path = "crates/ownhealth-mcp" }
+ownhealth-auth = { path = "crates/ownhealth-auth" }
+ownhealth-ops = { path = "crates/ownhealth-ops" }
+ownhealth-api = { path = "crates/ownhealth-api" }
+
+# runtime and web
+tokio = { version = "1.54", features = ["rt-multi-thread", "macros", "signal", "time", "sync", "fs", "process", "io-util"] }
+tokio-util = { version = "0.7", features = ["io"] }
+futures = "0.3"
+axum = { version = "0.8", features = ["multipart", "macros"] }
+axum-extra = { version = "0.12", features = ["cookie", "query"] }
+tower = { version = "0.5", features = ["util"] }
+tower-http = { version = "0.7", features = ["trace", "set-header", "limit"] }
+http = "1"
+mime_guess = "2"
+rust-embed = { version = "8.13", features = ["include-exclude"] }
+reqwest = { version = "0.13", default-features = false, features = ["rustls", "json"] }
+
+# database
+sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "tls-rustls", "postgres", "uuid", "chrono", "rust_decimal", "json", "ipnet", "derive"] }
+
+# data
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+serde_yaml = "0.9"
+uuid = { version = "1.29", features = ["v4", "serde"] }
+chrono = { version = "0.4.45", default-features = false, features = ["std", "clock", "serde"] }
+rust_decimal = { version = "1.43", features = ["serde-with-str", "maths"] }
+jsonschema = { version = "0.60", default-features = false }
+regex = "1"
+indexmap = { version = "2", features = ["serde"] }
+ipnet = "2"
+num-bigint = "0.4"
+num-rational = "0.4"
+num-traits = "0.2"
+unicode-normalization = "0.1"
+
+# hashing and secrets
+sha2 = "0.11"
+hmac = "0.13"
+hex = "0.4"
+base64 = "0.22"
+rand = "0.10"
+scrypt = { version = "0.12", default-features = false }
+subtle = "2"
+
+# auth
+webauthn-rs = { version = "0.6", features = ["danger-allow-state-serialisation", "danger-credential-internals", "conditional-ui"] }
+serde_cbor_2 = "0.13"
+openidconnect = { version = "4.1", default-features = false }
+
+# mcp
+rmcp = { version = "3.9", features = ["server", "transport-streamable-http-server", "macros"] }
+schemars = "1"
+
+# ingest
+pdfium-render = { version = "0.9.5", default-features = false, features = ["thread_safe", "pdfium_8125"] }
+quick-xml = "0.42"
+zip = { version = "9", default-features = false, features = ["deflate"] }
+noodles = { version = "0.119", features = ["bgzf", "core", "csi", "tabix", "vcf"] }
+flate2 = "1.1"
+
+# tests
+proptest = { version = "1.8", default-features = false, features = ["std"] }
+tempfile = "3"
+
+# errors, cli, logs
+thiserror = "2"
+anyhow = "1"
+clap = { version = "4.6", features = ["derive"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+unwrap_used = "warn"
+
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+debug = false
+
+# scrypt N=16384 takes about a second per hash unoptimised; the password tests spend most of their time there
+[profile.dev.package.scrypt]
+opt-level = 3
+
+[profile.release]
+lto = "thin"
+codegen-units = 4
+strip = "debuginfo"

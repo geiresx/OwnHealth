@@ -1,0 +1,5 @@
+# Under serde_json's preserve_order, Map::remove is swap_remove: it moves the last key into the
+# hole, so an answer's keys stop matching 0.1.1's order. Use shift_remove (or swap_remove on purpose).
+disallowed-methods = [
+    { path = "serde_json::Map::remove", reason = "swap_remove under preserve_order; use shift_remove" },
+]

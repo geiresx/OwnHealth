@@ -1,0 +1,37 @@
+{
+ "input": {
+  "schema": "ownhealth.state/1",
+  "profile": {
+   "slug": "alex",
+   "display_name": "Alex Rivera",
+   "id": "00000000-0000-4000-8000-000000000001"
+  },
+  "as_of": "2026-11-07",
+  "generated_from": "2026-11-07T08:00:00+00:00",
+  "labs": [
+   {
+    "alias_group": "ldl_c",
+    "value": "97",
+    "ref_high": "130.0",
+    "ratio": "1E-7",
+    "src_ids": [
+     "src_a12",
+     "src_a07"
+    ]
+   }
+  ],
+  "notes": "Línea 1\nTab\there \"quoted\" back\\slash \u0001\u001f   é 😀 ñ",
+  "😀key": 1,
+  "￿key": 2,
+  "Zeta": true,
+  "alpha": false,
+  "none": null,
+  "n": -12,
+  "big": 12345678901234567890,
+  "empty": {},
+  "list": [],
+  "state_hash": "ignored"
+ },
+ "canonical": "{\"Zeta\":true,\"alpha\":false,\"as_of\":\"2026-11-07\",\"big\":12345678901234567890,\"empty\":{},\"generated_from\":\"2026-11-07T08:00:00+00:00\",\"labs\":[{\"alias_group\":\"ldl_c\",\"ratio\":\"1E-7\",\"ref_high\":\"130.0\",\"src_ids\":[\"src_a12\",\"src_a07\"],\"value\":\"97\"}],\"list\":[],\"n\":-12,\"none\":null,\"notes\":\"Línea 1\\nTab\\there \\\"quoted\\\" back\\\\slash \\u0001\\u001f   é 😀 ñ\",\"profile\":{\"display_name\":\"Alex Rivera\",\"id\":\"00000000-0000-4000-8000-000000000001\",\"slug\":\"alex\"},\"schema\":\"ownhealth.state/1\",\"😀key\":1,\"￿key\":2}",
+ "state_hash": "sha256:e35c09fa0f396966dbf7dbdb0871080b34636dfea9f3784aae7a95d9ae11c842"
+}
