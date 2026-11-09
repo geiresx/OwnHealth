@@ -103,7 +103,9 @@ export interface ReviewItem {
 		| 'genome_reinterpretation'
 		| 'job_failed'
 		| 'pending_document'
-		| 'restore_check_failed';
+		| 'restore_check_failed'
+		| 'near_duplicate'
+		| 'encrypted_document';
 	profile_id: Uuid | null;
 	status: 'open' | 'accepted' | 'rejected' | 'dismissed';
 	reasons: string[];
@@ -115,6 +117,8 @@ export interface ReviewItem {
 	row_conf: number | null;
 	proposed_by_token: Uuid | null;
 	context_src_ids: string[] | null;
+	/** v0.2: documents the proposing token read in the hour before (when the server sends them). */
+	context_documents?: Uuid[] | null;
 	decided_by: Uuid | null;
 	decided_at: IsoDateTime | null;
 	decision_reason: string | null;

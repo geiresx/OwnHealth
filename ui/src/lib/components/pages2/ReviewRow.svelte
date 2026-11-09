@@ -4,6 +4,8 @@
 	import type { Check, ReviewItem } from '#lib/api/types';
 	import { i18n, t } from '#lib/i18n/index.svelte';
 	import { tf } from '#lib/components/pages1/util.svelte';
+	import AgentContext from '#lib/components/inbox/AgentContext.svelte';
+	import { rowGrounding } from '#lib/logic/inbox';
 
 	type Obs = Record<string, string | number | null | undefined>;
 	let {
@@ -17,7 +19,8 @@
 		onaccept,
 		onreject,
 		ondiscard,
-		onalias
+		onalias,
+		docName = () => ''
 	}: {
 		item: ReviewItem;
 		selected?: boolean;
@@ -30,16 +33,26 @@
 		onreject: (reason: string) => void;
 		ondiscard: () => void;
 		onalias: (body: { alias_group: string; loinc: string | null }) => void;
+		docName?: (id: string) => string;
 	} = $props();
 
 	const pl = $derived(item.payload as { observation?: Obs; checks?: Check[]; cells?: Record<string, { text?: string }> });
 	const obs = $derived(pl.observation ?? {});
-	const failed = $derived((pl.checks ?? []).filter((c) => !c.ok));
+	const failed = $derived((pl.checks ?? []).filter((c) => !c.ok && !GROUNDING_REASONS.includes(c.reason ?? '')));
 	const quarantined = $derived(item.reasons.includes('possible_injection'));
 	const unknownName = $derived(item.reasons.some((r) => r === 'loinc_unknown' || r === 'unmapped'));
 	const conf = $derived(item.row_conf ?? 0);
 	const lowConf = $derived(item.row_conf != null && item.row_conf < threshold);
-	const tone = $derived(quarantined ? 'bad' : item.reasons.length || lowConf ? 'low' : '');
+	// v0.2: a value not found in the page's word layer is red (confidence 0); a page with no word layer
+	// (a scan while OCR is off) is amber, and the person compares each digit with the page image.
+	const grounding = $derived(rowGrounding(item));
+	const wordLayer = $derived((item.payload as { word_layer?: string }).word_layer ?? null);
+	const agent = $derived(item.kind === 'agent_proposal' || item.proposed_by_token != null);
+	const tone = $derived(
+		quarantined || grounding === 'ungrounded' ? 'bad' : item.reasons.length || lowConf || grounding === 'no_word_layer' ? 'low' : agent ? 'agent' : ''
+	);
+	// The grounding reasons have their own line below; keep them out of the generic check list.
+	const GROUNDING_REASONS = ['not_grounded', 'ungrounded_no_word_layer'];
 	const printed = $derived([obs.printed_value, obs.printed_unit].filter(Boolean).join(' '));
 	const canonical = $derived(obs.value_canonical != null ? `${obs.value_canonical} ${obs.unit_canonical ?? ''}`.trim() : '');
 	const rowText = $derived(Object.values(pl.cells ?? {}).map((c) => c.text ?? '').join(' · '));
@@ -71,7 +84,6 @@
 	const isCode = (d: string) => /^[\w:.-]+$/.test(d.trim()) && !/\s/.test(d.trim());
 	const msg = (c: Check) => label(c) ?? (c.detail && !isCode(c.detail) ? c.detail : t('i2_reason_other'));
 	const extra = (c: Check) => (i18n.lang === 'en' && c.detail && label(c) && !isCode(c.detail) ? c.detail : '');
-	const agent = $derived(item.kind === 'agent_proposal' || item.proposed_by_token != null);
 	const id = $derived(`rr-${item.id.slice(0, 8)}`);
 </script>
 
@@ -108,10 +120,18 @@
 	{#each failed as c, i (i)}
 		<div class="why" style="color:{quarantined ? 'var(--out)' : 'var(--watch)'}" title={c.detail ?? undefined}>{quarantined ? '⚠' : '●'} {msg(c)}{#if extra(c)}<span class="dim"> · {extra(c)}</span>{/if}</div>
 	{/each}
-	{#if agent}
-		<div class="why" style="color:var(--accent)">◆ {t('i2_row_agent')}</div>
+	{#if grounding === 'ungrounded'}
+		<div class="why" style="color:var(--out)" role="note">✕ {t('fu_ungrounded')}</div>
+	{:else if grounding === 'no_word_layer'}
+		<div class="why" style="color:var(--watch)" role="note">● {t('fu_no_word_layer')}</div>
 	{/if}
-	{#if !failed.length && lowConf}
+	{#if agent}
+		<div class="why" style="color:var(--accent)">◆ {t('i2_row_agent')}{#if grounding === 'grounded'} · {tf('fu_grounded', { p: Number((item.payload as { page_no?: number }).page_no ?? 1) })}{/if}</div>
+		<div class="why"><AgentContext {item} {docName} /></div>
+	{:else if wordLayer === 'ocr' || wordLayer === 'paperless_ocr'}
+		<div class="why dim">{t(wordLayer === 'ocr' ? 'fu_wl_ocr' : 'fu_wl_paperless')}{#if grounding === 'grounded'} · {tf('fu_grounded', { p: Number((item.payload as { page_no?: number }).page_no ?? 1) })}{/if}</div>
+	{/if}
+	{#if !failed.length && lowConf && grounding !== 'ungrounded'}
 		<div class="why" style="color:var(--watch)">● {tf('i2_low_conf', { c: conf.toFixed(2), t: threshold.toFixed(2) })}</div>
 	{/if}
 	{#if unknownName && !quarantined && mode !== 'alias'}

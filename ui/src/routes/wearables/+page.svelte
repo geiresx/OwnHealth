@@ -2,11 +2,12 @@
 	// Wearables (mockup screen #wearables): daily rollups from GET /profiles/{p}/wearables/summary (lane C),
 	// one chart per metric with its average, its coverage and the days it is missing.
 	import { getWearables } from '#lib/api';
+	import { getCgmSummary, type CgmSummary } from '#lib/api/inbox';
+	import PhaseChip from '#lib/components/PhaseChip.svelte';
 	import type { WearableMetric, WearablesSummary } from '#lib/api/types';
 	import { C } from '#lib/components/colors';
 	import NotReady from '#lib/components/pages1/NotReady.svelte';
 	import { Loader, tf, tp } from '#lib/components/pages1/util.svelte';
-	import PhaseChip from '#lib/components/PhaseChip.svelte';
 	import TrendChart from '#lib/components/TrendChart.svelte';
 	import { axisTicks } from '#lib/logic/axis';
 	import { fmtNum, i18n, t } from '#lib/i18n/index.svelte';
@@ -26,13 +27,23 @@
 
 	const profile = $derived(currentProfile());
 	const w = new Loader<WearablesSummary>();
+	const cgm = new Loader<CgmSummary>();
 	let days = $state(30);
 
 	function load() {
 		const slug = profile?.slug;
 		const lang = i18n.lang;
 		if (slug) w.run(() => getWearables(slug, lang), slug);
+		if (slug) cgm.run(() => getCgmSummary(slug), slug);
 	}
+	// The five consensus ranges, very low to very high, as one stacked bar.
+	const CGM_BANDS: [keyof CgmSummary, string, string][] = [
+		['very_low_pct', 'h1_cgm_vlow', '#c0392b'],
+		['low_pct', 'h1_cgm_low', '#e58f96'],
+		['in_range_pct', 'h1_cgm_in', '#3fb68b'],
+		['high_pct', 'h1_cgm_high', '#e0b252'],
+		['very_high_pct', 'h1_cgm_vhigh', '#d9822b']
+	];
 	$effect(load);
 
 	const rank = (m: WearableMetric) => (ORDER.includes(m.metric) ? ORDER.indexOf(m.metric) : ORDER.length);
@@ -139,8 +150,56 @@
 			</div>
 		{/each}
 		<div class="card">
-			<h3>{t('h1_cgm')}<span class="r"><PhaseChip phase="v0.2" /></span></h3>
-			<div class="empty">{t('h1_cgm_d')}</div>
+			<h3>{t('h1_cgm')}<span class="r">{t('h1_cgm_window')}</span></h3>
+			{#if cgm.data && cgm.data.readings > 0}
+				{@const g = cgm.data}
+				<div class="cgm">
+					<div><div class="dim">{t('h1_cgm_tir')}</div><b class="num">{g.in_range_pct == null ? '—' : fmtNum(g.in_range_pct, 1) + ' %'}</b></div>
+					<div><div class="dim">{t('h1_cgm_mean')}</div><b class="num">{g.mean_mg_dl == null ? '—' : fmtNum(g.mean_mg_dl, 0) + ' mg/dL'}</b></div>
+					<div><div class="dim">GMI</div><b class="num">{g.gmi_percent == null ? '—' : fmtNum(g.gmi_percent, 1) + ' %'}</b></div>
+					<div><div class="dim">{t('h1_cgm_wear')}</div><b class="num">{fmtNum(g.wear_fraction * 100, 0)} %</b></div>
+				</div>
+				<div class="tir" role="img" aria-label={t('h1_cgm_tir')}>
+					{#each CGM_BANDS as [k, label, color] (k)}
+						{@const v = Number(g[k] ?? 0)}
+						{#if v > 0}<span style="width:{v}%;background:{color}" title="{t(label)}: {fmtNum(v, 1)} %"></span>{/if}
+					{/each}
+				</div>
+				<div class="dim" style="font-size:11px;display:flex;flex-wrap:wrap;gap:8px">
+					{#each CGM_BANDS as [k, label, color] (k)}<span><i style="background:{color}"></i>{t(label)} {fmtNum(Number(g[k] ?? 0), 1)} %</span>{/each}
+				</div>
+				{#if !g.valid}<div class="note" style="margin-top:6px">{t('h1_cgm_bad_' + (g.invalid_reason ?? 'no_readings'))}</div>{/if}
+			{:else}
+				<div class="empty">{t('h1_cgm_d')}</div>
+			{/if}
 		</div>
 	</div>
 {/if}
+
+<style>
+	.cgm {
+		display: grid;
+		grid-template-columns: repeat(4, 1fr);
+		gap: 8px;
+		font-size: 12px;
+		margin: 6px 0 10px;
+	}
+	.cgm b {
+		font-size: 18px;
+	}
+	.tir {
+		display: flex;
+		height: 12px;
+		border-radius: 6px;
+		overflow: hidden;
+		background: var(--raised);
+		margin-bottom: 6px;
+	}
+	.dim i {
+		display: inline-block;
+		width: 8px;
+		height: 8px;
+		border-radius: 2px;
+		margin-right: 4px;
+	}
+</style>

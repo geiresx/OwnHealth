@@ -238,3 +238,19 @@ pre.code{background:#0b0d11;border:1px solid var(--line);border-radius:8px;paddi
 .empty{color:var(--muted);font-size:12.5px;padding:18px 4px;text-align:center}
 .err{color:var(--out);font-size:12.5px}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* v0.2 (lane F-ui): a phone layout for the shell, so the share screen and the inbox work on Android.
+   The sidebar becomes one scrolling row of views; the profile list and the search hide. */
+@media (max-width:760px){
+.app{grid-template-columns:1fr;grid-template-rows:auto 1fr;height:auto;min-height:100vh}
+.side{flex-direction:row;align-items:center;overflow-x:auto;overflow-y:hidden;padding:8px;gap:6px;border-right:0;border-bottom:1px solid var(--line)}
+.side .plabel,.side .profiles,.side .foot,.brand small{display:none}
+.brand{padding:0 4px}
+nav.menu{flex-direction:row}
+nav.menu a{white-space:nowrap}
+.main{height:auto}
+.top{gap:8px;padding:0 10px}
+.top .search,.top .asof{display:none}
+.view{padding:12px}
+.ph{flex-wrap:wrap}
+.ph .right{margin-left:0;flex-wrap:wrap}
+}

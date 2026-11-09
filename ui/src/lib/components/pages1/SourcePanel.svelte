@@ -4,6 +4,7 @@
 	import { getDocument, getSource, pageImageUrl } from '#lib/api';
 	import type { DocumentDetail, SourceDetail } from '#lib/api/types';
 	import { t } from '#lib/i18n/index.svelte';
+	import { paperlessLink } from '#lib/logic/inbox';
 	import NotReady from './NotReady.svelte';
 	import { sourcePanel } from './source.svelte';
 	import { Loader } from './util.svelte';
@@ -71,6 +72,7 @@
 					{/if}
 					{#if s.location}<tr><td class="dim">{t('h1_src_page')}</td><td class="num">{s.location.page}{s.document?.pages ? ' / ' + s.document.pages : ''}</td></tr>{/if}
 					{#if s.import_ref}<tr><td class="dim">{t('h1_src_ref')}</td><td class="mono" style="font-size:11px;word-break:break-all">{s.import_ref}</td></tr>{/if}
+					{#if paperlessLink(doc?.flags)}<tr><td class="dim">Paperless</td><td><a href={paperlessLink(doc?.flags)} target="_blank" rel="noopener noreferrer">{t('fu_open_paperless')} ↗</a></td></tr>{/if}
 				</tbody>
 			</table>
 			{#if s.status === 'gone'}<div class="note" style="margin-top:8px">{t('h1_src_gone')}</div>{/if}

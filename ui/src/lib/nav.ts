@@ -1,4 +1,4 @@
-// The ten screens of the mockup, in its order, with its icons. Paths are the real app's routes.
+// The ten screens of the mockup, in its order, with its icons, plus the v0.2 Inbox. Paths are the real app's routes.
 export interface NavItem {
 	path: string;
 	key: string; // i18n key of the label
@@ -36,6 +36,13 @@ export const NAV: NavItem[] = [
 		mockup: 'import-review',
 		icon: '<path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 17v3h16v-3"/>',
 		countFromReview: true
+	},
+	// v0.2: the inbox registry and the quarantine (not a mockup screen; its tiles sit on #import-review).
+	{
+		path: '/inbox',
+		key: 'fu_inbox',
+		mockup: 'import-review',
+		icon: '<path d="M4 13h4l2 3h4l2-3h4"/><path d="M5 5h14l1 8v6H4v-6z"/>'
 	},
 	{
 		path: '/family',

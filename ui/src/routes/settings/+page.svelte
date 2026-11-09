@@ -24,6 +24,7 @@
 	import { Loader, tf } from '#lib/components/pages1/util.svelte';
 	import StepUpDialog from '#lib/components/pages2/StepUpDialog.svelte';
 	import Switch from '#lib/components/pages2/Switch.svelte';
+	import ConnectedApps from '#lib/components/inbox/ConnectedApps.svelte';
 	import { ago, day } from '#lib/components/pages2/fmt';
 	import { withStepUp } from '#lib/components/pages2/stepup.svelte';
 	import { createPasskey } from '#lib/components/pages2/webauthn';
@@ -164,6 +165,7 @@
 			{/if}
 			<div class="p2row" style="margin-top:8px"><button class="btn" onclick={regen} disabled={busy}>{t('i2_rc_new')}</button></div>
 		</section>
+		<ConnectedApps profiles={app.me?.profiles ?? []} />
 		<section class="card" style="padding:8px 6px 2px">
 			<h3 style="padding:0 8px">{t('i2_grants')}<span class="r">{t('i2_grants_d')}</span></h3>
 			{#if hh.error}
@@ -265,5 +267,15 @@
 		display: grid;
 		grid-template-columns: minmax(0, 1fr) 400px;
 		gap: 14px;
+	}
+	@media (max-width: 760px) {
+		.cols {
+			grid-template-columns: minmax(0, 1fr);
+		}
+		.cols > :global(*),
+		.cols :global(section.card) {
+			min-width: 0;
+			overflow-x: auto;
+		}
 	}
 </style>
