@@ -91,25 +91,41 @@ fn zone() -> Option<&'static str> {
         .as_deref()
 }
 
+/// Whether OWNHEALTH_TIMEZONE is known to Postgres: 0 unchecked, 1 known, 2 unknown.
+static CHECKED_ZONE: AtomicU8 = AtomicU8::new(0);
+
 /// The day in the install's timezone (OWNHEALTH_TIMEZONE, default UTC); budgets reset at 00:00.
 /// Postgres holds the zone database, so the date comes from it; an unknown zone falls back to UTC.
 pub async fn today(conn: &mut PgConnection) -> Result<NaiveDate> {
-    // 0 unchecked, 1 known to Postgres, 2 unknown
-    static CHECKED: AtomicU8 = AtomicU8::new(0);
     let Some(tz) = zone() else {
         return Ok(Utc::now().date_naive());
     };
-    if CHECKED.load(Ordering::Relaxed) == 0 {
+    if CHECKED_ZONE.load(Ordering::Relaxed) == 0 {
         let known: bool = sqlx::query_scalar("select exists (select 1 from pg_timezone_names where name = $1)")
             .bind(tz)
             .fetch_one(&mut *conn)
             .await?;
-        CHECKED.store(if known { 1 } else { 2 }, Ordering::Relaxed);
+        CHECKED_ZONE.store(if known { 1 } else { 2 }, Ordering::Relaxed);
     }
-    if CHECKED.load(Ordering::Relaxed) != 1 {
+    if CHECKED_ZONE.load(Ordering::Relaxed) != 1 {
         return Ok(Utc::now().date_naive());
     }
     Ok(sqlx::query_scalar("select (now() at time zone $1)::date")
+        .bind(tz)
+        .fetch_one(conn)
+        .await?)
+}
+
+/// When the install's current day began (00:00 in OWNHEALTH_TIMEZONE, UTC when unset or unknown), for
+/// counters kept in the audit log (`get_document_page`'s page cap).
+pub async fn day_start(conn: &mut PgConnection) -> Result<DateTime<Utc>> {
+    let day = today(&mut *conn).await?;
+    let tz = match zone() {
+        Some(z) if CHECKED_ZONE.load(Ordering::Relaxed) == 1 => z,
+        _ => "UTC",
+    };
+    Ok(sqlx::query_scalar("select ($1::date)::timestamp at time zone $2")
+        .bind(day)
         .bind(tz)
         .fetch_one(conn)
         .await?)

@@ -220,10 +220,12 @@ async fn tools_list_is_sorted_annotated_and_exactly_as_shipped() -> anyhow::Resu
         n,
         [
             "check_drug",
+            "get_document_page",
             "get_genome_findings",
             "get_health_status",
             "get_source",
             "get_trend",
+            "list_pending_documents",
             "lookup_variant",
             "propose",
             "search_observations"
@@ -252,7 +254,7 @@ async fn tools_list_is_sorted_annotated_and_exactly_as_shipped() -> anyhow::Resu
 #[ignore = "needs a running backend: contract-tests/run.sh rust"]
 async fn tools_list_follows_the_token_scopes() -> anyhow::Result<()> {
     let c = Client::new()?;
-    let cases: [(&[&str], &[&str]); 6] = [
+    let cases: [(&[&str], &[&str]); 7] = [
         (&["read:summary"], &["get_health_status", "get_source"]),
         (
             &["read:summary", "read:labs", "read:vitals"],
@@ -276,7 +278,17 @@ async fn tools_list_follows_the_token_scopes() -> anyhow::Result<()> {
         ),
         (
             &["read:records", "write:propose"],
-            &["check_drug", "get_source", "propose"],
+            &[
+                "check_drug",
+                "get_source",
+                "list_pending_documents",
+                "propose",
+            ],
+        ),
+        // v0.2: reading a page needs both document text and propose
+        (
+            &["read:documents_text", "write:propose"],
+            &["get_document_page", "list_pending_documents", "propose"],
         ),
         (
             &["read:wearables"],

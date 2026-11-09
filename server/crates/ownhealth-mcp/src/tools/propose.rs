@@ -629,6 +629,7 @@ async fn observations(call: &mut Call<'_>, p: &ObservationsPayload) -> ToolResul
             }
         }
         let mut bbox = None;
+        let mut grounding = "ungrounded";
         match &doc {
             None => checks.push(check(
                 "grounding",
@@ -649,18 +650,43 @@ async fn observations(call: &mut Call<'_>, p: &ObservationsPayload) -> ToolResul
                 let mut sp = Connection::begin(&mut *call.conn).await?;
                 match call
                     .svc
-                    .ground_value(&mut sp, &blobs, d.id, page, &row.name, &row.value.text())
+                    .ground_value(
+                        &mut sp,
+                        &blobs,
+                        d.id,
+                        page,
+                        &row.name,
+                        &row.value.text(),
+                        row.unit.as_deref(),
+                        row.bbox,
+                    )
                     .await
                 {
                     Ok(b) => {
                         sp.commit().await?;
                         bbox = b;
+                        // a scan with no word layer yet (OCR off or pending) cannot ground anything
+                        let no_layer = bbox.is_none()
+                            && call
+                                .svc
+                                .page_words(&mut *call.conn, &blobs, d.id, page)
+                                .await?
+                                .is_empty();
+                        grounding = if bbox.is_some() {
+                            "grounded"
+                        } else if no_layer {
+                            "ungrounded_no_word_layer"
+                        } else {
+                            "ungrounded"
+                        };
                         checks.push(check(
                             "grounding",
                             bbox.is_some(),
                             "not_grounded",
                             if bbox.is_some() {
                                 None
+                            } else if no_layer {
+                                Some("the page has no word layer yet")
                             } else {
                                 Some("value not found on the page word layer")
                             },
@@ -725,6 +751,7 @@ async fn observations(call: &mut Call<'_>, p: &ObservationsPayload) -> ToolResul
             "observation": obs_json,
             "checks": checks,
             "grounded": grounded,
+            "grounding": grounding,
             "bbox": bbox.map(|b| b.to_vec()),
         }));
     }
@@ -882,24 +909,27 @@ async fn medication(call: &mut Call<'_>, p: &MedicationPayload) -> ToolResult<Ou
 
 // ------------------------------------------------------------------- tool ----
 
-/// based_on plus every src id this token was shown in the last hour (security-privacy.md 4.2 #4).
-async fn context_src_ids(call: &mut Call<'_>, based_on: &[String]) -> ToolResult<Vec<String>> {
-    let recent: Vec<Option<String>> = sqlx::query_scalar(
-        "select distinct unnest(src_ids) from audit_event where token_id = $1 and src_ids is not null \
-         and ts > now() - interval '1 hour'",
-    )
-    .bind(call.principal.token_id)
-    .fetch_all(&mut *call.conn)
-    .await?;
-    let recent: BTreeSet<String> = recent.into_iter().flatten().collect();
+/// What was in the agent's context (security-privacy.md 4.2 #4): based_on plus every src id and
+/// document this token read in the last hour, from the audit log (`context::agent_context`).
+async fn agent_context(call: &mut Call<'_>, based_on: &[String]) -> ToolResult<crate::context::AgentContext> {
+    let now = super::db_now(&mut *call.conn).await?.with_timezone(&chrono::Utc);
+    let token = call.principal.token_id.unwrap_or_default();
+    let read = crate::context::agent_context(&mut *call.conn, token, now).await?;
     let mut ids: Vec<String> = Vec::new();
-    for b in based_on.iter().filter(|b| SRC_RE.is_match(b)).chain(recent.iter()) {
+    for b in based_on
+        .iter()
+        .filter(|b| SRC_RE.is_match(b))
+        .chain(read.src_ids.iter())
+    {
         if !ids.contains(b) {
             ids.push(b.clone());
         }
     }
-    ids.truncate(500);
-    Ok(ids)
+    ids.truncate(crate::context::MAX_SRC_IDS);
+    Ok(crate::context::AgentContext {
+        documents: read.documents,
+        src_ids: ids,
+    })
 }
 
 pub async fn propose(call: &mut Call<'_>) -> ToolResult<Answer> {
@@ -988,13 +1018,14 @@ pub async fn propose(call: &mut Call<'_>) -> ToolResult<Answer> {
             stored_payload.insert("based_on".into(), json!(based_on));
             stored_payload.insert("payload_hash".into(), json!(phash));
             let reasons: BTreeSet<String> = out.reasons.iter().cloned().collect();
+            let ctx = agent_context(call, &based_on).await?;
             let mut unique_docs: Vec<Uuid> = Vec::new();
-            for d in &docs {
+            for d in docs.iter().chain(ctx.documents.iter()) {
                 if !unique_docs.contains(d) {
                     unique_docs.push(*d);
                 }
             }
-            let ctx = context_src_ids(call, &based_on).await?;
+            let ctx = ctx.src_ids;
             let household = call.perm()?.profile.household_id;
             let item = ReviewItemIn {
                 kind: "agent_proposal".into(),

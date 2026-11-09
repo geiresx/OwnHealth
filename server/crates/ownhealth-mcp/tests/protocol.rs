@@ -127,7 +127,8 @@ async fn tool_list_is_sorted_annotated_and_has_no_outbound_tool() -> R {
         .collect();
     reg.sort();
     assert_eq!(names, reg);
-    assert_eq!(names.len(), 8);
+    // the eight tools of 0.2.0 and the two of v0.2 agent extraction
+    assert_eq!(names.len(), 10);
     assert!(!names.contains(&"ping".to_string()));
     for t in &tools {
         assert_eq!(t["annotations"]["openWorldHint"], json!(false));
@@ -143,7 +144,7 @@ async fn tool_list_is_sorted_annotated_and_has_no_outbound_tool() -> R {
 #[tokio::test]
 async fn tools_list_follows_scopes() -> R {
     let w = world().await?;
-    let cases: [(&[&str], &[&str]); 5] = [
+    let cases: [(&[&str], &[&str]); 6] = [
         (&["read:summary"], &["get_health_status", "get_source"]),
         (
             &["read:summary", "read:labs", "read:vitals"],
@@ -162,7 +163,11 @@ async fn tools_list_follows_scopes() -> R {
         ),
         (
             &["read:records", "write:propose"],
-            &["check_drug", "get_source", "propose"],
+            &["check_drug", "get_source", "list_pending_documents", "propose"],
+        ),
+        (
+            &["read:documents_text", "write:propose"],
+            &["get_document_page", "list_pending_documents", "propose"],
         ),
     ];
     for (s, expected) in cases {

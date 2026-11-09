@@ -1379,6 +1379,8 @@ impl Services for Fakes {
         _page_no: i32,
         _name: &'a str,
         value: &'a str,
+        _unit: Option<&'a str>,
+        _near: Option<[f64; 4]>,
     ) -> BoxFuture<'a, Result<Option<[f64; 4]>>> {
         let v = value.replace(',', ".");
         Box::pin(async move {
@@ -1485,8 +1487,10 @@ impl Services for RealWords {
         page_no: i32,
         name: &'a str,
         value: &'a str,
+        unit: Option<&'a str>,
+        near: Option<[f64; 4]>,
     ) -> BoxFuture<'a, Result<Option<[f64; 4]>>> {
-        Box::pin(Lanes.ground_value(conn, blobs, document_id, page_no, name, value))
+        Box::pin(Lanes.ground_value(conn, blobs, document_id, page_no, name, value, unit, near))
     }
     fn page_words<'a>(
         &'a self,

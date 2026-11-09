@@ -119,6 +119,8 @@ pub trait Services: Send + Sync {
         page_no: i32,
         name: &'a str,
         value: &'a str,
+        unit: Option<&'a str>,
+        near: Option<[f64; 4]>,
     ) -> BoxFuture<'a, Result<Option<[f64; 4]>>>;
     /// The words of one page, in reading order.
     fn page_words<'a>(
@@ -278,15 +280,13 @@ impl Services for Lanes {
         page_no: i32,
         name: &'a str,
         value: &'a str,
+        unit: Option<&'a str>,
+        near: Option<[f64; 4]>,
     ) -> BoxFuture<'a, Result<Option<[f64; 4]>>> {
-        Box::pin(ownhealth_ingest_pdf::ground_value(
-            conn,
-            blobs,
-            document_id,
-            page_no,
-            name,
-            value,
-        ))
+        Box::pin(async move {
+            let words = ownhealth_ingest_pdf::page_words(conn, blobs, document_id, page_no).await?;
+            Ok(crate::grounding::ground_row(&words, name, value, unit, near))
+        })
     }
 
     fn page_words<'a>(

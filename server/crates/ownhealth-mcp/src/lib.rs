@@ -6,10 +6,13 @@
 //! Principal in the request extensions; rmcp hands the handlers the request's `http::request::Parts`.
 
 pub mod auth;
+pub mod context;
 pub mod edge;
 pub mod envelope;
 pub mod gate;
+pub mod grounding;
 pub mod limits;
+pub mod oauth;
 pub mod prompts;
 pub mod redact;
 pub mod resources;
@@ -300,6 +303,12 @@ pub fn router_with(rt: Runtime, svc: Arc<dyn Services>) -> Router {
             "/.well-known/oauth-protected-resource",
             get(auth::protected_resource_metadata),
         )
+        // RFC 9728 3.1: the metadata of the resource `/mcp` also lives at the path-suffixed address
+        .route(
+            "/.well-known/oauth-protected-resource/mcp",
+            get(auth::protected_resource_metadata),
+        )
+        .merge(oauth::router())
         .with_state(rt);
     mcp.merge(meta)
 }

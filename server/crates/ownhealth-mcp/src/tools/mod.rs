@@ -1,4 +1,4 @@
-//! The eight tools and the one pipeline every call goes through (`mcp/tools/__init__.py`, mcp.md 3,
+//! The ten tools and the one pipeline every call goes through (`mcp/tools/__init__.py`, mcp.md 3,
 //! 5, 9):
 //!
 //! ```text
@@ -12,6 +12,8 @@
 pub mod drug;
 pub mod genome;
 pub mod observations;
+pub mod page;
+pub mod pending;
 pub mod propose;
 pub mod pyschema;
 pub mod source;
@@ -78,7 +80,9 @@ pub fn output_schema() -> Value {
     })
 }
 
-const DENIED_CODES: [&str; 7] = [
+const DENIED_CODES: [&str; 9] = [
+    "page_cap",
+    "page_withheld",
     "profile_not_granted",
     "scope_missing",
     "rate_limited",
@@ -213,6 +217,12 @@ pub struct Answer {
     pub profile_slug: Option<String>,
     pub audit_profile_id: Option<Uuid>,
     pub prune: bool,
+    /// What the call read, for the audit row (`get_document_page`: `("document", [id])`), so the
+    /// review queue can show what was in the agent's context.
+    pub audit_resources: Option<(&'static str, Vec<String>)>,
+    /// Content blocks after the text block (`get_document_page`: the page image). Not counted in the
+    /// byte budget: the page cap limits them.
+    pub extra_content: Vec<Value>,
 }
 
 impl Answer {
@@ -234,6 +244,8 @@ impl Answer {
             profile_slug: None,
             audit_profile_id: None,
             prune: true,
+            audit_resources: None,
+            extra_content: Vec::new(),
         }
     }
 }
@@ -276,12 +288,14 @@ impl ToolSpec {
 }
 
 /// Every tool, sorted by name (tools/list order).
-pub static REGISTRY: [&ToolSpec; 8] = [
+pub static REGISTRY: [&ToolSpec; 10] = [
     &drug::SPEC,
+    &page::SPEC,
     &genome::FINDINGS_SPEC,
     &status::SPEC,
     &source::SPEC,
     &observations::TREND_SPEC,
+    &pending::SPEC,
     &genome::LOOKUP_SPEC,
     &propose::SPEC,
     &observations::SEARCH_SPEC,
@@ -308,10 +322,12 @@ static VALIDATORS: LazyLock<HashMap<&'static str, jsonschema::Validator>> = Lazy
 async fn run_tool(call: &mut Call<'_>) -> ToolResult<Answer> {
     match call.tool.as_str() {
         "check_drug" => drug::check_drug(call).await,
+        "get_document_page" => page::get_document_page(call).await,
         "get_genome_findings" => genome::get_genome_findings(call).await,
         "get_health_status" => status::get_health_status(call).await,
         "get_source" => source::get_source(call).await,
         "get_trend" => observations::get_trend(call).await,
+        "list_pending_documents" => pending::list_pending_documents(call).await,
         "lookup_variant" => genome::lookup_variant(call).await,
         "propose" => propose::propose(call).await,
         "search_observations" => observations::search_observations(call).await,
@@ -827,6 +843,8 @@ async fn run(
     let answer = run_tool(&mut call).await?;
     let counters = answer.counters;
     let audit_profile = answer.audit_profile_id;
+    let audit_resources = answer.audit_resources.clone();
+    let extra_content = answer.extra_content.clone();
     let (env, body_text) = finish(&mut call, answer, &qhash, &secret).await?;
     let profile_id = if spec.profile_bound {
         call.perm.as_ref().map(|p| p.profile.id)
@@ -868,9 +886,15 @@ async fn run(
     let srcs: Vec<String> = collect_src_ids(&data).into_iter().take(500).collect();
     e.src_ids = (!srcs.is_empty()).then_some(srcs);
     e.withheld = env.get("withheld").cloned();
+    if let Some((kind, ids)) = audit_resources {
+        e.resource_type = Some(kind.into());
+        e.resource_ids = Some(ids);
+    }
     write_audit(&mut *conn, &e).await?;
+    let mut content = vec![json!({"type": "text", "text": body_text})];
+    content.extend(extra_content);
     Ok(json!({
-        "content": [{"type": "text", "text": body_text}],
+        "content": content,
         "structuredContent": env,
         "isError": false,
     }))
@@ -1015,7 +1039,7 @@ mod tests {
         let mut sorted = names.clone();
         sorted.sort();
         assert_eq!(names, sorted);
-        assert_eq!(VALIDATORS.len(), 8);
+        assert_eq!(VALIDATORS.len(), 10);
     }
 
     #[test]

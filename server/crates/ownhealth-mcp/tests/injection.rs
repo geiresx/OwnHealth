@@ -288,7 +288,9 @@ fn lane_b_fixtures() -> Vec<PathBuf> {
         .iter()
         .filter(|d| d.is_dir())
         .flat_map(|d| std::fs::read_dir(d).into_iter().flatten().flatten().map(|e| e.path()))
-        .filter(|p| p.extension().is_some_and(|x| x == "pdf" || x == "json"))
+        // the PDFs; the folder also holds the v0.2 registry and Paperless metadata (JSON), an email
+        // and a photo, which their own lanes' tests read
+        .filter(|p| p.extension().is_some_and(|x| x == "pdf"))
         .collect();
     out.sort();
     out
@@ -377,7 +379,12 @@ async fn lane_b_injection_fixtures() -> R {
             assert!(!marker_outside_tags(&r.text, &marker), "{name}");
             hits += usize::from(dumps(&r.sc).contains(&marker));
         }
-        if fixture.file_stem().is_some_and(|s| s != "inj-metadata") {
+        // inj-paperless-note.pdf is the clean document of a Paperless fixture whose instruction sits in
+        // the Paperless notes, which OwnHealth never fetches
+        if fixture
+            .file_stem()
+            .is_some_and(|s| s != "inj-metadata" && s != "inj-paperless-note")
+        {
             assert!(
                 hits > 0,
                 "{name}: the marker never reached a response, the check is vacuous"

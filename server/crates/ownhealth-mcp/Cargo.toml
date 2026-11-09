@@ -17,6 +17,7 @@ ownhealth-genome.workspace = true
 ownhealth-ingest-pdf.workspace = true
 ownhealth-ingest-structured.workspace = true
 ownhealth-normalize.workspace = true
+ownhealth-ocr.workspace = true
 ownhealth-rules.workspace = true
 anyhow.workspace = true
 axum.workspace = true
@@ -26,6 +27,7 @@ futures.workspace = true
 hex.workspace = true
 hmac.workspace = true
 http.workspace = true
+image.workspace = true
 jsonschema.workspace = true
 regex.workspace = true
 rmcp.workspace = true
@@ -37,9 +39,11 @@ sha2.workspace = true
 sqlx.workspace = true
 tokio.workspace = true
 tracing.workspace = true
+url.workspace = true
 uuid.workspace = true
 
 [dev-dependencies]
+ownhealth-auth = { workspace = true, features = ["testing"] }
 ownhealth-core = { workspace = true, features = ["testing"] }
 ownhealth-ops.workspace = true
 tempfile.workspace = true
