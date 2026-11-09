@@ -22,3 +22,6 @@ server/vendor/
 !/data/vendors/
 server/data/
 .env
+
+# Scratch notes between parallel build lanes
+.lanes/

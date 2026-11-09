@@ -231,6 +231,7 @@ Successor and inheritance of data after death is a v2 item.
 - **Disk:** full-disk encryption (LUKS, an encrypted NAS array, FileVault on macOS hosts) is a stated requirement. Postgres community has no transparent data encryption.
 - **Transport:** TLS at the reverse proxy; app and Postgres talk on the compose network only.
 - **Secrets:** docker secrets files, never environment variables in compose files committed to git.
+- **Inbox secrets (v0.2):** the secrets OwnHealth must use again in clear (IMAP password, Paperless token, Nightscout token, PDF passwords) are sealed with AES-256-GCM under `OWNHEALTH_SECRETS_KEY` (or `OWNHEALTH_SECRETS_KEY_FILE`), 32 random bytes in base64. Each ciphertext is bound to its row and purpose (associated data), carries the key fingerprint, and is never logged or returned by the API. A database restored under another key keeps working; only those secrets have to be entered again.
 
 ### 7.2 v1.0: per-profile data keys
 

@@ -76,7 +76,7 @@ Rules that follow from the diagram:
 | HTTP server | axum on tokio, one process. Routes: `/api/*`, `/mcp`, `/.well-known/*`, `/healthz`, `/readyz`, `/metrics`, and the static UI at `/` |
 | MCP | rmcp's streamable HTTP service mounted at `/mcp`. Spec 2026-07-28 is stateless (no `initialize` handshake, no `Mcp-Session-Id`), so no session affinity is needed. We keep the 2025-11-25 fallback for older clients |
 | Job loop | `N` tokio tasks started with the server (default `N=2`). Each claims one job, runs it, commits. CPU-bound and file-bound steps (PDF text layer, Apple Health XML, rollups, export zips) run on tokio's blocking threads so they never stall requests |
-| OCR | Not in the core image. The `ocr` profile runs the same code from the image `ownhealth-ocr` with `OWNHEALTH_ROLE=worker` and `OWNHEALTH_QUEUES=ocr`: no HTTP server, only the job loop for the `ocr` queue |
+| OCR | Not in the default image. The `ocr` profile runs the same code from the image variant `drumsergio/ownhealth:<version>-ocr` (the engine, PaddleOCR PP-OCRv5 on ONNX Runtime, and its models) as `ownhealth worker` with `OWNHEALTH_QUEUES=ocr`: no HTTP server, only the job loop for the `ocr` queue |
 | Scheduler | A row in `job` with `run_after` is a timer. Recurring jobs (rollups, restore check, ClinVar diff in v0.3) re-enqueue themselves on completion. No cron daemon |
 | Static UI | `adapter-static` output embedded in the release binary (`rust-embed`) at image build time. No Node at runtime |
 
@@ -89,7 +89,7 @@ Libraries in the core: axum, tower and tokio; sqlx for Postgres (queries checked
 | Profile | Services | Image size, RAM (estimates, unverified) | Ships in |
 |---|---|---|---|
 | (default) | `app`, `db` | app under 400 MB image; app plus Postgres about 0.5 GB RAM idle | v0.1 |
-| `ocr` | `ocr` (PaddleOCR PP-StructureV3 or Docling on CPU; PaddleOCR-VL 0.9B on GPU or iGPU) | several GB image; 2 to 8 GB RAM while working | v0.2 |
+| `ocr` | `ocr` worker: PaddleOCR PP-OCRv5 mobile detection and Latin recognition, ONNX on ONNX Runtime, CPU (an ONNX Runtime GPU provider is optional) | 436 MB unpacked against 364 MB for the default image (arm64, 0.3.0); worker peak RSS 240 MB reading the demo's scanned page (arm64) | v0.2 (0.3.0) |
 | `imaging` | `orthanc` with the DICOMweb and OHIF plugins | 100 to 300 MB RAM idle | v1.0 |
 | `wearables` | `open-wearables` plus its own Postgres and Redis | brings Redis and Celery, but only inside the profile | v1.0 |
 
@@ -103,7 +103,7 @@ Tags are pinned semver at release time and never `:latest`. The version numbers 
 name: ownhealth
 services:
   app:
-    image: drumsergio/ownhealth:0.2.0
+    image: drumsergio/ownhealth:0.3.0
     restart: unless-stopped
     depends_on: { db: { condition: service_healthy } }
     environment:
@@ -142,19 +142,17 @@ services:
 
   ocr:
     profiles: [ocr]
-    image: geiserx/ownhealth-ocr:0.2.0
+    image: drumsergio/ownhealth:0.3.0-ocr
     restart: unless-stopped
     depends_on: { db: { condition: service_healthy } }
+    command: ["ownhealth", "worker"]
     environment:
-      OWNHEALTH_ROLE: worker
       OWNHEALTH_QUEUES: ocr
-      OWNHEALTH_DATABASE_URL: postgresql://ownhealth@db:5432/ownhealth
-      OWNHEALTH_DB_PASSWORD_FILE: /run/secrets/db_password
-      OWNHEALTH_OCR_ENGINE: ppstructure      # ppstructure | docling | paddleocr-vl
-    secrets: [db_password]
+      OWNHEALTH_DATABASE_URL: postgresql://ownhealth_app@db:5432/ownhealth
+      OWNHEALTH_DB_PASSWORD_FILE: /run/secrets/app_db_password
+    secrets: [app_db_password]
     volumes: [blobs:/data/blobs]
-    # devices: ["/dev/dri:/dev/dri"]        # Intel iGPU, only for paddleocr-vl
-    mem_limit: 8g
+    healthcheck: { disable: true }          # a worker serves no /healthz
 
   orthanc:
     profiles: [imaging]
@@ -778,6 +776,7 @@ A benchmark job in CI runs the synthetic family and fails if a target regresses 
 
 - `/metrics` in Prometheus text format, served on a separate port (default 9464) bound to the compose network, or on the main port behind a metrics token.
 - Labels never carry profile ids, names, codes, values or token ids.
+- Not built yet: the instance-wide `/metrics` below. What ships since 0.3.0 is inbox health: `GET /api/inboxes/health` and `GET /api/inboxes/{id}/health`, JSON or `?format=prometheus` (gauges `ownhealth_source_{enabled,stale,consecutive_failures,last_success_timestamp_seconds,last_run_timestamp_seconds}`, labels `source` id and `kind`). A monitor reads one source with that source's own `oh_ing_` token (deploy/README.md, Monitoring the inboxes).
 
 | Metric | Type, labels |
 |---|---|

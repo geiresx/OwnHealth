@@ -316,3 +316,259 @@ Each lane's `.lanes/<lane>-requests.md` lists them; the release notes carry the 
 The ones that touch stored data: `extraction_run.engine` is `pdfium` (`chromium/8125`), so a forced
 re-import of a 0.1.1 document makes a new extraction run, and the PDF Info key `Trapped` is no longer in
 `flags.metadata_text`. FastAPI's 422 lists keep their status, `type` and `loc`; a message can differ.
+
+## 10. v0.2 Inboxes (0.3.0)
+
+The working agreement for the v0.2 phase (docs/ROADMAP.md "v0.2 Inboxes"). Sections 1 to 9 still hold.
+The foundation commit ships the schema, the core pieces every lane calls (implemented and tested),
+four new crates, every cross-lane interface as a typed stub, and every new REST route answering
+501 `not_implemented`. A lane replaces its own stubs; the phase is done when no `Error::NotImplemented`
+and no `not_yet` handler is left. Spike numbers and crate choices: [SPIKES-v0.2.md](SPIKES-v0.2.md).
+
+### 10.1 Lanes
+
+| Lane | Area | Crate / module |
+|---|---|---|
+| foundation | schema, secrets, source registry and scheduler, dedup, quarantine, arrival, source health, egress | `ownhealth-core::{secrets, sources, dedup, quarantine, arrive, net}` |
+| A | email-in: IMAP poll, routing, sender allowlist, authentication check, quarantine and release, PDF password rules | `ownhealth-inbox::email` |
+| B | watched folder, Paperless-ngx (webhook and pull), PWA share target, iOS Shortcut; wire the near-duplicate check into `import.pdf` | `ownhealth-inbox::{folder, paperless, share}`, `ownhealth-ingest-pdf` (fingerprints and near-duplicate only) |
+| C | OCR: engine, routing, the `ocr.document` job, grounding, benchmark harness | `ownhealth-ocr` |
+| D | Health Auto Export push, Gadgetbridge import, Nightscout pull, CGM summary | `ownhealth-devices` |
+| E | OAuth 2.1 authorization server, CIMD clients, consent, OAuth tokens on `/mcp` | `ownhealth-auth::oauth`, `ownhealth-mcp::oauth` |
+| F | MCP agent extraction (`list_pending_documents`, `get_document_page`, `propose` with page + bbox), agent context per proposal; review queue UI: ungrounded and low-confidence highlighting, duplicate banner, "in the agent's context" | `ownhealth-mcp::{tools::pending, tools::page, context}` |
+| G | the inbox registry routes and the Inbox screen, source health; compose `ocr` profile, Dockerfile variant, release images; recipes and the agent-extraction walkthrough; new injection fixtures | `ownhealth-api::routes::inboxes`, `ui/`, `compose.yaml`, `Dockerfile`, `.github/workflows/release.yml`, `docs/` |
+
+Dependency direction (no cycles): `core` <- `ocr` <- `ingest-pdf`, `mcp`; `core` <- `inbox`, `devices`;
+`api` uses `inbox` and `devices`; the binary uses all. `inbox` does not depend on `ingest-pdf`: it hands
+documents to `core::arrive::arrive`, which queues `import.pdf`.
+
+### 10.2 File ownership (v0.2)
+
+```text
+server/crates/ownhealth-core/src/{secrets,sources,dedup,quarantine,arrive,net}.rs   foundation
+server/crates/ownhealth-inbox/src/email/                       A
+server/crates/ownhealth-inbox/src/{folder,paperless,share}.rs  B
+server/crates/ownhealth-inbox/src/lib.rs                       foundation (register() only)
+server/crates/ownhealth-ingest-pdf/                            B for v0.2 (OCR switch already in import.rs; keep it)
+server/crates/ownhealth-ocr/                                   C
+server/crates/ownhealth-devices/                               D
+server/crates/ownhealth-auth/src/oauth.rs                      E (and pat_guard / principal additions for kind = 'oauth')
+server/crates/ownhealth-mcp/src/oauth.rs                       E
+server/crates/ownhealth-mcp/src/{context.rs,tools/pending.rs,tools/page.rs}   F (plus the tool list and propose changes)
+server/crates/ownhealth-api/src/routes/inboxes.rs              G
+server/crates/ownhealth-api/src/routes/inbox.rs                A
+server/crates/ownhealth-api/src/routes/ingest.rs               B
+server/crates/ownhealth-api/src/routes/devices.rs              D
+server/crates/ownhealth-api/src/routes/oauth.rs                E
+server/spikes/{ocr,imap,pdfpass}/                              spikes, kept as examples
+scripts/fetch-ocr-models.sh                                    foundation (C bumps it with the engine)
+ui/src/routes/inbox/ (new)                                     G
+ui/src/routes/import-review/, review components                F
+ui/src/routes/settings/ OAuth consents list, ui/src/routes/oauth/ (consent screen)   E
+ui/src/lib/i18n/dict.ts                                        everyone, in a block marked with the lane, es and en together
+fixtures/labslips/injection/ email, Paperless note, OCR-only fixtures   G (each lane's tests use them)
+fixtures/<lane>/                                               that lane
+```
+
+### 10.3 Migrations
+
+New ranges, after every 0.2.0 file. The migrator applies missing files in number order, so a
+v0.2 file numbered below 0600 would run before 0150-0600 on a fresh database and be undone by them
+(0150 redefines `review_item_kind_check`). CONTRACTS.md section 7 carries the same table.
+
+| Range | Owner |
+|---|---|
+| 1000-1009 | foundation (1000_inboxes.sql, 1001_oauth.sql) |
+| 1010-1019 | A |
+| 1020-1029 | B |
+| 1030-1039 | C |
+| 1040-1049 | D |
+| 1050-1059 | E |
+| 1060-1069 | F |
+| 1070-1079 | G |
+
+1000_inboxes.sql: `secret`, `source`, `source_run`, `source_item`, `quarantine_item`, `sender_rule`,
+`pdf_password_rule`, `ocr_run`, `observation_link`; `document.{source_id, derived_from,
+near_duplicate_of, ocr_state}`; `document_source.source_id` and the new channels (`share`, `shortcut`,
+`health_auto_export`, `gadgetbridge`, `nightscout`); `document_page.{word_layer, text_simhash}`;
+`candidate_row.{grounding, word_layer}`; review kinds `near_duplicate` and `encrypted_document`;
+`wearable_source.source_id`. 1001_oauth.sql: `oauth_client` (the CIMD cache), `oauth_consent`,
+`oauth_code`, `oauth_refresh_token`; `api_token.{kind, audience, oauth_client_id, consent_id}`. Prefer
+these columns; add a migration in your range only for what they cannot hold.
+
+### 10.4 Foundation interfaces (implemented, tested)
+
+```rust
+// core::secrets: AES-256-GCM under OWNHEALTH_SECRETS_KEY / _FILE (32 bytes, base64). Never logged:
+// SecretString prints ***; `expose()` only where the value is used.
+SecretBox::from_settings(&Settings) -> Result<SecretBox>   // Error::Invalid naming OWNHEALTH_SECRETS_KEY when unset
+store_secret(conn, &SecretBox, household_id, purpose, label: Option<&str>, &SecretString) -> Result<Uuid>
+replace_secret(conn, &SecretBox, id, &SecretString) -> Result<()>
+read_secret(conn, &SecretBox, household_id, id) -> Result<SecretString>   // wrong key: Error::Invalid naming the key, not the value
+delete_secret(conn, household_id, id) -> Result<bool>
+// purposes: imap_password | paperless_token | nightscout_token | pdf_password
+
+// core::sources: the registry, runs, health, the scheduler
+create_source(conn, &NewSource) -> Result<Uuid>          // NewSource::new(household_id, kind, name)
+get_source / list_sources / update_source(conn, id, &SourcePatch) / delete_source / save_cursor(conn, id, &Value)
+issue_token(conn, source_id) -> Result<String>           // "oh_ing_<id8>_<secret43>", shown once, stored as sha256
+source_for_token(conn, token) -> Result<Option<Source>>  // constant time; push routes (B, D) authenticate with it
+begin_run(conn, source_id, trigger: "poll"|"push"|"manual", job_id) -> Result<i64>
+finish_run(conn, run_id, Ok(&RunOutcome) | Err(&str)) -> Result<()>   // problems => "partial", still a success
+source_health(conn, household_id) -> Result<Vec<SourceHealth>>        // last_success_at, consecutive_failures, stale
+pub type Poller = fn(JobContext, Source) -> BoxFuture<'static, Result<RunOutcome, JobError>>;
+register_poller(kind, Poller)                            // one per source kind, from the lane's register()
+schedule_due(conn) -> Result<Vec<i64>> / enqueue_poll(conn, source_id) -> Result<Option<i64>>
+// The bin runs scheduler_loop every SCHEDULER_SECONDS (30); each due source gets one `source.poll`
+// job (dedupe key "source.poll:<id>"). The job wraps the poller in begin_run/finish_run; a failed poll
+// is recorded on the source and the job completes, so a broken mailbox never files job_failed items.
+// A poller saves its own cursor in RunOutcome.cursor; it must be idempotent.
+
+// core::arrive: the one entry point for every inbox
+store_bytes(&BlobStore, Vec<u8>) -> Result<(sha256_hex, size)>        // spawn_blocking
+arrive(conn, &BlobStore, &Arrival) -> Result<Arrived>
+//   Arrival::new(household_id, profile_id, channel, sha256, size) + source_id, external_id, source_ref,
+//   filename, derived_from. Steps: source_item seen (AlreadySeen) -> sniff -> file hash for the profile
+//   (Duplicate, one more document_source row) -> import.pdf for PDFs and images, the structured job
+//   otherwise (Queued) -> unknown kinds are remembered (Unsupported).
+enqueue_ocr(conn, document_id, pages: &[i32], why) -> Result<Option<i64>>   // queue "ocr", job "ocr.document"
+set_ocr_state(conn, document_id, "not_needed"|"pending"|"queued"|"running"|"done"|"failed"|"off")
+
+// core::dedup: level 0 seen_item/record_item; level 1 existing_document; level 2 below; level 3 match
+simhash64(text) -> Option<u64>; phash64(gray, w, h) -> Option<u64>; hamming(a, b)
+store_page_fingerprint(conn, document_id, page_no, phash, simhash)
+find_near_duplicate(conn, document_id) -> Result<Option<NearDuplicate>>   // same profile, earlier, other bytes
+flag_near_duplicate(conn, document_id, &NearDuplicate) -> Result<Uuid>    // review kind near_duplicate, once
+match_observation(conn, &ObservationIn, lab: Option<&str>, time_known: bool) -> Result<ObservationMatch>
+//   New | Same { observation_id } | Review { observation_id, reason }; Same => link_observation, not a new fact
+link_observation(conn, observation_id, src_id, document_id)
+
+// core::quarantine: hold writes only quarantine_item (and the blob); nothing is parsed while held
+hold(conn, &QuarantineIn) -> Result<Uuid>; get_item; list_items(conn, household_id, status, limit)
+lock_held(conn, id) -> Result<QuarantineItem>            // for update; Error::Review unless held
+mark_released(conn, id, user_id, &[document_id]); mark_deleted(conn, id, user_id)
+
+// core::net: every outbound request a source or CIMD makes
+get(url, &Egress, headers) -> Result<Fetched, NetError>  // no redirects, DNS pinned, body capped
+Egress::cimd()                    // https, public addresses only, 5 s, 64 KiB
+Egress::home_service(allow_private)   // Paperless, Nightscout: LAN allowed only when the source says so, 30 s, 50 MiB
+```
+
+`Settings` gains `secrets_key`, `ocr` (`OWNHEALTH_OCR`), `ocr_models_dir` (`OWNHEALTH_OCR_MODELS_DIR`,
+default `/opt/ownhealth/ocr-models`) and `inbox_dir` (`OWNHEALTH_INBOX_DIR`); `.env.example` documents
+them. `import.pdf` reads `settings.ocr`: on, scans and images go to `enqueue_ocr` and file no
+`pending_document`; off, they wait as `pending_document` with `ocr_state = 'off'`, as in 0.2.0.
+
+### 10.5 Lane interfaces (stubbed; each returns `Error::NotImplemented`)
+
+```rust
+// A: ownhealth_inbox::email
+message_facts(raw: &[u8]) -> Result<MessageFacts>       // From, Message-ID, subject, Authentication-Results, attachments
+route_message(&MessageFacts, &[SenderRule], trusted_authserv_id: Option<&str>) -> Routing   // pure
+ingest_message(conn, &BlobStore, Option<&SecretBox>, &Source, raw, released_to: Option<Uuid>) -> Result<MessageOutcome>
+poll_mailbox(JobContext, Source) -> Result<RunOutcome, JobError>    // poller "email"
+release(conn, &BlobStore, Option<&SecretBox>, quarantine_id, user_id, profile_id, allow_sender) -> Result<Vec<Uuid>>
+list_rules / add_rule(conn, source_id, &SenderRuleIn, user_id) / delete_rule
+add_pdf_password(conn, &SecretBox, sender_rule_id, &SecretString, label) / delete_pdf_password
+email::pdf_password::{is_encrypted(pdf) -> bool, unlock(pdf, &[SecretString]) -> Result<Unlock>}   // spawn_blocking callers
+
+// B: ownhealth_inbox::{folder, paperless, share}
+folder::poll_folder(JobContext, Source)                  // poller "folder"; files stable for STABLE_SECONDS
+paperless::document_id_from_url(&str) -> Option<i64>
+paperless::handle_webhook(&Runtime, &Source, &Value) -> Result<Arrived>
+paperless::poll_paperless(JobContext, Source)            // poller "paperless"
+share::ingest_files(conn, &BlobStore, household_id, profile_id, source_id, channel, &[StoredFile]) -> Result<Vec<Arrived>>
+
+// C: ownhealth_ocr
+engine::load(dir) -> Result<Engine, OcrError>            // EngineMissing without the `engine` feature or the models
+engine::read_page(&Engine, rgb, width, height, dpi, page_no) -> Result<OcrPage, OcrError>
+route::needs_ocr(text_layer_ok, text) -> bool
+grounding::ground(&[Word], value, unit, near: Option<[f64; 4]>) -> Grounding   // Grounded{bbox} | Ungrounded | UngroundedNoWordLayer
+job "ocr.document" on queue "ocr": {document_id, pages, why}; writes ocr_run, word_layer = 'ocr', then extraction
+
+// D: ownhealth_devices
+hae::import_push(conn, &BlobStore, &Source, body) -> Result<RunOutcome>
+gadgetbridge job "import.gadgetbridge" (core sniffs "SQLite format 3\0" as gadgetbridge_db)
+nightscout::poll_nightscout(JobContext, Source)          // poller "nightscout"
+cgm::summarize(&[(DateTime, f64)], start, end, interval_minutes) -> Result<CgmSummary>
+cgm::cgm_summary(conn, profile_id, end, days) -> Result<CgmSummary>
+
+// E: ownhealth_auth::oauth (canonical_resource and pkce_s256 are implemented)
+fetch_client(conn, client_id: &str) -> Result<ClientMetadata>   // CIMD through core::net, cached in oauth_client
+approve(conn, user_id, &ConsentIn) -> Result<Uuid>       // needs step-up; profiles x scopes chosen per checkbox
+revoke_consent(conn, user_id, consent_id) -> Result<bool>
+verify_access_token(conn, token, resource) -> Result<Option<Principal>>   // audience must equal canonical /mcp
+
+// F: ownhealth_mcp
+tools::pending::list_pending_documents(&mut Call) -> ToolResult<Answer>
+tools::page::get_document_page(&mut Call) -> ToolResult<Answer>   // words with bboxes as untrusted_text, page PNG
+context::agent_context(conn, token_id, at) -> Result<AgentContext>   // documents read in WINDOW_SECONDS before a proposal
+```
+
+Lane F added the two tools to the tool list together with their goldens (ten tools for a token with
+every scope); the eight 0.2.0 entries are unchanged.
+
+### 10.6 Registration
+
+- Pollers: `sources::register_poller("email", |c, s| Box::pin(poll_mailbox(c, s)))` from the lane's
+  `register()`. `ownhealth::register_lanes()` already calls `sources::register()`,
+  `ownhealth_inbox::register()`, `ownhealth_ocr::register()` and `ownhealth_devices::register()`.
+- Jobs: `jobs::register_handler(kind, ...)` as in section 6. New kinds: `source.poll` (core),
+  `ocr.document` (C, queue `ocr`), `import.gadgetbridge` (D). `jobs::JOB_KINDS` lists the 0.2.0 kinds
+  only; the queue does not check it.
+- Routes: each new file in `ownhealth-api/src/routes/` has `pub fn router() -> Router<Runtime>` and is
+  already merged in `routes::all()`. The registry lives at `/api/inboxes...`, not `/api/sources...`
+  (that path is the provenance endpoint since 0.1). Profile path parameters are `{p}`. The OAuth
+  authorization-server routes sit outside `/api`, in `ownhealth-mcp::oauth::router()`, already merged.
+- Demo data: `demo::register_demo_hook(name, order, hook)`. v0.2 orders: A 1010, B 1020, C 1030,
+  D 1040, E 1050, F 1060, G 1070, so they run after every 0.2.0 hook. The demo must show a mailbox with
+  one quarantined message, a folder source, a Nightscout source with 14 days of synthetic CGM for
+  Lucía, and one scanned page waiting for OCR. Synthetic only.
+
+### 10.7 Errors
+
+`core::Error::NotImplemented(&'static str)` maps to HTTP 501 `{"detail": {"code": "not_implemented",
+...}}` and to a permanent job failure (`NotImplementedError: ...`). Lanes never return it from code
+they finished; `grep -rn NotImplemented server/crates` is empty at the end of the phase.
+
+### 10.8 Build, CI and tests
+
+- The default build has no OCR engine. `cargo build -p ownhealth --features ocr` links onnxruntime
+  (`ort` download-binaries, static) and needs the models at runtime (`scripts/fetch-ocr-models.sh`).
+  CI must also run `cargo clippy -p ownhealth --features ocr --all-targets -- -D warnings` (G adds the
+  step once C lands engine code).
+- External services in tests are fakes or throwaway containers: GreenMail for IMAP (A), a local axum
+  fake for Paperless and Nightscout (B, D), `core::net` tests use a local TCP listener. Never the internet.
+- Injection fixtures for email bodies, Paperless notes and OCR-only text go in
+  `fixtures/labslips/injection/`; every lane that reads free text tests them.
+- Migration and API goldens from 0.2.0 stay green. Add tests, never loosen old ones.
+
+### 10.9 Where this differs from the design docs
+
+- OCR is Rust (`oar-ocr`, PP-OCRv5 ONNX), not PP-StructureV3 or Docling, and not PaddleOCR-VL on GPU:
+  no Python. GPU is an optional ort execution provider.
+- The shortcut and share routes are `/api/ingest/shortcut` and `/api/ingest/share`, not
+  `/api/ingest/upload` (ingestion.md); the upload route stays as it is.
+- The source registry is `/api/inboxes`, not `/api/sources` (taken by provenance).
+- Remote LLM extraction is not a feature (ingestion.md lists it as an option); the agent path is MCP only.
+- Email (ingestion.md 3): polled every 60 s, not 5 min, and no IDLE; the body is not stored as a
+  document of its own (it stays in the `.eml` blob); `application/octet-stream` attachments are
+  accepted and sniffed; inline `cid:` images are skipped; `tls: none` only to a loopback or private
+  address; `ca_file` trusts a home server's own CA.
+- Paperless (ingestion.md 3.1): no `ownhealth-imported` tag written back (it needs a token that may
+  write; the recipe recommends a read-only one) and no pull of the archived PDF of a scan (local OCR
+  or the agent reads the original).
+- Observation-level dedup (level 3) in import.pdf is `core::dedup::match_observation` (analyte,
+  specimen time, value, comparator, method, lab when both are known): the same fact gets an
+  `observation_link` row, a date printed without a time goes to review (`collection_time_unknown`).
+  The lab is the vendor template's `provider_name`, so two documents without a template count as the
+  same lab. The structured importers (FHIR, Apple Health) keep their own duplicate match.
+- MCP (mcp.md 6.1, 2.2): `list_pending_documents` titles a document by provider, kind and date, never
+  its file name (security-privacy.md 4.2 #9); a tool outside the token's scopes answers the 0.2.0
+  tool error `scope_missing`, not an HTTP 403 `insufficient_scope` challenge; the built-in
+  authorization server is on only when `OWNHEALTH_BASE_URL` is https; page images count against
+  the per-token `document_pages_per_day` cap (300), not the egress byte budget.
+- Wearables: `get_trend` cites Apple Health import sources only; samples from Health Auto Export,
+  Gadgetbridge and Nightscout carry their provenance in `wearable_source.source_id`.
+- HEIC images arriving through an inbox are stored as `image/heic` and not read (no decoder);
+  the Shortcut recipe converts photos to JPEG first.

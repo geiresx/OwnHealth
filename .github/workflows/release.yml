@@ -1,18 +1,21 @@
 name: Release
 
-# On a v* tag: build the app image for amd64 and arm64, push drumsergio/ownhealth:<version> and
-# :<major>.<minor> (never :latest), attach an SBOM and build provenance, sign the image with cosign
-# keyless, and copy README.md to the Docker Hub description. GitHub-hosted runners: public repo.
+# On a v* tag: build the app image for amd64 and arm64 in two variants, push
+# drumsergio/ownhealth:<version> and :<major>.<minor> (the default image, no OCR) and
+# :<version>-ocr and :<major>.<minor>-ocr (the `ocr` compose profile's image: the OCR engine and its
+# models), never :latest; attach an SBOM and build provenance to each, sign each with cosign keyless,
+# and copy README.md to the Docker Hub description. GitHub-hosted runners: public repo.
 #
 # Each platform builds natively on its own runner (compiling Rust under QEMU would take hours), pushes
 # by digest with its SBOM and provenance, and smoke-tests that digest (scripts/smoke-image.sh); the
-# merge job joins them into one tagged manifest list and signs it.
+# merge job joins them into one tagged manifest list per variant and signs it.
 #
 # Verify a published image:
 #   cosign verify drumsergio/ownhealth:<version> \
 #     --certificate-identity-regexp '^https://github.com/GeiserX/OwnHealth/.github/workflows/release.yml@refs/tags/v' \
 #     --certificate-oidc-issuer https://token.actions.githubusercontent.com
 #   docker buildx imagetools inspect drumsergio/ownhealth:<version> --format '{{ json .SBOM }}'
+# The same two commands work for drumsergio/ownhealth:<version>-ocr.
 
 on:
   push:
@@ -46,7 +49,8 @@ jobs:
           grep -q "\"version\": \"$v\"" ui/package.json || { echo "::error::ui/package.json is not $v"; fail=1; }
           for f in compose.yaml deploy/compose.homelab.yaml; do
             grep -q "image: $IMAGE:$v\$" "$f" || { echo "::error::$f does not pin $IMAGE:$v"; fail=1; }
-            if grep "image: $IMAGE:" "$f" | grep -v "image: $IMAGE:$v\$"; then echo "::error::$f pins another $IMAGE tag"; fail=1; fi
+            grep -q "image: $IMAGE:$v-ocr\$" "$f" || { echo "::error::$f does not pin $IMAGE:$v-ocr for the ocr profile"; fail=1; }
+            if grep "image: $IMAGE:" "$f" | grep -v -e "image: $IMAGE:$v\$" -e "image: $IMAGE:$v-ocr\$"; then echo "::error::$f pins another $IMAGE tag"; fail=1; fi
           done
           exit $fail
 
@@ -55,11 +59,17 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
+        variant: [default, ocr]
+        platform: [linux/amd64, linux/arm64]
         include:
           - platform: linux/amd64
             runner: ubuntu-latest
           - platform: linux/arm64
             runner: ubuntu-24.04-arm
+          - variant: default
+            target: app
+          - variant: ocr
+            target: ocr
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -82,6 +92,7 @@ jobs:
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
+          target: ${{ matrix.target }}
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
           outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
@@ -92,7 +103,8 @@ jobs:
       - name: Smoke test the pushed platform image
         env:
           DIGEST: ${{ steps.build.outputs.digest }}
-        run: bash scripts/smoke-image.sh "$IMAGE@$DIGEST"
+          VARIANT: ${{ matrix.variant }}
+        run: bash scripts/smoke-image.sh "$IMAGE@$DIGEST" "$VARIANT"
 
       - name: Keep the digest for the merge job
         env:
@@ -100,7 +112,7 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/digests"
           touch "$RUNNER_TEMP/digests/${DIGEST#sha256:}"
-          echo "PLATFORM_PAIR=$(echo '${{ matrix.platform }}' | tr / -)" >> "$GITHUB_ENV"
+          echo "PLATFORM_PAIR=${{ matrix.variant }}-$(echo '${{ matrix.platform }}' | tr / -)" >> "$GITHUB_ENV"
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -111,6 +123,13 @@ jobs:
 
   merge:
     needs: build
+    strategy:
+      matrix:
+        include:
+          - variant: default
+            suffix: ""
+          - variant: ocr
+            suffix: "-ocr"
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -123,7 +142,7 @@ jobs:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           path: ${{ runner.temp }}/digests
-          pattern: digest-*
+          pattern: digest-${{ matrix.variant }}-*
           merge-multiple: true
 
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
@@ -137,7 +156,9 @@ jobs:
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
           images: ${{ env.IMAGE }}
-          flavor: latest=false
+          flavor: |
+            latest=false
+            suffix=${{ matrix.suffix }},onlatest=false
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
@@ -154,8 +175,9 @@ jobs:
       - id: digest
         name: The manifest list digest, and both platforms in it
         env:
-          VERSION: ${{ steps.meta.outputs.version }}
+          SUFFIX: ${{ matrix.suffix }}
         run: |
+          VERSION="${GITHUB_REF_NAME#v}$SUFFIX"
           docker buildx imagetools inspect "$IMAGE:$VERSION"
           docker buildx imagetools inspect "$IMAGE:$VERSION" --format '{{json .Manifest}}' > /tmp/index.json
           for arch in amd64 arm64; do
@@ -174,6 +196,7 @@ jobs:
         run: cosign sign --yes "$IMAGE@$DIGEST"
 
       - name: Docker Hub description from README.md
+        if: matrix.variant == 'default'
         uses: peter-evans/dockerhub-description@1b9a80c056b620d92cedb9d9b5a223409c68ddfa # v5.0.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}

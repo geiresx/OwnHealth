@@ -3,7 +3,7 @@ resolver = "3"
 members = ["crates/*", "../contract-tests"]
 
 [workspace.package]
-version = "0.2.0"
+version = "0.3.0"
 edition = "2024"
 rust-version = "1.94"
 license = "AGPL-3.0-or-later"
@@ -22,6 +22,9 @@ ownhealth-mcp = { path = "crates/ownhealth-mcp" }
 ownhealth-auth = { path = "crates/ownhealth-auth" }
 ownhealth-ops = { path = "crates/ownhealth-ops" }
 ownhealth-api = { path = "crates/ownhealth-api" }
+ownhealth-devices = { path = "crates/ownhealth-devices" }
+ownhealth-inbox = { path = "crates/ownhealth-inbox" }
+ownhealth-ocr = { path = "crates/ownhealth-ocr" }
 
 # runtime and web
 tokio = { version = "1.54", features = ["rt-multi-thread", "macros", "signal", "time", "sync", "fs", "process", "io-util"] }
@@ -35,6 +38,7 @@ http = "1"
 mime_guess = "2"
 rust-embed = { version = "8.13", features = ["include-exclude"] }
 reqwest = { version = "0.13", default-features = false, features = ["rustls", "json"] }
+url = "2"
 
 # database
 sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "tls-rustls", "postgres", "uuid", "chrono", "rust_decimal", "json", "ipnet", "derive"] }
@@ -56,6 +60,7 @@ num-traits = "0.2"
 unicode-normalization = "0.1"
 
 # hashing and secrets
+aes-gcm = "0.11"
 sha2 = "0.11"
 hmac = "0.13"
 hex = "0.4"
@@ -79,6 +84,17 @@ quick-xml = "0.42"
 zip = { version = "9", default-features = false, features = ["deflate"] }
 noodles = { version = "0.119", features = ["bgzf", "core", "csi", "tabix", "vcf"] }
 flate2 = "1.1"
+# v0.2 inboxes (SPIKES-v0.2.md)
+async-imap = { version = "0.12", default-features = false, features = ["runtime-tokio"] }
+image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
+lopdf = { version = "=0.47.0", default-features = false }
+mail-parser = "1"
+# OCR engine: PaddleOCR PP-OCRv5 ONNX on ONNX Runtime (ort). Only the `ocr` feature of the binary builds it.
+oar-ocr = { version = "=0.10.2", default-features = false, features = ["download-binaries", "simd"] }
+# 0.39: the libsqlite3-sys 0.37 that sqlx-sqlite (resolved though unused) also links; a newer one conflicts
+rusqlite = { version = "0.39", features = ["bundled"] }
+tokio-rustls = { version = "0.26", default-features = false, features = ["aws_lc_rs", "tls12"] }
+webpki-roots = "1"
 
 # tests
 proptest = { version = "1.8", default-features = false, features = ["std"] }

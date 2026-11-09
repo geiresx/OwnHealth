@@ -9,7 +9,7 @@ name: ownhealth
 # which owns nothing, so it cannot ALTER a table, disable a trigger, or rewrite the audit log.
 services:
   admin:
-    image: drumsergio/ownhealth:0.2.0
+    image: drumsergio/ownhealth:0.3.0
     restart: "no"
     depends_on:
       db:
@@ -36,7 +36,7 @@ services:
     security_opt: ["no-new-privileges:true"]
 
   app:
-    image: drumsergio/ownhealth:0.2.0
+    image: drumsergio/ownhealth:0.3.0
     restart: unless-stopped
     depends_on:
       db:
@@ -49,11 +49,44 @@ services:
       OWNHEALTH_DB_PASSWORD_FILE: /run/secrets/app_db_password
       OWNHEALTH_RUN_MIGRATIONS: "0" # the admin service migrated as the owner
       OWNHEALTH_SECRET_KEY_FILE: /run/secrets/secret_key
+      OWNHEALTH_SECRETS_KEY_FILE: /run/secrets/secrets_key # seals inbox passwords and tokens (v0.2)
       OWNHEALTH_BASE_URL: https://${OWNHEALTH_DOMAIN:?set OWNHEALTH_DOMAIN in .env}
+      OWNHEALTH_INBOX_DIR: /inbox # the watched folder: ./inbox/<profile>/ on the host
+    secrets: [app_db_password, secret_key, secrets_key]
+    volumes:
+      - ownhealth-data:/data
+      - ./inbox:/inbox
+    # No published port: only Caddy reaches the app, on the compose network.
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+
+  # `ocr` profile (v0.2): reads scans and photos with the local OCR engine. Turn it on with two lines
+  # in .env: COMPOSE_PROFILES=ocr (starts this worker) and OWNHEALTH_OCR=1 (the app sends unread pages
+  # to the `ocr` queue instead of leaving them pending). It serves no HTTP and only runs `ocr` jobs.
+  ocr:
+    profiles: [ocr]
+    image: drumsergio/ownhealth:0.3.0-ocr
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      admin:
+        condition: service_completed_successfully
+    env_file: .env
+    environment:
+      OWNHEALTH_DATABASE_URL: postgresql://ownhealth_app@db:5432/ownhealth
+      OWNHEALTH_DB_PASSWORD_FILE: /run/secrets/app_db_password
+      OWNHEALTH_RUN_MIGRATIONS: "0"
+      OWNHEALTH_SECRET_KEY_FILE: /run/secrets/secret_key
+      OWNHEALTH_QUEUES: ocr
+    command: ["ownhealth", "worker"]
+    healthcheck:
+      disable: true # a worker serves no /healthz
     secrets: [app_db_password, secret_key]
     volumes:
       - ownhealth-data:/data
-    # No published port: only Caddy reaches the app, on the compose network.
     read_only: true
     tmpfs: [/tmp]
     cap_drop: [ALL]
@@ -97,6 +130,8 @@ secrets:
     file: ./secrets/app_db_password # the app role's password
   secret_key:
     file: ./secrets/secret_key
+  secrets_key:
+    file: ./secrets/secrets_key # inbox credentials at rest; keep a copy with the restic password
   restic_password:
     file: ./secrets/restic_password # keep a copy in your password manager: without it the backup is useless
 

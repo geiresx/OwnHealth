@@ -17,8 +17,12 @@ cp .env.example .env
 openssl rand -hex 32     # paste as OWNHEALTH_DB_PASSWORD in .env
 openssl rand -hex 32     # paste as OWNHEALTH_APP_DB_PASSWORD in .env
 openssl rand -hex 48     # paste as OWNHEALTH_SECRET_KEY in .env
+openssl rand -base64 32  # paste as OWNHEALTH_SECRETS_KEY in .env (encrypts inbox passwords and tokens)
+mkdir -p inbox && sudo chown 10001:10001 inbox   # the watched folder; the app runs as user 10001
 docker compose up -d
 ```
+
+The app moves each file it imports from `inbox/` to `inbox/.done/`. If it cannot write there, the folder inbox shows as failing.
 
 Compose pulls `drumsergio/ownhealth` and `postgres:17.11`. Before the first release there is no image to pull, so Compose builds it from the source tree; that takes a few minutes.
 
@@ -45,6 +49,8 @@ Open http://localhost:8080. The first visit asks for your name and language and 
 4. Open **Health at a glance**. Each body system shows OK, Watch, Out, Stale or No data, with the date of the newest value.
 
 Other sources work the same way: a FHIR or IPS bundle, the Apple Health `export.zip`, and the `genome-facts.json` that [OwnGenome](https://github.com/GeiserX/OwnGenome) writes.
+
+To have reports arrive without an upload, open **Inbox** and add a mailbox, the watched folder, Paperless-ngx or a phone. The [recipes](recipes/README.md) walk through each one. Mail from a sender you have not allowed waits in quarantine, unread, until you release it.
 
 ## 4. Connect an agent
 

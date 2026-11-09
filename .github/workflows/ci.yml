@@ -74,6 +74,59 @@ jobs:
       - run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - run: cargo test --workspace --locked
 
+  # The OCR engine (v0.2): the `ocr` feature links ONNX Runtime, so it gets its own lints, and the
+  # real engine runs on the pinned models (scripts/fetch-ocr-models.sh, cached by their sums): the
+  # exit-criteria test (ignored by default: it needs the models and an optimised build) reads the
+  # scanned and photographed eval set and fails below row F1 0.90 or on any dropped or duplicated row,
+  # so a model, dictionary or engine regression turns this job red. The server job above already runs
+  # the OCR crate's model-free tests (routing, grounding) without it.
+  ocr:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    services:
+      postgres:
+        image: postgres:17.11
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 55432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    defaults:
+      run:
+        working-directory: server
+    env:
+      OWNHEALTH_TEST_ADMIN_URL: postgresql://postgres:postgres@127.0.0.1:55432/postgres
+      OWNHEALTH_OCR_MODELS_DIR: ${{ github.workspace }}/server/vendor/ocr-models
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Rust ${{ env.RUST_TOOLCHAIN }}
+        run: |
+          rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --component clippy
+          rustup default "$RUST_TOOLCHAIN"
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: server
+          key: ocr
+      - name: PDFium (pinned, sha256-checked)
+        working-directory: .
+        run: bash scripts/fetch-pdfium.sh linux-x64
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: server/vendor/ocr-models
+          key: ocr-models-${{ hashFiles('scripts/fetch-ocr-models.sh') }}
+      - name: OCR models (pinned, sha256-checked; a cached file is checked again)
+        working-directory: .
+        run: bash scripts/fetch-ocr-models.sh
+      - run: mkdir -p static
+      - run: cargo clippy -p ownhealth --features ocr --all-targets --locked -- -D warnings
+      - run: cargo test -p ownhealth-ocr --features engine --release --locked -- --include-ignored
+
   ui:
     runs-on: ubuntu-latest
     defaults:
@@ -116,19 +169,31 @@ jobs:
       - run: mkdir -p server/static
       - run: bash contract-tests/run.sh rust
 
-  # Both platforms the release publishes, each on its own native runner: the arm64 PDFium build and
-  # its shared libraries are checked here, not only on a developer's machine.
+  # Both platforms and both variants the release publishes, each on its own native runner: the arm64
+  # PDFium build and its shared libraries are checked here, not only on a developer's machine. The
+  # ocr variant (`--target ocr`) must also read the demo's scanned page.
   docker:
     strategy:
       fail-fast: false
       matrix:
         runner: [ubuntu-latest, ubuntu-24.04-arm]
+        variant: [default, ocr]
+        include:
+          - variant: default
+            target: app
+            tag: ci
+            minutes: 45
+          - variant: ocr
+            target: ocr
+            tag: ci-ocr
+            minutes: 60
     runs-on: ${{ matrix.runner }}
+    timeout-minutes: ${{ matrix.minutes }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Build the image (no push)
-        run: docker build -t drumsergio/ownhealth:ci .
-      - name: Smoke test (non-root, tools, PDFium libraries, readyz, UI, healthcheck, backup, verify-restore)
-        run: bash scripts/smoke-image.sh drumsergio/ownhealth:ci
+        run: docker build --target "${{ matrix.target }}" -t "drumsergio/ownhealth:${{ matrix.tag }}" .
+      - name: Smoke test (non-root, tools, libraries, models, readyz, UI, healthcheck, OCR, backup, verify-restore)
+        run: bash scripts/smoke-image.sh "drumsergio/ownhealth:${{ matrix.tag }}" "${{ matrix.variant }}"

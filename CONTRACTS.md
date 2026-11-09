@@ -74,8 +74,10 @@ never collide:
 | 0500-0599 | F |
 | 0600-0699 | G |
 | 0700-0799 | J |
+| 1000-1079 | v0.2 Inboxes: foundation 1000-1009, then lanes A-G in steps of ten (server/RUST-CONTRACTS.md 10.3) |
 
-H and I have no migrations. Prefer using the 0001 tables; add columns only when the design needs them.
+H and I have no migrations. Every new phase numbers after the highest shipped file: the migrator applies
+missing files in number order, so a lower number would run before files it depends on. Prefer using the 0001 tables; add columns only when the design needs them.
 Lifecycle rule for every clinical table: only `status`, `status_reason` and `superseded_at` change after
 insert (a trigger enforces it), and `audit_event` is append-only.
 

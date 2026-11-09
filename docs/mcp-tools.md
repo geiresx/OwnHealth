@@ -22,6 +22,16 @@ Or in a project's `.mcp.json`:
   "headers": {"Authorization": "Bearer ${OWNHEALTH_PAT}"}}}}
 ```
 
+### Connect with OAuth (claude.ai and other remote clients)
+
+On an install served over **https**, OwnHealth is also an OAuth 2.1 authorization server, so a remote client can connect with only the URL `https://health.example.lan/mcp`. The client finds the server through the protected-resource metadata (`/.well-known/oauth-protected-resource/mcp`, RFC 9728) and the authorization-server metadata (`/.well-known/oauth-authorization-server`, RFC 8414). It identifies itself with a Client ID Metadata Document: its client id is an https URL that serves its name and redirect URIs. There is no dynamic client registration.
+
+- You approve the client on a consent screen in the app: one checkbox per profile and per scope, nothing checked except `read:summary`, and the token lifetime (90 days by default, 365 at most). Approving asks for your password or passkey again (step-up).
+- PKCE with `S256` is required; `plain` is refused. The token is bound to this server's `/mcp` (RFC 8707): a token issued for any other resource is refused. The redirect carries `iss` (RFC 9207).
+- OwnHealth fetches the client's metadata document with limits (https only, 5 s, 64 KiB, no redirects) and never from a private, loopback or link-local address.
+- Access tokens last one hour and are refreshed with a rotating refresh token; a refresh token used twice ends the whole connection. The approved clients are listed under **Settings → Connected apps**, where you can revoke each one.
+- On a plain-http install the OAuth endpoints answer 404 and only personal access tokens work. Personal access tokens work the same on both.
+
 Each token carries its own language (`es`, `en`), unit preference (`as_reported`, `si`, `conventional`) and identity mode (`full`, `pseudonymous`, `minimal`). They change the wording only. The `state_hash` stays the same for every token.
 
 ## Scopes
@@ -36,8 +46,8 @@ Each token carries its own language (`es`, `en`), unit preference (`as_reported`
 | `read:genome` | Curated genome findings | `get_genome_findings`, `check_drug` (PGx part) |
 | `read:genome_raw` | One position at a time from the VCF | `lookup_variant`, together with `read:genome` |
 | `read:sensitive` | Mental, reproductive and sexual health facts | widens every read tool |
-| `read:documents_text` | Raw text from documents | `get_source` with `include_text` |
-| `write:propose` | Proposals to the review queue | `propose` |
+| `read:documents_text` | Raw text from documents | `get_source` with `include_text`; `get_document_page` together with `write:propose` |
+| `write:propose` | Proposals to the review queue | `propose`, `list_pending_documents` |
 
 `tools/list` shows only the tools the token's scopes allow. A token without `read:genome` sees no genome tool and no genome fact anywhere. On a family member's profile, the token gets what both the token and your grant on that profile allow, minus any category that person locked.
 
@@ -72,7 +82,7 @@ Every tool returns `structuredContent` plus a text block with the same facts, on
 
 ## Tools
 
-All tools take `profile` (a slug such as `alex`, or `me`), except `get_source`. All are read-only except `propose`, and none of them reaches outside OwnHealth.
+All tools take `profile` (a slug such as `alex`, or `me`), except `get_source` and `get_document_page`, which take an id. All are read-only except `propose`, and none of them reaches outside OwnHealth.
 
 ### get_health_status
 
@@ -261,11 +271,49 @@ Input: `src_id`, `include_text`. Scope: that of the underlying fact.
 }
 ```
 
+### list_pending_documents
+
+Documents of one profile that wait for someone to read their values: scans and photos with no word layer yet (OCR off or failed), pages no parser could read, and documents whose rows wait in the review queue. `pages_pending` names the pages to read. The title is built from the provider, the kind and the date, never from the file name, and it is still `untrusted_text` because the provider name was read from the document.
+
+Input: `profile`, `state` (`unparsed`, `needs_review` or `any`), `cursor`. Scope: `write:propose`.
+
+```json
+"data": {
+  "state": "any",
+  "documents": [
+    {"doc_id": "doc_2026-10-20_7c41e2d0", "received_at": "2026-11-07T23:56:40Z", "kind_guess": "photo_or_scan",
+     "pages": 1, "pages_pending": [1], "text_layer": false, "ocr_state": "off", "waiting": ["unparsed"],
+     "title": {"trust": "untrusted_text", "origin": "pdf_text_layer", "text": "photo or scan"}}
+  ]
+}
+```
+
+### get_document_page
+
+One page of a document, so the agent can read the values no parser extracted. `words` holds the page's words as lines, each line led by its box (`x0 top x1 bottom`, PDF points from the top-left corner), all in one `untrusted_text` block whose origin is `pdf_text_layer` or `ocr`. Words hidden on the printed page (white on white, off the page) are left out and counted in `limitations`. With `include: ["image"]` the answer also carries the page as a PNG image block (150 dpi, at most 1600 px a side), only for a token in `full` identity mode, because pixels cannot be redacted.
+
+A page that is still waiting for extraction may hold anything, so it needs every read category, the agents genome switch and an adult profile; otherwise it is refused with `page_withheld`, as is a page of a sensitive document without `read:sensitive`. A document on a profile the token cannot read answers `unknown`. 300 pages a day per token (`page_cap`, changeable per token). The image does not count against the daily byte budget; the page cap does that job.
+
+Input: `doc_id`, `page`, `include` (`words`, `image`; default `words`). Scopes: `read:documents_text` and `write:propose`.
+
+```json
+"data": {
+  "doc_id": "doc_2026-09-14_5fa10a4b", "page": 2, "pages": 2, "size_pt": [595.3, 841.9],
+  "word_layer": "pdf_text_layer", "bbox_format": "x0 top x1 bottom, PDF points, origin top-left",
+  "word_count": 212,
+  "words": {"trust": "untrusted_text", "origin": "pdf_text_layer",
+            "text": "56 183 519.7 192\tVitamina D (25-OH) 24 ng/mL 30 - 100 L\n…"},
+  "image": null
+}
+```
+
 ### propose
 
 The only way an agent writes. It proposes observations read from a document, a note, a change to a genome finding's status, or a medication. Nothing is saved until a person accepts it in the review queue; `propose` never auto-accepts, and rows that fail a check are queued and marked, never dropped. 50 proposals per day, 200 rows per call.
 
 Input: `kind` (`observations`, `note`, `finding_status`, `medication`), `payload`, `based_on` (src ids). Scope: `write:propose` plus read on the profile.
+
+For `observations` read from a page, give each row's `page` and `bbox` (the box from `get_document_page`). OwnHealth checks every value against the page's own word layer and marks each stored row `grounded`, `ungrounded` or `ungrounded_no_word_layer` (a scan read from its image), so the reviewer sees which values it could not find on the page. The review item also lists the documents and sources the agent read in the hour before the proposal, from the audit log.
 
 ```json
 "data": {
@@ -293,6 +341,9 @@ A refused call is a tool error (`isError: true`) with a `code`, a one-line `mess
 | `egress_budget_exhausted` | Over 2 000 facts or 2 MB today |
 | `genome_lookup_cap` | Over 200 `lookup_variant` calls today |
 | `propose_cap` | Over 50 proposals today, or over 200 rows in one call |
+| `page_cap` | Over 300 `get_document_page` calls today |
+| `page_withheld` | The page is withheld from this token: a sensitive document, or a page still waiting for extraction that the token cannot fully read |
+| `unknown` | No document or source with that id is available to this token |
 
 Limits reset at midnight in the install's timezone and can be changed per token in the app.
 

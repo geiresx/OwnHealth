@@ -142,51 +142,53 @@ flowchart LR
 
 ## v0.2 Inboxes
 
+Ships in 0.3.0. Measured exit criteria: [v0.2-exit-criteria.md](v0.2-exit-criteria.md).
+
 **Goal.** Data arrives without the user uploading it, and scanned documents become values through local OCR or an outside agent, never through an embedded model.
 
 ### Deliverables
 
 **Ingestion**
-- [ ] Email-in: IMAP poll of a dedicated mailbox; per-profile routing; sender allowlist; everything else to quarantine.
-- [ ] Per-sender PDF password rules (for labs that lock PDFs with an ID number or birth date), stored encrypted.
-- [ ] Watched folder (scanner target, synced phone folder).
-- [ ] Paperless-ngx: "Document Added" webhook plus API pull of the original; Paperless ID kept as the source link.
-- [ ] PWA share target (Android) and an iOS Shortcut recipe for photos and PDFs.
-- [ ] Three-level dedup: file hash, document fingerprint, observation match (analyte + specimen time + value + lab).
+- [x] Email-in: IMAP poll of a dedicated mailbox; per-profile routing; sender allowlist; everything else to quarantine.
+- [x] Per-sender PDF password rules (for labs that lock PDFs with an ID number or birth date), stored encrypted.
+- [x] Watched folder (scanner target, synced phone folder).
+- [x] Paperless-ngx: "Document Added" webhook plus API pull of the original; Paperless ID kept as the source link.
+- [x] PWA share target (Android) and an iOS Shortcut recipe for photos and PDFs.
+- [x] Three-level dedup: file hash, document fingerprint, observation match (analyte + specimen time + value + lab).
 
 **Normalization**
-- [ ] `ocr` compose profile: PaddleOCR PP-StructureV3 or Docling on CPU; PaddleOCR-VL 0.9B on GPU/iGPU.
-- [ ] OCR only for scans, photos and pages with garbage glyphs; text layer stays first.
-- [ ] Grounding check: every extracted value must match the page word layer, or it goes to review flagged ungrounded.
-- [ ] Benchmark harness: pages/s and row F1 per engine on the eval set, published in docs.
+- [x] `ocr` compose profile: PaddleOCR PP-StructureV3 or Docling on CPU; PaddleOCR-VL 0.9B on GPU/iGPU. Shipped as PP-OCRv5 mobile detection and Latin recognition on ONNX Runtime, in Rust, on CPU (a GPU execution provider is optional), because OwnHealth carries no Python; the engine choice and its numbers are in [ocr-benchmark.md](ocr-benchmark.md).
+- [x] OCR only for scans, photos and pages with garbage glyphs; text layer stays first.
+- [x] Grounding check: every extracted value must match the page word layer, or it goes to review flagged ungrounded.
+- [x] Benchmark harness: pages/s and row F1 per engine on the eval set, published in docs.
 
 **Wearables**
-- [ ] Health Auto Export receiver (JSON v2, scheduled push).
-- [ ] Gadgetbridge SQLite DB import (fully offline wearables).
-- [ ] Nightscout pull (`/api/v1/entries/sgv.json`, v3 API), including FreeStyle Libre via Nightscout connect.
-- [ ] CGM readings under LOINC 99504-3; summary per the HL7 CGM IG profiles (mean glucose 97507-8, GMI, times-in-ranges panel 106793-3); validity >=70% sensor wear over 14 days per the international time-in-range consensus.
+- [x] Health Auto Export receiver (JSON v2, scheduled push).
+- [x] Gadgetbridge SQLite DB import (fully offline wearables).
+- [x] Nightscout pull (`/api/v1/entries/sgv.json`, v3 API), including FreeStyle Libre via Nightscout connect.
+- [x] CGM readings under LOINC 99504-3; summary per the HL7 CGM IG profiles (mean glucose 97507-8, GMI, times-in-ranges panel 106793-3); validity >=70% sensor wear over 14 days per the international time-in-range consensus.
 
 **MCP**
-- [ ] `list_pending_documents` and `get_document_page` for agent-assisted extraction; the agent calls `propose` with page + bbox.
-- [ ] OAuth 2.1 resource server: RFC 9728 protected-resource metadata, RFC 8707 audience checks, Client ID Metadata Documents (CIMD). DCR only if a client we use needs it.
-- [ ] Review queue shows which documents were in the agent's context for each proposal (from the audit log).
+- [x] `list_pending_documents` and `get_document_page` for agent-assisted extraction; the agent calls `propose` with page + bbox.
+- [x] OAuth 2.1 resource server: RFC 9728 protected-resource metadata, RFC 8707 audience checks, Client ID Metadata Documents (CIMD). DCR only if a client we use needs it.
+- [x] Review queue shows which documents were in the agent's context for each proposal (from the audit log).
 
 **UI**
-- [ ] Inbox screen: sources, last run, errors, quarantine with "allow sender" action.
-- [ ] Review queue ungrounded/low-confidence highlighting; duplicate banner.
+- [x] Inbox screen: sources, last run, errors, quarantine with "allow sender" action.
+- [x] Review queue ungrounded/low-confidence highlighting; duplicate banner.
 
 **Security/Privacy**
-- [ ] Quarantine never parsed into observations until a human releases it.
-- [ ] Injection fixtures added for email bodies, Paperless notes and OCR-only text.
-- [ ] Remote LLM extraction is not a feature; extraction off-box only happens in the user's own agent, through MCP.
+- [x] Quarantine never parsed into observations until a human releases it.
+- [x] Injection fixtures added for email bodies, Paperless notes and OCR-only text.
+- [x] Remote LLM extraction is not a feature; extraction off-box only happens in the user's own agent, through MCP.
 
 **Ops/Distribution**
-- [ ] Profile images published per compose profile; default image stays without OCR models.
-- [ ] Health endpoint per source with "last successful sync" for alerting.
+- [x] Profile images built per compose profile (`<version>` and `<version>-ocr`, pushed by the release workflow on the tag); default image stays without OCR models.
+- [x] Health endpoint per source with "last successful sync" for alerting.
 
 **Docs/Community**
-- [ ] Recipes: Paperless-ngx, scanner to folder, Health Auto Export, Nightscout, claude.ai remote connector over a tunnel.
-- [ ] "Agent-assisted extraction" walkthrough with Claude Code.
+- [x] Recipes: Paperless-ngx, scanner to folder, Health Auto Export, Nightscout, claude.ai remote connector over a tunnel.
+- [x] "Agent-assisted extraction" walkthrough with Claude Code.
 
 ### Exit criteria
 

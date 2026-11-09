@@ -1,6 +1,6 @@
 # AGENTS.md
 
-OwnHealth is a self-hosted personal health record: a web app that keeps a person's (and a family's) labs, records, wearables, genome and imaging in one place, and an MCP server that lets an outside agent read it. Pre-alpha: v0.1 is being built; the plan lives in `docs/`, and [server/RUST-CONTRACTS.md](server/RUST-CONTRACTS.md) maps the crates and their interfaces.
+OwnHealth is a self-hosted personal health record: a web app that keeps a person's (and a family's) labs, records, wearables, genome and imaging in one place, and an MCP server that lets an outside agent read it. Pre-alpha: 0.3.0 ships the v0.2 inboxes; the plan lives in `docs/`, and [server/RUST-CONTRACTS.md](server/RUST-CONTRACTS.md) maps the crates and their interfaces.
 
 ## Rules for agents
 
@@ -35,6 +35,21 @@ The backup tests need pg_dump and pg_restore 17 and restic. Without a local Post
 client contract (`ownhealth-mcp/tests/python_client.rs`) needs `uv` on PATH.
 
 Contract suite, from the repo root: `bash contract-tests/run.sh rust`. Its goldens were recorded from 0.1.1.
+
+OCR (v0.2). The default build has no OCR engine; the `engine` feature of `ownhealth-ocr` (`ocr` on the
+`ownhealth` binary) links ONNX Runtime and needs the models, which are never committed:
+
+```sh
+bash ../scripts/fetch-ocr-models.sh                    # pinned, sha256-checked, into server/vendor/ocr-models/
+cargo clippy -p ownhealth --features ocr --all-targets --locked -- -D warnings
+OWNHEALTH_OCR_MODELS_DIR=$PWD/vendor/ocr-models \
+  cargo test -p ownhealth-ocr --features engine --release --locked -- --include-ignored   # the OCR exit criteria
+```
+
+External services in tests are fakes started by the test itself, never the internet: an in-process IMAP
+server (`ownhealth-inbox/tests/email_support/fake_imap.rs`, also used by the API tests), and axum fakes
+of the Paperless-ngx API (`ownhealth-api/tests/ingest_inboxes.rs`) and of Nightscout
+(`ownhealth-devices/tests/nightscout.rs`). They need nothing beyond the test Postgres.
 
 The crate map is in [server/RUST-CONTRACTS.md](server/RUST-CONTRACTS.md). Migrations live in `migrations/`, the
 shipped reference files (LOINC subset, aliases, rule pack, CPIC snapshot, vendor templates, genome lists) in `data/`.

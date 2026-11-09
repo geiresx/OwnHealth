@@ -18,24 +18,26 @@ You run it yourself.
 
 ## What it does
 
-In v0.1:
+In 0.3.0:
 
 - One dashboard for the whole family, one profile per person, with OK, Watch, Out, Stale or No data per body system
 - Lab reports read from PDFs into trendable values, each linked to its page and position on the page; anything uncertain waits in a review queue
-- FHIR and IPS bundles, the Apple Health export, and manual entry
+- Inboxes, so data arrives without an upload: a mailbox of its own (allowed senders go to their profile, everything else waits in quarantine until you release it), a watched folder for a scanner or a synced phone folder, Paperless-ngx, the Android share target and an iOS Shortcut
+- Local OCR for scans and photos, in the `drumsergio/ownhealth:<version>-ocr` image and the `ocr` compose profile, on CPU; every value it reads is checked against the page. Without it, scans wait for your own agent to read them over MCP
+- FHIR and IPS bundles, the Apple Health export, Health Auto Export, Gadgetbridge, Nightscout with a CGM summary, and manual entry
 - Genome findings from [OwnGenome](https://github.com/GeiserX/OwnGenome): drug response, carrier status and risk variants, joined with your medications and labs
 - A drug check that quotes the CPIC guideline for your genotype next to your current medications and relevant labs
-- An MCP server with 8 tools, scoped per person and per token, with a citation behind every answer
+- An MCP server with 10 tools, scoped per person and per token, with a citation behind every answer; connect with a token or with OAuth 2.1 (claude.ai and Claude Code, no client registration)
 - Passkeys, an append-only audit log, a full export, and restic backups with a scripted restore test
 - Dark theme, Spanish and English
 
-Limits in v0.1. Lab PDFs are read with generic table rules plus one template, for the fictional LabNorte lab. Real lab layouts come later as contributed templates. The LOINC set is a curated subset of 202 codes, so a test outside it waits in review.
+Limits in 0.3.0. Lab PDFs are read with generic table rules plus one template, for the fictional LabNorte lab. Real lab layouts come later as contributed templates. The LOINC set is a curated subset of 202 codes, so a test outside it waits in review. OCR rows go to review unless a vendor template matches.
 
-Later: email and folder inboxes, local OCR, imaging (DICOM), more wearables and US patient portals. See the [roadmap](docs/ROADMAP.md).
+Later: imaging (DICOM), more wearables and US patient portals. See the [roadmap](docs/ROADMAP.md).
 
 ## Quick start
 
-You need Docker with Compose v2. OwnHealth runs as one app container, a single Rust binary with the web UI built in (a 348 MB image), next to PostgreSQL 17.
+You need Docker with Compose v2. OwnHealth runs as one app container, a single Rust binary with the web UI built in (a 364 MB image), next to PostgreSQL 17. OCR is optional: the `ocr` profile adds a worker from the `-ocr` image (436 MB), see [deploy/README.md](deploy/README.md).
 
 ```sh
 git clone https://github.com/GeiserX/OwnHealth.git
@@ -44,10 +46,12 @@ cp .env.example .env
 openssl rand -hex 32     # paste as OWNHEALTH_DB_PASSWORD in .env
 openssl rand -hex 32     # paste as OWNHEALTH_APP_DB_PASSWORD in .env
 openssl rand -hex 48     # paste as OWNHEALTH_SECRET_KEY in .env
+openssl rand -base64 32  # paste as OWNHEALTH_SECRETS_KEY in .env (encrypts inbox passwords and tokens)
+mkdir -p inbox && sudo chown 10001:10001 inbox   # the watched folder, writable by the app
 docker compose up -d
 ```
 
-Open http://localhost:8080, create your account with a passkey, and import a lab report under **Import & review**.
+Open http://localhost:8080, create your account with a passkey, and import a lab report under **Import & review**. To have reports arrive by themselves, add a mailbox, the folder, Paperless-ngx or a phone under **Inbox**; the [recipes](docs/recipes/README.md) cover each one.
 
 Connect Claude Code with a token from **MCP & access**:
 
@@ -67,6 +71,7 @@ OwnHealth is for personal record keeping and for showing values computed from pu
 
 - [Quick start](docs/quickstart.md) and [deploy, back up, restore](deploy/README.md)
 - [MCP tool reference](docs/mcp-tools.md): every tool, with example responses
+- [Recipes](docs/recipes/README.md) for the inboxes and the claude.ai connector, and [agent-assisted extraction](docs/agent-extraction.md)
 - [Plan](docs/PLAN.md): the problem, principles and decisions
 - [Roadmap](docs/ROADMAP.md): phases, deliverables and exit criteria
 - [Mockup](docs/mockup/README.md): every screen with synthetic data

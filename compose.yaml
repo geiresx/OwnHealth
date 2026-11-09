@@ -6,8 +6,10 @@ name: ownhealth
 # nothing, so it cannot ALTER a table, disable a trigger, or UPDATE, DELETE or TRUNCATE the audit log.
 services:
   admin:
-    image: drumsergio/ownhealth:0.2.0
-    build: .
+    image: drumsergio/ownhealth:0.3.0
+    build:
+      context: .
+      target: app
     restart: "no"
     depends_on:
       db:
@@ -23,8 +25,10 @@ services:
       - ownhealth-data:/data
 
   app:
-    image: drumsergio/ownhealth:0.2.0
-    build: .
+    image: drumsergio/ownhealth:0.3.0
+    build:
+      context: .
+      target: app
     restart: unless-stopped
     depends_on:
       db:
@@ -40,8 +44,40 @@ services:
       # Throwaway demo only (docs/quickstart.md step 5); empty means off.
       OWNHEALTH_DEMO: ${OWNHEALTH_DEMO:-}
       OWNHEALTH_DEV_AUTH: ${OWNHEALTH_DEV_AUTH:-}
+      # The watched folder (v0.2): a scanner or a synced phone folder drops files in ./inbox/<profile>/.
+      OWNHEALTH_INBOX_DIR: /inbox
     ports:
       - "127.0.0.1:${OWNHEALTH_HTTP_PORT:-8080}:8080"
+    volumes:
+      - ownhealth-data:/data
+      - ./inbox:/inbox
+
+  # `ocr` profile (v0.2): reads scans and photos with the local OCR engine. Turn it on with two lines
+  # in .env: COMPOSE_PROFILES=ocr (starts this worker) and OWNHEALTH_OCR=1 (the app sends unread pages
+  # to the `ocr` queue instead of leaving them pending). Same code as the app, from the image variant
+  # that carries the engine and the models; it serves no HTTP, it only runs `ocr` jobs.
+  ocr:
+    profiles: [ocr]
+    image: drumsergio/ownhealth:0.3.0-ocr
+    build:
+      context: .
+      target: ocr
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      admin:
+        condition: service_completed_successfully
+    env_file: .env
+    environment:
+      OWNHEALTH_DATABASE_URL: postgresql://ownhealth_app@db:5432/ownhealth
+      OWNHEALTH_DB_PASSWORD: ${OWNHEALTH_APP_DB_PASSWORD:?set OWNHEALTH_APP_DB_PASSWORD in .env}
+      OWNHEALTH_RUN_MIGRATIONS: "0"
+      OWNHEALTH_DATA_DIR: /data
+      OWNHEALTH_QUEUES: ocr
+    command: ["ownhealth", "worker"]
+    healthcheck:
+      disable: true # a worker serves no /healthz
     volumes:
       - ownhealth-data:/data
 
