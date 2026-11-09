@@ -170,8 +170,13 @@ impl From<crate::Error> for JobError {
             E::Io(_) => "OSError",
             E::Json(_) => "JSONDecodeError",
             E::Other(_) => "RuntimeError",
+            E::NotImplemented(_) => "NotImplementedError",
         };
-        JobError::typed(type_name, e.to_string())
+        let permanent = matches!(e, E::NotImplemented(_));
+        JobError {
+            permanent,
+            ..JobError::typed(type_name, e.to_string())
+        }
     }
 }
 

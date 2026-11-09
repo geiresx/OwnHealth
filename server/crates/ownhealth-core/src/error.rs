@@ -31,6 +31,10 @@ pub enum Error {
     /// A row the caller named does not exist. HTTP 404 `unknown` (the code the Python routes sent).
     #[error("{0}")]
     NotFound(String),
+    /// A v0.2 interface whose lane has not landed yet (RUST-CONTRACTS.md section 10). HTTP 501
+    /// `not_implemented`. None may be left at release.
+    #[error("not implemented yet: {0}")]
+    NotImplemented(&'static str),
     #[error(transparent)]
     Db(#[from] sqlx::Error),
     #[error(transparent)]

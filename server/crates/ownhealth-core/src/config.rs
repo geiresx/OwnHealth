@@ -37,6 +37,16 @@ pub struct Settings {
     pub age_of_majority: i32,
     pub host: String,
     pub port: u16,
+    /// `OWNHEALTH_SECRETS_KEY`: 32 bytes, standard base64, that seal inbox credentials at rest
+    /// (`secrets::SecretBox`). Unset: sources that need a stored secret cannot be saved.
+    pub secrets_key: Option<String>,
+    /// `OWNHEALTH_OCR`: the `ocr` compose profile is on, so unread pages go to the `ocr` queue instead of
+    /// waiting as pending.
+    pub ocr: bool,
+    /// `OWNHEALTH_OCR_MODELS_DIR`: where `scripts/fetch-ocr-models.sh` put the models.
+    pub ocr_models_dir: PathBuf,
+    /// `OWNHEALTH_INBOX_DIR`: the watched folder root (`<root>/<profile-slug>/`).
+    pub inbox_dir: Option<PathBuf>,
 }
 
 impl Default for Settings {
@@ -60,6 +70,10 @@ impl Default for Settings {
             age_of_majority: 18,
             host: "0.0.0.0".into(),
             port: 8080,
+            secrets_key: None,
+            ocr: false,
+            ocr_models_dir: PathBuf::from("/opt/ownhealth/ocr-models"),
+            inbox_dir: None,
         }
     }
 }
@@ -83,6 +97,10 @@ impl fmt::Debug for Settings {
             .field("age_of_majority", &self.age_of_majority)
             .field("host", &self.host)
             .field("port", &self.port)
+            .field("secrets_key", &self.secrets_key.as_ref().map(|_| "***"))
+            .field("ocr", &self.ocr)
+            .field("ocr_models_dir", &self.ocr_models_dir)
+            .field("inbox_dir", &self.inbox_dir)
             .finish_non_exhaustive()
     }
 }
@@ -221,6 +239,12 @@ impl Settings {
             age_of_majority: parse(env, "AGE_OF_MAJORITY", d.age_of_majority)?,
             host: env_or(env, "HOST")?.unwrap_or(d.host),
             port: parse(env, "PORT", d.port)?,
+            secrets_key: env_or(env, "SECRETS_KEY")?,
+            ocr: flag(env, "OCR", false)?,
+            ocr_models_dir: env_or(env, "OCR_MODELS_DIR")?
+                .map(PathBuf::from)
+                .unwrap_or(d.ocr_models_dir),
+            inbox_dir: env_or(env, "INBOX_DIR")?.map(PathBuf::from),
         })
     }
 
@@ -298,10 +322,11 @@ mod tests {
         let s = Settings {
             database_url: "postgresql://oh:pw-x1@db/oh".into(),
             secret_key: "sk-x2".into(),
+            secrets_key: Some("enc-x3".into()),
             ..Settings::default()
         };
         let shown = format!("{s:?}");
-        assert!(!shown.contains("pw-x1") && !shown.contains("sk-x2"));
+        assert!(!shown.contains("pw-x1") && !shown.contains("sk-x2") && !shown.contains("enc-x3"));
     }
 
     #[test]

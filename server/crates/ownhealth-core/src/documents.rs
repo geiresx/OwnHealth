@@ -16,7 +16,7 @@ use crate::error::{Error, Result};
 use crate::ids::token_hex;
 use crate::jobs::{EnqueueOptions, enqueue};
 
-/// pdf | image | apple_health_zip | fhir_json | fhir_ndjson | genome_facts | vcf | tbi | unknown
+/// pdf | image | apple_health_zip | fhir_json | fhir_ndjson | genome_facts | vcf | tbi | gadgetbridge_db | unknown
 pub type UploadKind = &'static str;
 
 /// Job kind per upload kind. Handlers: import.pdf (lane B), import.fhir_bundle and
@@ -27,6 +27,7 @@ pub fn job_kind(kind: &str) -> Option<&'static str> {
         "apple_health_zip" => "import.apple_health",
         "fhir_json" | "fhir_ndjson" => "import.fhir_bundle",
         "genome_facts" => "import.genome_facts",
+        "gadgetbridge_db" => "import.gadgetbridge",
         _ => return None,
     })
 }
@@ -40,6 +41,7 @@ pub fn mime(kind: &str) -> Option<&'static str> {
         "genome_facts" => "application/json",
         "vcf" => "application/gzip",
         "tbi" => "application/octet-stream",
+        "gadgetbridge_db" => "application/vnd.sqlite3",
         _ => return None,
     })
 }
@@ -62,6 +64,9 @@ pub fn sniff(filename: &str, head: &[u8], blob_path: Option<&Path>) -> UploadKin
         || name.ends_with(".heif")
     {
         return "image";
+    }
+    if head.starts_with(b"SQLite format 3\0") {
+        return "gadgetbridge_db";
     }
     if head.starts_with(b"PK\x03\x04") {
         // Truncated or corrupt: refused like any unknown file.
@@ -116,6 +121,10 @@ pub struct NewDocument<'a> {
     pub source_ref: Option<&'a str>,
     pub pages: Option<i32>,
     pub doc_type: Option<&'a str>,
+    /// The inbox it came through (`source.id`), on the document and its `document_source` row.
+    pub source_id: Option<Uuid>,
+    /// The original this is an unlocked copy of (a password PDF).
+    pub derived_from: Option<Uuid>,
 }
 
 impl<'a> NewDocument<'a> {
@@ -137,6 +146,8 @@ impl<'a> NewDocument<'a> {
             source_ref: None,
             pages: None,
             doc_type: None,
+            source_id: None,
+            derived_from: None,
         }
     }
 }
@@ -173,8 +184,8 @@ pub async fn create_document(conn: &mut PgConnection, d: &NewDocument<'_>) -> Re
             // A concurrent upload of the same bytes can insert between the select and here: the
             // conflict then yields no id and the row that won is the duplicate.
             let id: Option<Uuid> = sqlx::query_scalar(
-                "insert into document (household_id, profile_id, blob_sha256, filename, mime, size_bytes, pages, doc_type) \
-                 values ($1, $2, $3, $4, $5, $6, $7, $8) \
+                "insert into document (household_id, profile_id, blob_sha256, filename, mime, size_bytes, pages, doc_type, \
+                 source_id, derived_from) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) \
                  on conflict ((coalesce(profile_id, household_id)), blob_sha256) do nothing returning id",
             )
             .bind(d.household_id)
@@ -185,6 +196,8 @@ pub async fn create_document(conn: &mut PgConnection, d: &NewDocument<'_>) -> Re
             .bind(d.size_bytes)
             .bind(d.pages)
             .bind(d.doc_type)
+            .bind(d.source_id)
+            .bind(d.derived_from)
             .fetch_optional(&mut *conn)
             .await?;
             match id {
@@ -203,10 +216,11 @@ pub async fn create_document(conn: &mut PgConnection, d: &NewDocument<'_>) -> Re
             }
         }
     };
-    sqlx::query("insert into document_source (document_id, channel, source_ref) values ($1, $2, $3)")
+    sqlx::query("insert into document_source (document_id, channel, source_ref, source_id) values ($1, $2, $3, $4)")
         .bind(id)
         .bind(d.channel)
         .bind(d.source_ref)
+        .bind(d.source_id)
         .execute(conn)
         .await?;
     Ok(DocumentRef {

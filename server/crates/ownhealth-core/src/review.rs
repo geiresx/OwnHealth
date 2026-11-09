@@ -25,7 +25,7 @@ use crate::observations::{CommitOptions, ObservationIn, commit_observation, supe
 use crate::provenance::{SrcIn, SrcRef, region_label};
 use crate::pyjson::row;
 
-pub const REVIEW_KINDS: [&str; 10] = [
+pub const REVIEW_KINDS: [&str; 12] = [
     "candidate_row",
     "agent_proposal",
     "fhir_unmapped",
@@ -36,6 +36,8 @@ pub const REVIEW_KINDS: [&str; 10] = [
     "job_failed",
     "restore_check_failed",
     "pending_document",
+    "near_duplicate",
+    "encrypted_document",
 ];
 
 /// Edits correct what was read; they never move a fact to another profile, household, document or
