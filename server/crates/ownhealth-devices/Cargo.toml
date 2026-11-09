@@ -1,0 +1,31 @@
+[package]
+name = "ownhealth-devices"
+description = "Lane D (v0.2): Health Auto Export push, Gadgetbridge database import, Nightscout pull, CGM summaries."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+ownhealth-core.workspace = true
+ownhealth-ingest-structured.workspace = true
+anyhow.workspace = true
+chrono.workspace = true
+futures.workspace = true
+rusqlite.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sqlx.workspace = true
+tempfile.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+url.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+ownhealth-core = { workspace = true, features = ["testing"] }
+axum.workspace = true

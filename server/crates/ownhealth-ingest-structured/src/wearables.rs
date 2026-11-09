@@ -41,7 +41,7 @@ type Spec = (
     &'static str,
 );
 
-pub const METRICS: [Spec; 15] = [
+pub const METRICS: [Spec; 16] = [
     ("steps", "count", "sum", false, "Steps", "Pasos"),
     ("hr", "/min", "mean", false, "Heart rate", "Frecuencia cardiaca"),
     ("hr_resting", "/min", "mean", true, "Resting heart rate", "FC en reposo"),
@@ -99,6 +99,7 @@ pub const METRICS: [Spec; 15] = [
         "Duración del sueño",
     ),
     ("sleep_in_bed", "min", "sum", true, "Time in bed", "Tiempo en cama"),
+    ("glucose_cgm", "mg/dL", "mean", false, "Glucose (CGM)", "Glucosa (MCG)"),
 ];
 
 pub const SLEEP_METRICS: [&str; 2] = ["sleep_asleep", "sleep_in_bed"];
