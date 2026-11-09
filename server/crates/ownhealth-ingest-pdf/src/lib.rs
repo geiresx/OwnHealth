@@ -15,7 +15,8 @@
 //!      "pending" lines become `expected_test` rows.
 //!
 //! A page without a usable text layer, an image, or a lab report whose table nobody could read becomes
-//! one `pending_document` review item for agent-assisted extraction (MCP `propose`). No OCR.
+//! one `pending_document` review item for agent-assisted extraction (MCP `propose`), or, with
+//! `OWNHEALTH_OCR` on, an `ocr.document` job (lane C) and no review item until OCR has run.
 //! Review kinds it files: `candidate_row` (through the core), `amended_report`, `document_identity`,
 //! `pending_document`.
 
@@ -36,8 +37,11 @@ use ownhealth_core::review::register_accept_handler;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-pub use import::{Normalizer, assign_document, import_pdf, import_pdf_with, use_normalizer};
-pub use pages::{ground_value, page_words, render_page_png};
+pub use import::{
+    ImportOptions, Normalizer, OcrPages, OcrRowCheck, assign_document, import_ocr, import_pdf, import_pdf_opts,
+    import_pdf_with, use_normalizer,
+};
+pub use pages::{decode_image, ground_value, page_words, render_page_png};
 
 /// One word of a page's stored text layer. bbox is `[x0, top, x1, bottom]` in PDF points, origin
 /// top-left. `hidden` is white_on_white | tiny | outside_page: never read as a value.
@@ -68,12 +72,15 @@ async fn run_import_pdf(ctx: JobContext, job: Job) -> jobs::HandlerResult {
     let document_id = payload_document_id(&job)?;
     let force = job.payload.get("force").is_some_and(truthy);
     let mut tx = ctx.pool.begin().await?;
-    let summary = match import_pdf_with(
+    let summary = match import_pdf_opts(
         &mut tx,
         &ctx.blobs,
         document_id,
         force,
-        ctx.settings.auto_accept_threshold,
+        ImportOptions {
+            threshold: ctx.settings.auto_accept_threshold,
+            ocr: ctx.settings.ocr,
+        },
     )
     .await
     {

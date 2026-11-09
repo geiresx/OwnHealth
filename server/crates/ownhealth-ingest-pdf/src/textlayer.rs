@@ -43,7 +43,9 @@ static INJECTION_PATTERNS: LazyLock<Vec<(&'static str, Regex)>> = LazyLock::new(
     vec![
         (
             "addressed_to_ai",
-            rx(r"(?i)\b(AI|IA|KI)\s+(agent|assistant|asistente|agente|assistent)s?\b|\b(LLM|ChatGPT|Claude)\b"),
+            rx(
+                r"(?i)\b(AI|IA|KI)\s+(agent|assistant|asistente|agente|assistent)s?\b|\b(asistente|agente|assistant|agent|assistent)s?\s+(de\s+|d'|der\s+)?(IA|AI|KI)\b|\b(LLM|ChatGPT|Claude)\b",
+            ),
         ),
         (
             "call_tool",

@@ -547,3 +547,184 @@ async fn lab_values_carry_a_provenance_label() -> R {
     }
     Ok(())
 }
+
+#[tokio::test]
+async fn with_ocr_on_scans_and_images_go_to_the_ocr_queue_not_to_review() -> R {
+    use ownhealth_core::acceptance::DEFAULT_THRESHOLD;
+    use ownhealth_ingest_pdf::{ImportOptions, import_pdf_opts};
+    fake_normalizer();
+    let e = env().await?;
+    let mut c = e.conn().await?;
+    let on = ImportOptions {
+        threshold: DEFAULT_THRESHOLD,
+        ocr: true,
+    };
+    let (pdf, _) = slip("es-scan");
+    let scan = e.store_pdf(&mut c, &pdf, "report.pdf").await?;
+    import_pdf_opts(&mut c, &e.blobs, scan, false, on).await?;
+    let sha = e.blobs.put_bytes(&pdf)?;
+    let png = render_page_png(&e.blobs, &sha, 1, 0.5)?;
+    let img = e.store(&mut c, &png, "alex", "image/png", "photo.png").await?;
+    import_pdf_opts(&mut c, &e.blobs, img, false, on).await?;
+    for doc in [scan, img] {
+        assert!(
+            items(&mut c, doc, None).await?.is_empty(),
+            "a scan waits for OCR, not for a person"
+        );
+        let (queue, pages, state): (String, Value, String) = sqlx::query_as(
+            "select j.queue, j.payload->'pages', d.ocr_state from job j join document d on d.id::text = j.payload->>'document_id' \
+             where j.kind = 'ocr.document' and d.id = $1",
+        )
+        .bind(doc)
+        .fetch_one(&mut *c)
+        .await?;
+        assert_eq!((queue.as_str(), pages, state.as_str()), ("ocr", json!([1]), "queued"));
+    }
+
+    // off (the default): the pending item as before, and the document says why it waits
+    let (pdf2, _) = slip("es-scan");
+    let other = e
+        .store_pdf(&mut c, &[pdf2.as_slice(), b"\n%second copy"].concat(), "again.pdf")
+        .await?;
+    import_pdf(&mut c, &e.blobs, other, false).await?;
+    let state: String = sqlx::query_scalar("select ocr_state from document where id = $1")
+        .bind(other)
+        .fetch_one(&mut *c)
+        .await?;
+    assert_eq!(state, "off");
+    assert_eq!(items(&mut c, other, Some("pending_document")).await?.len(), 1);
+    // the same scan with other bytes is also "probably the same as" the first (dedup level 2)
+    let near = items(&mut c, other, Some("near_duplicate")).await?;
+    assert_eq!(near.len(), 1);
+    assert_eq!(near[0]["payload"]["same_as"], json!(scan.to_string()));
+    assert_eq!(items(&mut c, other, None).await?.len(), 2);
+    Ok(())
+}
+
+/// The locked original of an email PDF is kept as received and never read: reprocessing it, or moving
+/// it to another profile, files nothing (its unlocked copy is the document that is imported).
+#[tokio::test]
+async fn a_locked_original_is_never_imported() -> R {
+    fake_normalizer();
+    let e = env().await?;
+    let mut c = e.conn().await?;
+    let locked = std::fs::read(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../fixtures/A-email/labnorte-locked-12345678Z.pdf"
+    ))?;
+    let doc = e.store_pdf(&mut c, &locked, "locked.pdf").await?;
+    sqlx::query("update document set flags = flags || '{\"encrypted\": true}'::jsonb where id = $1")
+        .bind(doc)
+        .execute(&mut *c)
+        .await?;
+    let summary = import_pdf(&mut c, &e.blobs, doc, true).await?.to_value();
+    assert_eq!(summary["reasons"]["encrypted_original"], 1, "{summary}");
+    let filed: i64 = sqlx::query_scalar(
+        "select (select count(*) from review_item where document_id = $1) \
+         + (select count(*) from extraction_run where document_id = $1) \
+         + (select count(*) from document_page where document_id = $1)",
+    )
+    .bind(doc)
+    .fetch_one(&mut *c)
+    .await?;
+    assert_eq!(filed, 0, "a locked original was read");
+    Ok(())
+}
+
+/// A one-page LabNorte report for alex (synthetic), with the collection date as printed.
+fn labnorte(report_id: &str, collected: &str, rows: &[(&str, &str, &str, &str)]) -> Vec<u8> {
+    use ownhealth_core::demo_pdf::{LabReport, LabRow, lab_report_pdf};
+    lab_report_pdf(&LabReport {
+        lab: "LabNorte",
+        title: "Informe de laboratorio",
+        patient: "RIVERA, ALEX",
+        birth: "14/05/1979",
+        collected,
+        report_id,
+        pages: vec![rows.iter().map(|(n, v, u, r)| LabRow::new(n, v, u, r)).collect()],
+    })
+    .0
+}
+
+const GLUCOSE: (&str, &str, &str, &str) = ("Glucosa", "102", "mg/dL", "70 - 110");
+const OTHERS: [(&str, &str, &str, &str); 2] = [
+    ("Creatinina", "0,9", "mg/dL", "0,7 - 1,3"),
+    ("Urea", "32", "mg/dL", "15 - 45"),
+];
+/// Other analytes again, so the date-only report is not read as an edition of an earlier one.
+const MORE: [(&str, &str, &str, &str); 2] = [
+    ("Hemoglobina", "14,8", "g/dL", "13,0 - 17,0"),
+    ("Hematocrito", "44", "%", "40 - 52"),
+];
+
+async fn glucose_rows(conn: &mut PgConnection) -> anyhow::Result<i64> {
+    Ok(
+        sqlx::query_scalar("select count(*) from observation where alias_group = 'glucose' and status = 'current'")
+            .fetch_one(conn)
+            .await?,
+    )
+}
+
+#[tokio::test]
+async fn the_same_value_from_another_lab_on_the_same_day_is_kept() -> R {
+    fake_normalizer();
+    let e = env().await?;
+    let mut c = e.conn().await?;
+    let a = e
+        .store_pdf(&mut c, &labnorte("LN-D1", "14/09/2026 08:15", &[GLUCOSE]), "a.pdf")
+        .await?;
+    let s = import_pdf(&mut c, &e.blobs, a, false).await?;
+    assert_eq!(s.accepted, 1, "{}", s.to_value());
+    // the first result came from another lab (fictional)
+    sqlx::query("update document set provider_name = 'Laboratorio Centro' where id = $1")
+        .bind(a)
+        .execute(&mut *c)
+        .await?;
+    let mut rows = vec![GLUCOSE];
+    rows.extend(OTHERS);
+    let b = e
+        .store_pdf(&mut c, &labnorte("LN-D2", "14/09/2026 08:15", &rows), "b.pdf")
+        .await?;
+    let s = import_pdf(&mut c, &e.blobs, b, false).await?;
+    assert_eq!(s.reasons.get("duplicate"), None, "{}", s.to_value());
+    assert_eq!(s.accepted, 3, "{}", s.to_value());
+    assert_eq!(glucose_rows(&mut c).await?, 2, "two labs, two facts");
+    Ok(())
+}
+
+#[tokio::test]
+async fn the_same_fact_again_is_linked_and_a_date_only_one_goes_to_review() -> R {
+    fake_normalizer();
+    let e = env().await?;
+    let mut c = e.conn().await?;
+    let a = e
+        .store_pdf(&mut c, &labnorte("LN-D3", "14/09/2026 08:15", &[GLUCOSE]), "a.pdf")
+        .await?;
+    import_pdf(&mut c, &e.blobs, a, false).await?;
+    let mut rows = vec![GLUCOSE];
+    rows.extend(OTHERS);
+
+    // same lab, same time, same value: one fact, with a second provenance link
+    let b = e
+        .store_pdf(&mut c, &labnorte("LN-D4", "14/09/2026 08:15", &rows), "b.pdf")
+        .await?;
+    let s = import_pdf(&mut c, &e.blobs, b, false).await?;
+    assert_eq!(s.reasons.get("duplicate"), Some(&1), "{}", s.to_value());
+    assert_eq!(glucose_rows(&mut c).await?, 1);
+    let links: i64 = sqlx::query_scalar("select count(*) from observation_link where document_id = $1")
+        .bind(b)
+        .fetch_one(&mut *c)
+        .await?;
+    assert_eq!(links, 1);
+
+    // a date with no time: maybe the same draw, maybe another one; a person says
+    let mut rows = vec![GLUCOSE];
+    rows.extend(MORE);
+    let d = e
+        .store_pdf(&mut c, &labnorte("LN-D5", "14/09/2026", &rows), "d.pdf")
+        .await?;
+    let s = import_pdf(&mut c, &e.blobs, d, false).await?;
+    assert_eq!(s.reasons.get("collection_time_unknown"), Some(&1), "{}", s.to_value());
+    assert_eq!(glucose_rows(&mut c).await?, 1);
+    Ok(())
+}

@@ -82,7 +82,11 @@ impl Extraction {
 }
 
 pub fn extract(data: &[u8]) -> Result<Extraction> {
-    let pdf = read_pdf(data)?;
+    extract_model(read_pdf(data)?)
+}
+
+/// `extract` on a page model already read: the text layer, or pages lane C read with OCR.
+pub fn extract_model(pdf: PdfModel) -> Result<Extraction> {
     let head_lines: Vec<String> = pdf
         .pages
         .iter()

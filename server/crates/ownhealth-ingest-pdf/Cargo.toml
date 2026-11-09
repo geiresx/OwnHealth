@@ -19,6 +19,7 @@ chrono.workspace = true
 flate2.workspace = true
 futures.workspace = true
 hex.workspace = true
+image.workspace = true
 pdfium-render.workspace = true
 regex.workspace = true
 rust_decimal.workspace = true
