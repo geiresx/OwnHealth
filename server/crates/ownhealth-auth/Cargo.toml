@@ -37,6 +37,7 @@ thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 unicode-normalization.workspace = true
+url.workspace = true
 uuid.workspace = true
 webauthn-rs.workspace = true
 webauthn-rs-core = "0.6"

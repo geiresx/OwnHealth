@@ -37,8 +37,13 @@ async fn load(env: &Env, fx: &Value) -> anyhow::Result<()> {
     let mut tx = env.pool().begin().await?;
     for table in TABLES {
         for row in fx["rows"][table].as_array().into_iter().flatten() {
+            // Only the columns Python wrote; columns added since then take their defaults, as on an upgrade.
+            let cols = row
+                .as_object()
+                .map(|o| o.keys().map(|k| format!("\"{k}\"")).collect::<Vec<_>>().join(", "))
+                .unwrap_or_default();
             sqlx::query(sqlx::AssertSqlSafe(format!(
-                "insert into {table} overriding system value select * from jsonb_populate_record(null::{table}, $1)"
+                "insert into {table} ({cols}) overriding system value select {cols} from jsonb_populate_record(null::{table}, $1)"
             )))
             .bind(row)
             .execute(&mut *tx)

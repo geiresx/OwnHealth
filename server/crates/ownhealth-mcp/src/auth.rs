@@ -1,4 +1,5 @@
-//! The HTTP door of /mcp (`mcp/auth.py`, mcp.md 1, 2.1): Origin check and personal access token.
+//! The HTTP door of /mcp (`mcp/auth.py`, mcp.md 1, 2.1, 2.2): Origin check, then a personal access
+//! token or (v0.2) an OAuth access token whose audience is this server's `/mcp`.
 //!
 //! A request whose `Origin` is not the configured public URL is 403. A missing or bad token is 401
 //! with `WWW-Authenticate: Bearer resource_metadata=...`. A valid PAT becomes a Principal in the
@@ -13,6 +14,7 @@ use axum::extract::{ConnectInfo, Request, State};
 use axum::http::{HeaderValue, StatusCode, header};
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
+use ownhealth_auth::oauth;
 use ownhealth_core::Runtime;
 use ownhealth_core::access::{Principal, SCOPES};
 use serde_json::{Value, json};
@@ -32,17 +34,24 @@ pub fn resource_metadata_url(base_url: &str) -> String {
     )
 }
 
-/// RFC 9728 metadata the 401 points at. PATs only in v0.1, so no authorization server is named.
+/// RFC 9728 metadata the 401 points at. Behind https it names our own authorization server
+/// (v0.2, `oauth`); on plain http it names none, and `/mcp` takes PATs only, as in v0.1.
 pub async fn protected_resource_metadata(State(rt): State<Runtime>) -> Json<Value> {
     let base = rt.settings.base_url.trim_end_matches('/');
     let mut scopes: Vec<&str> = SCOPES.to_vec();
     scopes.sort_unstable();
-    Json(json!({
+    let mut meta = json!({
         "resource": format!("{base}/mcp"),
         "resource_name": "OwnHealth",
         "bearer_methods_supported": ["header"],
         "scopes_supported": scopes,
-    }))
+    });
+    if oauth::enabled(base)
+        && let Some(m) = meta.as_object_mut()
+    {
+        m.insert("authorization_servers".into(), json!([base]));
+    }
+    Json(meta)
 }
 
 /// Python `json.dumps(body)` with its default separators and ASCII escapes.
@@ -151,7 +160,13 @@ pub async fn pat_guard(State(rt): State<Runtime>, mut req: Request<Body>, next: 
 async fn verify(rt: &Runtime, plaintext: &str) -> ownhealth_core::Result<Option<Principal>> {
     let mut conn = rt.pool.acquire().await?;
     let mut tx = conn.begin().await?;
-    let p = ownhealth_auth::tokens::verify_token(&mut tx, plaintext).await?;
+    let p = if plaintext.starts_with(oauth::ACCESS_TOKEN_PREFIX) {
+        // an OAuth token counts only when it was issued for this very resource (RFC 8707)
+        let resource = oauth::canonical_resource(&rt.settings.base_url);
+        oauth::verify_access_token(&mut tx, plaintext, &resource).await?
+    } else {
+        ownhealth_auth::tokens::verify_token(&mut tx, plaintext).await?
+    };
     tx.commit().await?;
     Ok(p)
 }

@@ -9,6 +9,7 @@
 pub mod challenges;
 pub mod csrf;
 pub mod household;
+pub mod oauth;
 pub mod oidc;
 pub mod passkeys;
 pub mod password;

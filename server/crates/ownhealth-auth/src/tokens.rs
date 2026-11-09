@@ -196,7 +196,11 @@ pub async fn verify_token_with(conn: &mut PgConnection, plaintext: &str, touch: 
 
 pub async fn revoke_token(conn: &mut PgConnection, user_id: Uuid, token_id: Uuid) -> Result<bool> {
     let n =
-        sqlx::query("update api_token set revoked_at = now() where id = $1 and user_id = $2 and revoked_at is null")
+        // OAuth tokens (v0.2) are revoked with their consent (`oauth::revoke_consent`), not here
+        sqlx::query(
+            "update api_token set revoked_at = now() where id = $1 and user_id = $2 and kind = 'pat' \
+             and revoked_at is null",
+        )
             .bind(token_id)
             .bind(user_id)
             .execute(conn)
@@ -205,7 +209,8 @@ pub async fn revoke_token(conn: &mut PgConnection, user_id: Uuid, token_id: Uuid
     Ok(n > 0)
 }
 
-/// One row of `list_tokens`, newest first.
+/// One row of `list_tokens`, newest first. Personal access tokens only: OAuth clients are listed with
+/// their consents (`oauth::list_consents`).
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub struct TokenListed {
     pub id: Uuid,
@@ -234,7 +239,7 @@ pub async fn list_tokens(conn: &mut PgConnection, user_id: Uuid) -> Result<Vec<T
         "select id, label, prefix, scopes, profile_ids, default_profile, identity_mode, lang, units, \
          rate_per_min, egress_facts_per_day, egress_bytes_per_day, genome_raw_lookups_per_day, \
          document_pages_per_day, proposals_per_day, created_at, expires_at, last_used_at, revoked_at \
-         from api_token where user_id = $1 order by created_at desc",
+         from api_token where user_id = $1 and kind = 'pat' order by created_at desc",
     )
     .bind(user_id)
     .fetch_all(conn)
