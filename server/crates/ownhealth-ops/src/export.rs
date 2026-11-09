@@ -35,8 +35,9 @@ use zip::{CompressionMethod, ZipWriter};
 
 pub const FORMAT: &str = "ownhealth.export/v1";
 pub const LIFECYCLE_TAG: &str = "urn:ownhealth:lifecycle";
-/// Not part of a person's export: access control and secrets, and tables that only repeat the profile.
-const SKIP_RAW: [&str; 3] = ["profile", "profile_grant", "api_token"];
+/// Not part of a person's export: access control and secrets, inbox configuration (v0.2: token hashes,
+/// secret references, routing rules), and tables that only repeat the profile.
+const SKIP_RAW: [&str; 5] = ["profile", "profile_grant", "api_token", "sender_rule", "source"];
 /// These name the person `patient`, not `subject`.
 const PATIENT_FIELD: [&str; 2] = ["AllergyIntolerance", "Immunization"];
 const GENOME_FILES: [(&str, &str); 4] = [

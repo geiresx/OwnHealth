@@ -70,6 +70,11 @@ fn item_out(item: &ReviewItem) -> R<Value> {
     for k in OUT_KEYS {
         out.insert(k.into(), full.get(k).cloned().unwrap_or(Value::Null));
     }
+    // v0.2: the documents the proposing token read before the proposal; only on items that have them,
+    // so the 0.2.0 item shape is unchanged everywhere else
+    if let Some(docs) = full.get("context_documents").filter(|v| !v.is_null()) {
+        out.insert("context_documents".into(), docs.clone());
+    }
     Ok(Value::Object(out))
 }
 

@@ -6,13 +6,18 @@ use ownhealth_core::Runtime;
 pub mod audit;
 pub mod auth;
 pub mod core;
+pub mod devices;
 pub mod documents;
 pub mod drug_check;
 pub mod export;
 pub mod family;
 pub mod genome;
 pub mod imports;
+pub mod inbox;
+pub mod inboxes;
+pub mod ingest;
 pub mod mcp_usage;
+pub mod oauth;
 pub mod observations;
 pub mod records;
 pub mod review;
@@ -27,13 +32,18 @@ pub fn all() -> Router<Runtime> {
         .merge(audit::router())
         .merge(auth::router())
         .merge(core::router())
+        .merge(devices::router())
         .merge(documents::router())
         .merge(drug_check::router())
         .merge(export::router())
         .merge(family::router())
         .merge(genome::router())
         .merge(imports::router())
+        .merge(inbox::router())
+        .merge(inboxes::router())
+        .merge(ingest::router())
         .merge(mcp_usage::router())
+        .merge(oauth::router())
         .merge(observations::router())
         .merge(records::router())
         .merge(review::router())

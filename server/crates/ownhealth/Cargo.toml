@@ -10,6 +10,10 @@ publish.workspace = true
 [lints]
 workspace = true
 
+[features]
+# The OCR engine (ONNX Runtime linked in). The `ocr` image builds with it; the default image does not.
+ocr = ["ownhealth-ocr/engine"]
+
 [[bin]]
 name = "ownhealth"
 path = "src/main.rs"
@@ -18,11 +22,14 @@ path = "src/main.rs"
 ownhealth-api.workspace = true
 ownhealth-auth.workspace = true
 ownhealth-core.workspace = true
+ownhealth-devices.workspace = true
 ownhealth-genome.workspace = true
+ownhealth-inbox.workspace = true
 ownhealth-ingest-pdf.workspace = true
 ownhealth-ingest-structured.workspace = true
 ownhealth-mcp.workspace = true
 ownhealth-normalize.workspace = true
+ownhealth-ocr.workspace = true
 ownhealth-ops.workspace = true
 ownhealth-rules.workspace = true
 anyhow.workspace = true

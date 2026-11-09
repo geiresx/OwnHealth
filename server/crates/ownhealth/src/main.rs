@@ -111,6 +111,14 @@ async fn run(cmd: Cmd) -> anyhow::Result<ExitCode> {
         Cmd::Worker => {
             let rt = Runtime::new(settings)?;
             app::sweep_spools(&rt);
+            // OCR turned on after scans arrived (or a 0.2.0 database): queue the scans that wait
+            if rt.settings.ocr && rt.settings.queues.iter().any(|q| q == "ocr") {
+                match ownhealth_ocr::job::backfill(&rt.pool).await {
+                    Ok(0) => {}
+                    Ok(n) => tracing::info!(documents = n, "queued waiting scans for OCR"),
+                    Err(e) => tracing::warn!(error = %e, "could not queue waiting scans for OCR"),
+                }
+            }
             let (stop, rx) = tokio::sync::watch::channel(false);
             let workers = jobs::start_workers(&rt.job_context(), rx);
             app::shutdown_signal().await;

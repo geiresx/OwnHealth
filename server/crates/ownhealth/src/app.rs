@@ -131,7 +131,12 @@ pub async fn start(rt: &Runtime) -> Result<Background, Error> {
     }
     let (stop, rx) = watch::channel(false);
     let workers = if rt.settings.run_jobs {
-        jobs::start_workers(&rt.job_context(), rx)
+        let mut w = jobs::start_workers(&rt.job_context(), rx.clone());
+        w.push(tokio::spawn(ownhealth_core::sources::scheduler_loop(
+            rt.job_context(),
+            rx,
+        )));
+        w
     } else {
         Vec::new()
     };

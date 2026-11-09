@@ -24,7 +24,7 @@ use axum::Router;
 use ownhealth_core::Runtime;
 
 pub use error::{ApiError, ApiResult};
-pub use extract::{Caller, SessionCaller};
+pub use extract::{Caller, SessionCaller, SourceCaller};
 
 /// Every area's router, to be nested at `/api`.
 pub fn router() -> Router<Runtime> {

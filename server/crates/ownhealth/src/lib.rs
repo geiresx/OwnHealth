@@ -5,6 +5,7 @@ pub mod ui;
 
 /// Register every lane's job handlers, accept handlers and demo hooks. Idempotent.
 pub fn register_lanes() {
+    ownhealth_core::sources::register();
     ownhealth_normalize::register();
     ownhealth_ingest_pdf::register();
     ownhealth_ingest_structured::register();
@@ -13,4 +14,7 @@ pub fn register_lanes() {
     ownhealth_mcp::register();
     ownhealth_auth::register();
     ownhealth_ops::register();
+    ownhealth_inbox::register();
+    ownhealth_ocr::register();
+    ownhealth_devices::register();
 }
