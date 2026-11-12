@@ -74,7 +74,7 @@
   {"genes": ["CYP2C9"], "id": 110058, "name": "CYP2C9 and NSAIDs", "url": "https://www.clinpgx.org/guideline/PA166251464"},
   {"genes": ["CYP2C19"], "id": 110076, "name": "CYP2C19 and Proton Pump Inhibitors", "url": "https://www.clinpgx.org/guideline/PA166251441"}
  ],
- "license": "CC0-1.0 (https://cpicpgx.org/license/)",
+ "license": "CC0-1.0 (https://github.com/cpicpgx/cpic-data/blob/main/LICENSE.md)",
  "pairs": [
   {"cpiclevel": "A", "drugid": "RxNorm:190521", "drugname": "abacavir", "genesymbol": "HLA-B", "guidelinename": "HLA-B and Abacavir", "guidelineurl": "https://www.clinpgx.org/guideline/PA166251444", "pmids": ["24561393", "22378157"]},
   {"cpiclevel": "A", "drugid": "RxNorm:519", "drugname": "allopurinol", "genesymbol": "HLA-B", "guidelinename": "HLA-B and Allopurinol", "guidelineurl": "https://www.clinpgx.org/guideline/PA166251446", "pmids": ["23232549", "26094938"]},

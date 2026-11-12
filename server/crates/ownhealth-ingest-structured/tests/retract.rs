@@ -106,7 +106,7 @@ async fn retracting_a_fhir_document_withdraws_its_records() -> R {
     let doc = fhir_doc(&env, &mut tx, &fam).await?;
     let out = retract_document_facts(&mut tx, doc, "document retracted: wrong patient").await?;
     assert!(active_medications(&mut tx, p, None, None, None, true).await?.is_empty());
-    for kind in ["condition", "allergy", "immunization", "procedure"] {
+    for kind in ["condition", "allergy", "immunization", "procedure", "visit"] {
         assert!(list_records(&mut tx, kind, p, None, true).await?.is_empty(), "{kind}");
     }
     assert_eq!(current_obs(&mut tx, p).await?, 0);
@@ -126,7 +126,7 @@ async fn retracting_a_fhir_document_withdraws_its_records() -> R {
         .await?;
     assert!(flags.get("import").is_none());
     let again = import_fhir(&mut tx, &env.blobs, doc).await?;
-    assert_eq!(again.accepted, 8); // a real import, not the old summary
+    assert_eq!(again.accepted, 9); // a real import, not the old summary
     Ok(())
 }
 

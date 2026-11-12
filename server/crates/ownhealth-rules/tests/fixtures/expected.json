@@ -473,7 +473,7 @@
   ],
   "cpic": {
    "source": "CPIC API https://api.cpicpgx.org/v1",
-   "license": "CC0-1.0 (https://cpicpgx.org/license/)",
+   "license": "CC0-1.0 (https://github.com/cpicpgx/cpic-data/blob/main/LICENSE.md)",
    "retrieved": "2026-11-07"
   }
  },
@@ -7461,6 +7461,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -7468,6 +7469,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -7507,6 +7509,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -7514,6 +7517,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -7551,6 +7555,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -7558,6 +7563,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -7595,6 +7601,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -7602,6 +7609,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -7641,6 +7649,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -7648,6 +7657,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -7687,6 +7697,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -7694,6 +7705,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -7731,6 +7743,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -7738,6 +7751,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -7775,6 +7789,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -7782,6 +7797,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -7848,6 +7864,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -7855,6 +7872,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "inhibitor:CYP2C19:moderate",
      "relation_text": "CYP2C19 inhibitor (moderate)",
@@ -7881,6 +7899,7 @@
    ],
    "not_assessed": [
     "CYP2D6: no genome finding on record",
+    "DPWG text for the genotype phenotype of CYP2C19 not in this genome file",
     "drug-drug interactions (no open-licence source configured)"
    ],
    "limitations": [
@@ -7938,6 +7957,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -7945,6 +7965,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "inhibitor:CYP2C19:moderate",
      "relation_text": "inhibidor de CYP2C19 (moderado)",
@@ -7971,6 +7992,7 @@
    ],
    "not_assessed": [
     "CYP2D6: ningún hallazgo genómico registrado",
+    "el archivo genómico no trae texto de DPWG para el fenotipo por genotipo de CYP2C19",
     "interacciones entre fármacos (sin fuente de licencia abierta configurada)"
    ],
    "limitations": [
@@ -8001,6 +8023,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -8008,6 +8031,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -8047,6 +8071,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -8054,6 +8079,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -8105,6 +8131,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "same_drug",
      "relation_text": "this drug",
@@ -8112,6 +8139,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -8174,6 +8202,7 @@
     }
    ],
    "not_assessed": [
+    "DPWG text for the genotype phenotype of SLCO1B1 not in this genome file",
     "drug-drug interactions (no open-licence source configured)"
    ],
    "limitations": [
@@ -8215,6 +8244,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "same_drug",
      "relation_text": "este fármaco",
@@ -8222,6 +8252,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -8284,6 +8315,7 @@
     }
    ],
    "not_assessed": [
+    "el archivo genómico no trae texto de DPWG para el fenotipo por genotipo de SLCO1B1",
     "interacciones entre fármacos (sin fuente de licencia abierta configurada)"
    ],
    "limitations": [
@@ -8314,6 +8346,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -8321,6 +8354,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -8411,6 +8445,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -8418,6 +8453,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -8505,6 +8541,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -8512,6 +8549,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -8549,6 +8587,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -8556,6 +8595,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -8595,6 +8635,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -8602,6 +8643,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -8678,6 +8720,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -8685,6 +8728,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -8762,6 +8806,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -8769,6 +8814,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -8810,6 +8856,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -8817,6 +8864,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -8857,6 +8905,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -8864,6 +8913,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -8903,6 +8953,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -8910,6 +8961,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -8947,6 +8999,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -8954,6 +9007,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -8991,6 +9045,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -8998,6 +9053,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -9063,6 +9119,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -9070,6 +9127,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "inhibitor:CYP2C19:moderate",
      "relation_text": "CYP2C19 inhibitor (moderate)",
@@ -9108,6 +9166,7 @@
     }
    ],
    "not_assessed": [
+    "DPWG text for the genotype phenotype of CYP2C19 not in this genome file",
     "drug-drug interactions (no open-licence source configured)"
    ],
    "limitations": [
@@ -9164,6 +9223,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -9171,6 +9231,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "inhibitor:CYP2C19:moderate",
      "relation_text": "inhibidor de CYP2C19 (moderado)",
@@ -9209,6 +9270,7 @@
     }
    ],
    "not_assessed": [
+    "el archivo genómico no trae texto de DPWG para el fenotipo por genotipo de CYP2C19",
     "interacciones entre fármacos (sin fuente de licencia abierta configurada)"
    ],
    "limitations": [
@@ -9265,6 +9327,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -9272,6 +9335,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "inhibitor:CYP2C19:moderate",
      "relation_text": "CYP2C19 inhibitor (moderate)",
@@ -9361,6 +9425,7 @@
     }
    ],
    "not_assessed": [
+    "DPWG text for the genotype phenotype of CYP2C19 not in this genome file",
     "drug-drug interactions (no open-licence source configured)"
    ],
    "limitations": [
@@ -9418,6 +9483,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -9425,6 +9491,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "inhibitor:CYP2C19:moderate",
      "relation_text": "inhibidor de CYP2C19 (moderado)",
@@ -9514,6 +9581,7 @@
     }
    ],
    "not_assessed": [
+    "el archivo genómico no trae texto de DPWG para el fenotipo por genotipo de CYP2C19",
     "interacciones entre fármacos (sin fuente de licencia abierta configurada)"
    ],
    "limitations": [
@@ -9545,6 +9613,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -9552,6 +9621,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -9616,6 +9686,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -9623,6 +9694,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -9685,6 +9757,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -9692,6 +9765,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -9729,6 +9803,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -9736,6 +9811,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -9775,6 +9851,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -9782,6 +9859,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -9821,6 +9899,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -9828,6 +9907,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -9893,6 +9973,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -9900,6 +9981,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "inhibitor:CYP2C19:moderate",
      "relation_text": "CYP2C19 inhibitor (moderate)",
@@ -9938,6 +10020,7 @@
     }
    ],
    "not_assessed": [
+    "DPWG text for the genotype phenotype of CYP2C19 not in this genome file",
     "drug-drug interactions (no open-licence source configured)"
    ],
    "limitations": [
@@ -9994,6 +10077,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -10001,6 +10085,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "inhibitor:CYP2C19:moderate",
      "relation_text": "inhibidor de CYP2C19 (moderado)",
@@ -10039,6 +10124,7 @@
     }
    ],
    "not_assessed": [
+    "el archivo genómico no trae texto de DPWG para el fenotipo por genotipo de CYP2C19",
     "interacciones entre fármacos (sin fuente de licencia abierta configurada)"
    ],
    "limitations": [
@@ -10067,6 +10153,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -10074,6 +10161,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -10111,6 +10199,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -10118,6 +10207,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -10155,6 +10245,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -10162,6 +10253,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -10199,6 +10291,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -10206,6 +10299,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -10243,6 +10337,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -10250,6 +10345,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -10287,6 +10383,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -10294,6 +10391,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -10333,6 +10431,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -10340,6 +10439,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -10416,6 +10516,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -10423,6 +10524,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -10497,6 +10599,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -10504,6 +10607,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -10541,6 +10645,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -10548,6 +10653,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -10585,6 +10691,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -10592,6 +10699,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -10629,6 +10737,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -10636,6 +10745,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -10673,6 +10783,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -10680,6 +10791,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -10717,6 +10829,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -10724,6 +10837,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -10761,6 +10875,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -10768,6 +10883,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -10805,6 +10921,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -10812,6 +10929,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -10851,6 +10969,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -10858,6 +10977,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -10897,6 +11017,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -10904,6 +11025,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -10969,6 +11091,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -10976,6 +11099,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "inhibitor:CYP2C19:moderate",
      "relation_text": "CYP2C19 inhibitor (moderate)",
@@ -11026,6 +11150,7 @@
     }
    ],
    "not_assessed": [
+    "DPWG text for the genotype phenotype of CYP2C19 not in this genome file",
     "drug-drug interactions (no open-licence source configured)"
    ],
    "limitations": [
@@ -11082,6 +11207,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -11089,6 +11215,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "inhibitor:CYP2C19:moderate",
      "relation_text": "inhibidor de CYP2C19 (moderado)",
@@ -11139,6 +11266,7 @@
     }
    ],
    "not_assessed": [
+    "el archivo genómico no trae texto de DPWG para el fenotipo por genotipo de CYP2C19",
     "interacciones entre fármacos (sin fuente de licencia abierta configurada)"
    ],
    "limitations": [
@@ -11167,6 +11295,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -11174,6 +11303,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -11211,6 +11341,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -11218,6 +11349,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -11258,6 +11390,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -11265,6 +11398,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -11355,6 +11489,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -11362,6 +11497,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -11449,6 +11585,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -11456,6 +11593,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -11493,6 +11631,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -11500,6 +11639,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -11537,6 +11677,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -11544,6 +11685,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -11581,6 +11723,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -11588,6 +11731,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -11625,6 +11769,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -11632,6 +11777,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -11669,6 +11815,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -11676,6 +11823,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -11713,6 +11861,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -11720,6 +11869,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -11757,6 +11907,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -11764,6 +11915,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -11801,6 +11953,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -11808,6 +11961,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -11845,6 +11999,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -11852,6 +12007,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -11891,6 +12047,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -11898,6 +12055,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -11937,6 +12095,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -11944,6 +12103,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -12009,6 +12169,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -12016,6 +12177,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "same_drug",
      "relation_text": "this drug",
@@ -12066,6 +12228,7 @@
     }
    ],
    "not_assessed": [
+    "DPWG text for the genotype phenotype of CYP2C19 not in this genome file",
     "drug-drug interactions (no open-licence source configured)"
    ],
    "limitations": [
@@ -12122,6 +12285,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -12129,6 +12293,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "same_drug",
      "relation_text": "este fármaco",
@@ -12179,6 +12344,7 @@
     }
    ],
    "not_assessed": [
+    "el archivo genómico no trae texto de DPWG para el fenotipo por genotipo de CYP2C19",
     "interacciones entre fármacos (sin fuente de licencia abierta configurada)"
    ],
    "limitations": [
@@ -12209,6 +12375,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -12216,6 +12383,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -12255,6 +12423,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -12262,6 +12431,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -12299,6 +12469,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -12306,6 +12477,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -12343,6 +12515,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -12350,6 +12523,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -12415,6 +12589,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -12422,6 +12597,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "inhibitor:CYP2C19:moderate",
      "relation_text": "CYP2C19 inhibitor (moderate)",
@@ -12472,6 +12648,7 @@
     }
    ],
    "not_assessed": [
+    "DPWG text for the genotype phenotype of CYP2C19 not in this genome file",
     "drug-drug interactions (no open-licence source configured)"
    ],
    "limitations": [
@@ -12528,6 +12705,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -12535,6 +12713,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "inhibitor:CYP2C19:moderate",
      "relation_text": "inhibidor de CYP2C19 (moderado)",
@@ -12585,6 +12764,7 @@
     }
    ],
    "not_assessed": [
+    "el archivo genómico no trae texto de DPWG para el fenotipo por genotipo de CYP2C19",
     "interacciones entre fármacos (sin fuente de licencia abierta configurada)"
    ],
    "limitations": [
@@ -12615,6 +12795,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -12622,6 +12803,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -12674,6 +12856,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -12681,6 +12864,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -12734,6 +12918,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -12741,6 +12926,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -12782,6 +12968,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -12789,6 +12976,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -12827,6 +13015,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -12834,6 +13023,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -12871,6 +13061,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -12878,6 +13069,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -12929,6 +13121,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -12936,6 +13129,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -12998,6 +13192,7 @@
     }
    ],
    "not_assessed": [
+    "DPWG text for the genotype phenotype of SLCO1B1 not in this genome file",
     "drug-drug interactions (no open-licence source configured)"
    ],
    "limitations": [
@@ -13039,6 +13234,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -13046,6 +13242,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -13108,6 +13305,7 @@
     }
    ],
    "not_assessed": [
+    "el archivo genómico no trae texto de DPWG para el fenotipo por genotipo de SLCO1B1",
     "interacciones entre fármacos (sin fuente de licencia abierta configurada)"
    ],
    "limitations": [
@@ -13135,6 +13333,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -13142,6 +13341,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -13179,6 +13379,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -13186,6 +13387,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -13238,6 +13440,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -13245,6 +13448,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -13308,6 +13512,7 @@
    ],
    "not_assessed": [
     "ABCG2: no genome finding on record",
+    "DPWG text for the genotype phenotype of SLCO1B1 not in this genome file",
     "drug-drug interactions (no open-licence source configured)"
    ],
    "limitations": [
@@ -13350,6 +13555,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -13357,6 +13563,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -13420,6 +13627,7 @@
    ],
    "not_assessed": [
     "ABCG2: ningún hallazgo genómico registrado",
+    "el archivo genómico no trae texto de DPWG para el fenotipo por genotipo de SLCO1B1",
     "interacciones entre fármacos (sin fuente de licencia abierta configurada)"
    ],
    "limitations": [
@@ -13475,6 +13683,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -13482,6 +13691,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "inhibitor:CYP2C19:moderate",
      "relation_text": "CYP2C19 inhibitor (moderate)",
@@ -13520,6 +13730,7 @@
     }
    ],
    "not_assessed": [
+    "DPWG text for the genotype phenotype of CYP2C19 not in this genome file",
     "drug-drug interactions (no open-licence source configured)"
    ],
    "limitations": [
@@ -13576,6 +13787,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -13583,6 +13795,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "inhibitor:CYP2C19:moderate",
      "relation_text": "inhibidor de CYP2C19 (moderado)",
@@ -13621,6 +13834,7 @@
     }
    ],
    "not_assessed": [
+    "el archivo genómico no trae texto de DPWG para el fenotipo por genotipo de CYP2C19",
     "interacciones entre fármacos (sin fuente de licencia abierta configurada)"
    ],
    "limitations": [
@@ -13663,6 +13877,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -13670,6 +13885,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -13732,6 +13948,7 @@
     }
    ],
    "not_assessed": [
+    "DPWG text for the genotype phenotype of SLCO1B1 not in this genome file",
     "drug-drug interactions (no open-licence source configured)"
    ],
    "limitations": [
@@ -13773,6 +13990,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -13780,6 +13998,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -13842,6 +14061,7 @@
     }
    ],
    "not_assessed": [
+    "el archivo genómico no trae texto de DPWG para el fenotipo por genotipo de SLCO1B1",
     "interacciones entre fármacos (sin fuente de licencia abierta configurada)"
    ],
    "limitations": [
@@ -13871,6 +14091,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -13878,6 +14099,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -13942,6 +14164,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -13949,6 +14172,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -14013,6 +14237,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -14020,6 +14245,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -14059,6 +14285,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -14066,6 +14293,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -14103,6 +14331,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -14110,6 +14339,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -14147,6 +14377,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -14154,6 +14385,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -14194,6 +14426,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -14201,6 +14434,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -14291,6 +14525,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -14298,6 +14533,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -14385,6 +14621,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -14392,6 +14629,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -14429,6 +14667,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -14436,6 +14675,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -14475,6 +14715,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -14482,6 +14723,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -14546,6 +14788,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -14553,6 +14796,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -14643,6 +14887,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -14650,6 +14895,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "inhibitor:CYP2C19:moderate",
      "relation_text": "CYP2C19 inhibitor (moderate)",
@@ -14690,6 +14936,7 @@
     }
    ],
    "not_assessed": [
+    "DPWG text for the genotype phenotype of CYP2C19 not in this genome file",
     "drug-drug interactions (no open-licence source configured)"
    ],
    "limitations": [
@@ -14747,6 +14994,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -14754,6 +15002,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "inhibitor:CYP2C19:moderate",
      "relation_text": "inhibidor de CYP2C19 (moderado)",
@@ -14794,6 +15043,7 @@
     }
    ],
    "not_assessed": [
+    "el archivo genómico no trae texto de DPWG para el fenotipo por genotipo de CYP2C19",
     "interacciones entre fármacos (sin fuente de licencia abierta configurada)"
    ],
    "limitations": [
@@ -14827,6 +15077,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -14834,6 +15085,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -14914,6 +15166,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -14921,6 +15174,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
      "relation_text": "No evaluado",
@@ -15270,6 +15524,7 @@
    ],
    "not_assessed": [
     "CYP2C19: no genome finding on record",
+    "DPWG text for the genotype phenotype of CYP2D6 not in this genome file",
     "drug-drug interactions (no open-licence source configured)"
    ],
    "limitations": [
@@ -15330,6 +15585,7 @@
    ],
    "not_assessed": [
     "CYP2C19: ningún hallazgo genómico registrado",
+    "el archivo genómico no trae texto de DPWG para el fenotipo por genotipo de CYP2D6",
     "interacciones entre fármacos (sin fuente de licencia abierta configurada)"
    ],
    "limitations": [
@@ -15403,6 +15659,7 @@
     }
    ],
    "not_assessed": [
+    "DPWG text for the genotype phenotype of CYP2D6 not in this genome file",
     "drug-drug interactions (no open-licence source configured)"
    ],
    "limitations": [
@@ -15477,6 +15734,7 @@
     }
    ],
    "not_assessed": [
+    "el archivo genómico no trae texto de DPWG para el fenotipo por genotipo de CYP2D6",
     "interacciones entre fármacos (sin fuente de licencia abierta configurada)"
    ],
    "limitations": [
@@ -16489,6 +16747,7 @@
     }
    ],
    "not_assessed": [
+    "DPWG text for the genotype phenotype of CYP2D6 not in this genome file",
     "drug-drug interactions (no open-licence source configured)"
    ],
    "limitations": [
@@ -16572,6 +16831,7 @@
     }
    ],
    "not_assessed": [
+    "el archivo genómico no trae texto de DPWG para el fenotipo por genotipo de CYP2D6",
     "interacciones entre fármacos (sin fuente de licencia abierta configurada)"
    ],
    "limitations": [
@@ -18066,6 +18326,7 @@
     }
    ],
    "not_assessed": [
+    "DPWG text for the genotype phenotype of CYP2D6 not in this genome file",
     "drug-drug interactions (no open-licence source configured)"
    ],
    "limitations": [
@@ -18124,6 +18385,7 @@
     }
    ],
    "not_assessed": [
+    "el archivo genómico no trae texto de DPWG para el fenotipo por genotipo de CYP2D6",
     "interacciones entre fármacos (sin fuente de licencia abierta configurada)"
    ],
    "limitations": [
@@ -18294,6 +18556,7 @@
     }
    ],
    "not_assessed": [
+    "DPWG text for the genotype phenotype of CYP2D6 not in this genome file",
     "drug-drug interactions (no open-licence source configured)"
    ],
    "limitations": [
@@ -18352,6 +18615,7 @@
     }
    ],
    "not_assessed": [
+    "el archivo genómico no trae texto de DPWG para el fenotipo por genotipo de CYP2D6",
     "interacciones entre fármacos (sin fuente de licencia abierta configurada)"
    ],
    "limitations": [
@@ -18593,6 +18857,7 @@
     }
    ],
    "not_assessed": [
+    "DPWG text for the genotype phenotype of CYP2D6 not in this genome file",
     "drug-drug interactions (no open-licence source configured)"
    ],
    "limitations": [
@@ -18664,6 +18929,7 @@
     }
    ],
    "not_assessed": [
+    "el archivo genómico no trae texto de DPWG para el fenotipo por genotipo de CYP2D6",
     "interacciones entre fármacos (sin fuente de licencia abierta configurada)"
    ],
    "limitations": [
@@ -19516,6 +19782,7 @@
     }
    ],
    "not_assessed": [
+    "DPWG text for the genotype phenotype of CYP2D6 not in this genome file",
     "drug-drug interactions (no open-licence source configured)"
    ],
    "limitations": [
@@ -19574,6 +19841,7 @@
     }
    ],
    "not_assessed": [
+    "el archivo genómico no trae texto de DPWG para el fenotipo por genotipo de CYP2D6",
     "interacciones entre fármacos (sin fuente de licencia abierta configurada)"
    ],
    "limitations": [
@@ -19937,6 +20205,7 @@
     }
    ],
    "not_assessed": [
+    "DPWG text for the genotype phenotype of CYP2D6 not in this genome file",
     "drug-drug interactions (no open-licence source configured)"
    ],
    "limitations": [
@@ -20020,6 +20289,7 @@
     }
    ],
    "not_assessed": [
+    "el archivo genómico no trae texto de DPWG para el fenotipo por genotipo de CYP2D6",
     "interacciones entre fármacos (sin fuente de licencia abierta configurada)"
    ],
    "limitations": [
@@ -20381,6 +20651,7 @@
     }
    ],
    "not_assessed": [
+    "DPWG text for the genotype phenotype of CYP2C19 not in this genome file",
     "drug-drug interactions (no open-licence source configured)"
    ],
    "limitations": [
@@ -20414,6 +20685,7 @@
    "current_medications_relevant": [
     {
      "name": "Atorvastatin 20 mg",
+     "kind": "medication",
      "since": "2026-03-10",
      "relation": "not_assessed",
      "relation_text": "Not assessed",
@@ -20421,6 +20693,7 @@
     },
     {
      "name": "Omeprazole 20 mg",
+     "kind": "medication",
      "since": "2026-04-01",
      "relation": "inhibitor:CYP2C19:moderate",
      "relation_text": "CYP2C19 inhibitor (moderate)",

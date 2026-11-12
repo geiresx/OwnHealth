@@ -90,8 +90,9 @@ async fn ips_document_bundle_projects_records_and_queues_the_rest() -> R {
     )
     .await?;
     let s = import_fhir(&mut tx, &env.blobs, doc).await?;
-    // 5 records + HbA1c + 2 blood pressure components; Encounter (unmapped) and the bad LOINC wait
-    assert_eq!((s.accepted, s.queued, s.skipped), (8, 2, 1));
+    // 6 records (the Encounter is a visit) + HbA1c + 2 blood pressure components; the CarePlan
+    // (stored, not projected) and the bad LOINC wait
+    assert_eq!((s.accepted, s.queued, s.skipped), (9, 2, 1));
     assert_eq!(
         s.reasons,
         reasons(&[
@@ -132,6 +133,17 @@ async fn ips_document_bundle_projects_records_and_queues_the_rest() -> R {
         (&json!("2025-10-20"), &json!("SYN-0425"))
     );
     assert_eq!(records(&mut tx, "procedure", p).await?.len(), 1);
+    let visits = records(&mut tx, "visit", p).await?;
+    assert_eq!(visits.len(), 1);
+    assert_eq!(
+        (
+            &visits[0]["class"],
+            &visits[0]["period_start"],
+            &visits[0]["accepted_by"]
+        ),
+        (&json!("AMB"), &json!("2026-05-12T06:30:00+00:00"), &json!("import"))
+    );
+    assert_eq!(visits[0]["fhir"]["id"], "alex-enc-1"); // the received JSON is kept
 
     let all = obs(&mut tx, p).await?;
     let names: BTreeSet<&str> = all.iter().map(|o| o.printed_name.as_str()).collect();
@@ -180,9 +192,9 @@ async fn ips_document_bundle_projects_records_and_queues_the_rest() -> R {
         .iter()
         .map(|i| i.payload["resource_type"].as_str().unwrap_or_default())
         .collect();
-    assert_eq!(types, vec!["Encounter"]);
+    assert_eq!(types, vec!["CarePlan"]);
     assert_eq!(unmapped[0].payload["note"], "stored, not projected");
-    assert_eq!(unmapped[0].payload["resource"]["id"], "alex-enc-1"); // stored as received
+    assert_eq!(unmapped[0].payload["resource"]["id"], "alex-cp-1"); // stored as received
     assert_eq!(held[0].reasons, vec!["loinc_unknown".to_string()]);
     // the injection text in Observation.note stays inside the stored resource, never in a typed column
     assert!(
@@ -196,7 +208,7 @@ async fn ips_document_bundle_projects_records_and_queues_the_rest() -> R {
             .fetch_one(&mut *tx)
             .await?;
     assert_eq!(identity.as_deref(), Some("matched"));
-    assert_eq!(flags["import"]["accepted"], 8);
+    assert_eq!(flags["import"]["accepted"], 9);
     Ok(())
 }
 
@@ -226,7 +238,7 @@ async fn same_bundle_twice_and_reexport_do_not_double_count() -> R {
     .await?;
     let second = import_fhir(&mut tx, &env.blobs, doc2).await?;
     assert_eq!((second.accepted, second.queued), (0, 0));
-    assert_eq!((second.skipped, second.reasons["duplicate"]), (11, 10));
+    assert_eq!((second.skipped, second.reasons["duplicate"]), (12, 11));
     assert_eq!(obs(&mut tx, p).await?.len(), 3);
     assert_eq!(records(&mut tx, "condition", p).await?.len(), 1);
     Ok(())
@@ -271,7 +283,7 @@ async fn changed_resource_waits_in_review_and_accepting_supersedes() -> R {
     )
     .await?;
     let s = import_fhir(&mut tx, &env.blobs, doc2).await?;
-    assert_eq!((s.queued, s.reasons["conflict"], s.reasons["duplicate"]), (1, 1, 9));
+    assert_eq!((s.queued, s.reasons["conflict"], s.reasons["duplicate"]), (1, 1, 10));
     let held = items(&mut tx, doc2, Some("fhir_unmapped")).await?;
     assert_eq!(held.len(), 1);
     assert_eq!(held[0].payload["projection"], "record");
@@ -466,7 +478,7 @@ async fn patient_mismatch_holds_every_fact_for_review() -> R {
     )
     .await?;
     let s = import_fhir(&mut tx, &env.blobs, doc).await?;
-    assert_eq!((s.accepted, s.queued, s.reasons["identity_mismatch"]), (0, 10, 9));
+    assert_eq!((s.accepted, s.queued, s.reasons["identity_mismatch"]), (0, 11, 10));
     assert!(obs(&mut tx, p).await?.is_empty() && records(&mut tx, "condition", p).await?.is_empty());
     let held: Vec<ReviewItem> = items(&mut tx, doc, Some("fhir_unmapped"))
         .await?
@@ -479,7 +491,14 @@ async fn patient_mismatch_holds_every_fact_for_review() -> R {
         .collect();
     assert_eq!(
         kinds,
-        BTreeSet::from(["condition", "allergy", "medication", "immunization", "procedure"])
+        BTreeSet::from([
+            "condition",
+            "allergy",
+            "medication",
+            "immunization",
+            "procedure",
+            "visit"
+        ])
     );
     // a person confirms one: it becomes a record, accepted by that person
     let cond = held

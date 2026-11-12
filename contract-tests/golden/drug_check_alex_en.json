@@ -1,6 +1,7 @@
 {
   "current_medications_relevant": {
     "[]": {
+      "kind": "=medication",
       "name": "string",
       "relation": "string",
       "relation_text": "string",

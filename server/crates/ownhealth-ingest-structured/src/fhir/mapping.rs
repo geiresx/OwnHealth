@@ -14,7 +14,7 @@ use ownhealth_core::fhir::loinc_of;
 use ownhealth_core::observations::SENSITIVITY;
 use ownhealth_core::pyjson::py_decimal_str;
 use ownhealth_core::records::{
-    AllergyIn, Common, ConditionIn, ImmunizationIn, MedCode, MedicationIn, ProcedureIn, RecordIn,
+    AllergyIn, Common, ConditionIn, ImmunizationIn, MedCode, MedicationIn, ProcedureIn, RecordIn, VisitIn,
 };
 use rust_decimal::Decimal;
 use serde_json::Value;
@@ -629,6 +629,75 @@ pub fn procedure(r: &Value, profile_id: Uuid) -> Mapped {
     )
 }
 
+/// Our own export holds every version, tagged; only the current one is a fact. The export appends
+/// its tag after any it stored from an earlier import, so the last one is the authoritative one.
+fn not_current(r: &Value) -> bool {
+    let lifecycle = list(r.get("meta"), "tag")
+        .iter()
+        .rfind(|t| t.get("system").and_then(Value::as_str) == Some("urn:ownhealth:lifecycle"))
+        .and_then(|t| t.get("code").and_then(Value::as_str));
+    matches!(lifecycle, Some("superseded" | "retracted"))
+}
+
+/// A visit. One that was cancelled or entered in error never happened; one still planned waits in
+/// review as stored. The reason is the first reasonCode, else the visit type; the provider is the
+/// service provider, else the first participant, as received.
+pub fn encounter(r: &Value, profile_id: Uuid) -> Mapped {
+    match status(r).as_deref() {
+        Some(s @ ("entered-in-error" | "cancelled")) => return skip(&format!("status_{s}")),
+        Some("planned") => return unmapped("Encounter not held yet (status planned)"),
+        _ => {}
+    }
+    if not_current(r) {
+        return skip("lifecycle_not_current");
+    }
+    let period = r.get("period");
+    let Some(start) = parse_datetime(get_truthy(period, "start")) else {
+        return unmapped("Encounter without a start date");
+    };
+    let mut checks = Vec::new();
+    let raw_end = get_truthy(period, "end");
+    let mut end = parse_datetime(raw_end);
+    let problem = if raw_end.is_some() && end.is_none() {
+        Some("the visit's end date cannot be read")
+    } else if end.is_some_and(|e| e < start) {
+        Some("the visit ends before it starts")
+    } else {
+        None
+    };
+    if let Some(p) = problem {
+        end = None;
+        checks.push(Check {
+            detail: Some(p.into()),
+            ..Check::fail("period", "date_invalid")
+        });
+    }
+    let first_text = |key: &str| {
+        list(Some(r), key)
+            .iter()
+            .find_map(|c| concept_text(Some(c)).filter(|t| !t.is_empty()))
+    };
+    let provider_name = get_truthy(r.get("serviceProvider"), "display")
+        .or_else(|| {
+            list(Some(r), "participant")
+                .iter()
+                .find_map(|p| get_truthy(p.get("individual"), "display"))
+        })
+        .map(text_of)
+        .filter(|t| !t.is_empty());
+    record(
+        RecordIn::Visit(VisitIn {
+            common: common(profile_id, Some(start), r),
+            class: get_truthy(r.get("class"), "code").map(text_of),
+            provider_name,
+            period_start: Some(start),
+            period_end: end,
+            reason_text: first_text("reasonCode").or_else(|| first_text("type")),
+        }),
+        checks,
+    )
+}
+
 fn med_status(status: &str) -> Option<&'static str> {
     Some(match status {
         "active" | "intended" => "active",
@@ -788,13 +857,7 @@ pub fn family_member_history(r: &Value, profile_id: Uuid) -> Mapped {
     if status(r).as_deref() == Some("entered-in-error") {
         return skip("status_entered-in-error");
     }
-    // our own export holds every version, tagged; only the current one is a fact. The export appends
-    // its tag after any it stored from an earlier import, so the last one is the authoritative one.
-    let lifecycle = list(r.get("meta"), "tag")
-        .iter()
-        .rfind(|t| t.get("system").and_then(Value::as_str) == Some("urn:ownhealth:lifecycle"))
-        .and_then(|t| t.get("code").and_then(Value::as_str));
-    if matches!(lifecycle, Some("superseded" | "retracted")) {
+    if not_current(r) {
         return skip("lifecycle_not_current");
     }
     let Ok(cat) = family::catalog() else {
@@ -963,6 +1026,73 @@ mod tests {
         let other = json!({"name": [{"family": "Ortega"}]});
         assert_eq!(match_patient(Some(&other), "Lucía Rivera", None), "mismatch");
         assert_eq!(match_patient(None, "Lucía Rivera", None), "missing");
+    }
+
+    #[test]
+    fn encounters_become_visits() {
+        let pid = Uuid::nil();
+        let enc = |extra: Value| {
+            let mut r = json!({"resourceType": "Encounter", "status": "finished", "class": {"code": "EMER"},
+                               "period": {"start": "2026-05-12"}});
+            if let (Some(m), Value::Object(e)) = (r.as_object_mut(), extra) {
+                m.extend(e);
+            }
+            encounter(&r, pid)
+        };
+        let Mapped::Record { record, checks } = enc(json!({
+            "type": [{"text": "Emergency visit"}],
+            "participant": [{"individual": {"display": "Dra. Ortega"}}]
+        })) else {
+            panic!("a visit")
+        };
+        let RecordIn::Visit(v) = *record else { panic!("a visit") };
+        assert!(checks.is_empty());
+        assert_eq!(
+            (v.class.as_deref(), v.reason_text.as_deref(), v.provider_name.as_deref()),
+            (Some("EMER"), Some("Emergency visit"), Some("Dra. Ortega"))
+        );
+        assert_eq!(
+            v.period_start.map(|d| d.to_rfc3339()),
+            Some("2026-05-12T00:00:00+00:00".into())
+        );
+        assert_eq!(enc(json!({"status": "cancelled"})), skip("status_cancelled"));
+        assert_eq!(
+            enc(json!({"status": "entered-in-error"})),
+            skip("status_entered-in-error")
+        );
+        assert!(matches!(enc(json!({"status": "planned"})), Mapped::Unmapped(_)));
+        assert!(matches!(
+            enc(json!({"period": {"end": "2026-05-12"}})),
+            Mapped::Unmapped(_)
+        ));
+        // an end before the start is dropped and the visit waits in review
+        let Mapped::Record { record, checks } = enc(json!({"period": {"start": "2026-05-12", "end": "2026-05-11"}}))
+        else {
+            panic!("a visit")
+        };
+        assert!(matches!(*record, RecordIn::Visit(VisitIn { period_end: None, .. })));
+        assert_eq!(checks.len(), 1);
+        // an end we cannot read is not silently dropped: the visit waits in review
+        let Mapped::Record { record, checks } = enc(json!({"period": {"start": "2026-05-12", "end": "not a date"}}))
+        else {
+            panic!("a visit")
+        };
+        assert!(matches!(*record, RecordIn::Visit(VisitIn { period_end: None, .. })));
+        assert_eq!(checks.len(), 1);
+        // our own export keeps every version, tagged: only the last tag counts
+        let tag = |code: &str| json!({"system": "urn:ownhealth:lifecycle", "code": code});
+        assert_eq!(
+            enc(json!({"meta": {"tag": [tag("current"), tag("superseded")]}})),
+            skip("lifecycle_not_current")
+        );
+        assert_eq!(
+            enc(json!({"meta": {"tag": [tag("retracted")]}})),
+            skip("lifecycle_not_current")
+        );
+        assert!(matches!(
+            enc(json!({"meta": {"tag": [tag("superseded"), tag("current")]}})),
+            Mapped::Record { .. }
+        ));
     }
 
     #[test]

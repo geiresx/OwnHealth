@@ -9,7 +9,7 @@ use serde_json::{Map, Value, json};
 
 use crate::observations::ObservationIn;
 use crate::pyjson::{py_date, py_isoformat, py_num};
-use crate::records::{AllergyIn, ConditionIn, ImmunizationIn, MedicationIn, ProcedureIn};
+use crate::records::{AllergyIn, ConditionIn, ImmunizationIn, MedicationIn, ProcedureIn, VisitIn};
 
 pub const UCUM: &str = "http://unitsofmeasure.org";
 
@@ -338,6 +338,46 @@ pub fn procedure(p: &ProcedureIn) -> Value {
             ),
         ),
         ("performedDateTime", date(p.performed.as_ref())),
+    ])
+}
+
+/// A visit as a FHIR R4 Encounter. R4 needs a class: a visit typed by hand is ambulatory (AMB).
+pub fn encounter(v: &VisitIn) -> Value {
+    let class = v.class.as_deref().filter(|c| !c.is_empty()).unwrap_or("AMB");
+    drop_none(vec![
+        ("resourceType", json!("Encounter")),
+        ("status", json!("finished")),
+        (
+            "class",
+            json!({"system": "http://terminology.hl7.org/CodeSystem/v3-ActCode", "code": class}),
+        ),
+        (
+            "period",
+            drop_none(vec![
+                (
+                    "start",
+                    v.period_start.as_ref().map_or(Value::Null, |d| json!(py_isoformat(d))),
+                ),
+                (
+                    "end",
+                    v.period_end.as_ref().map_or(Value::Null, |d| json!(py_isoformat(d))),
+                ),
+            ]),
+        ),
+        (
+            "serviceProvider",
+            v.provider_name
+                .as_deref()
+                .filter(|p| !p.is_empty())
+                .map_or(Value::Null, |p| json!({"display": p})),
+        ),
+        (
+            "reasonCode",
+            v.reason_text
+                .as_deref()
+                .filter(|r| !r.is_empty())
+                .map_or(Value::Null, |r| json!([{"text": r}])),
+        ),
     ])
 }
 

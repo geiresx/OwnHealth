@@ -78,6 +78,12 @@ export const deleteProfile = (slug: string) =>
 	request<{ deleted: string; rows: number; blobs: number }>('DELETE', p(slug), { query: { confirm: slug } });
 /** Full export: FHIR R4 NDJSON plus the original files in one zip. Needs a fresh step-up. */
 export const exportProfile = (slug: string) => requestBlob('POST', `${p(slug)}/export`, { fmt: 'zip' }, `ownhealth-${slug}.zip`);
+/** The four views of the printed doctor summary (data/summary/specialties.yaml), in their order. */
+export const SUMMARY_SPECIALTIES = ['gp', 'cardiology', 'endocrinology', 'hematology'] as const;
+export type SummarySpecialty = (typeof SUMMARY_SPECIALTIES)[number];
+/** The printed doctor summary (two A4 pages, a PDF). Needs a fresh step-up. */
+export const printSummary = (slug: string, body: { lang: 'es' | 'en'; specialty: SummarySpecialty; include_sensitive: boolean }) =>
+	requestBlob('POST', `${p(slug)}/summary.pdf`, body, `ownhealth-summary-${slug}.pdf`);
 export const setLocks = (profile: string, locks: Scope[]) => put<{ ok: true }>(`${p(profile)}/locks`, { locks });
 
 // ---- lane I-ui-2: genome, drug check, documents, review helpers, auth, settings ----

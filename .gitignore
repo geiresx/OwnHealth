@@ -21,6 +21,7 @@ server/vendor/
 !/data/genome/
 !/data/prevention/
 !/data/rules/
+!/data/summary/
 !/data/terminology/
 !/data/vendors/
 server/data/

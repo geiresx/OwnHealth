@@ -14,6 +14,9 @@
       "type": "=lab"
     }
   },
+  "spans": {
+    "[]": "empty"
+  },
   "withheld": {
     "by_scope": {
       "[]": "empty"

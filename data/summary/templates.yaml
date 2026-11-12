@@ -1,0 +1,73 @@
+# Every word the printed doctor summary writes itself, in English and Spanish. Placeholders in
+# braces are filled by the server ({n}, {date}, {page}, ...). Information, never advice: the
+# wording lint reads each string, and the PDF's text layer is linted again in the tests.
+version: "summary-templates 0.1.0"
+templates:
+  title: {en: Doctor summary, es: Resumen para el médico}
+  subtitle: {en: "Data as of {as_of}", es: "Datos a {as_of}"}
+  notice:
+    en: "Information from the person's own records, not a diagnosis. Every value names its source (src_…); the sources are listed at the end."
+    es: "Información de los registros de la propia persona, no un diagnóstico. Cada valor cita su fuente (src_…); las fuentes se listan al final."
+  unprintable:
+    en: "Characters this sheet cannot print show as ?; the record keeps the original text."
+    es: "Los caracteres que esta hoja no puede imprimir aparecen como ?; el registro guarda el texto original."
+  age: {en: "{n} years", es: "{n} años"}
+  born: {en: "born {date}", es: "nacimiento {date}"}
+  sec:
+    conditions: {en: Active conditions, es: Problemas de salud activos}
+    allergies: {en: Allergies, es: Alergias}
+    medications: {en: Medicines and supplements, es: Medicamentos y suplementos}
+    genome: {en: Pharmacogenomics and genome findings, es: Farmacogenética y hallazgos genómicos}
+    flags: {en: Flags, by rank, es: Avisos, por orden de importancia}
+    markers: {en: Lab values, es: Valores de laboratorio}
+    vaccines: {en: Vaccines, es: Vacunas}
+    sources: {en: Sources, es: Fuentes}
+  col:
+    condition: {en: Condition, es: Problema}
+    since: {en: Since, es: Desde}
+    src: {en: Source, es: Fuente}
+    substance: {en: Substance, es: Sustancia}
+    criticality: {en: Criticality, es: Gravedad}
+    reaction: {en: Reaction, es: Reacción}
+    medicine: {en: Medicine, es: Medicamento}
+    schedule: {en: When taken, es: Pauta}
+    prescriber: {en: Prescriber, es: Prescriptor}
+    finding: {en: Finding, es: Hallazgo}
+    drugs: {en: CPIC drugs, es: Fármacos CPIC}
+    evidence: {en: Evidence, es: Evidencia}
+    rank: {en: "#", es: "#"}
+    flag: {en: Flag, es: Aviso}
+    test: {en: Test, es: Prueba}
+    value: {en: Value, es: Valor}
+    range: {en: Lab range, es: Rango lab.}
+    date: {en: Date, es: Fecha}
+    status: {en: Status, es: Estado}
+    previous: {en: Previous value, es: Valor anterior}
+    vaccine: {en: Vaccine, es: Vacuna}
+    dose: {en: Dose, es: Dosis}
+    document: {en: Document, page and date, es: Documento, página y fecha}
+  none: {en: None on record., es: Nada registrado.}
+  not_measured: {en: not measured, es: no medido}
+  more: {en: "And {n} more in the record.", es: "Y {n} más en el registro."}
+  supplement: {en: supplement, es: suplemento}
+  sensitive: {en: "sensitive, printed because it was ticked for this print", es: "sensible, impreso porque se marcó para esta impresión"}
+  withheld:
+    labs: {en: "Lab values: not shown, this account cannot read them.", es: "Valores de laboratorio: no se muestran, esta cuenta no puede leerlos."}
+    records: {en: "Conditions, allergies, medicines and vaccines: not shown, this account cannot read them.", es: "Problemas de salud, alergias, medicamentos y vacunas: no se muestran, esta cuenta no puede leerlos."}
+    genome: {en: "Genome findings: not shown, this account cannot read them.", es: "Hallazgos genómicos: no se muestran, esta cuenta no puede leerlos."}
+  criticality:
+    high: {en: high, es: alta}
+    low: {en: low, es: baja}
+    unable-to-assess: {en: not assessed, es: sin valorar}
+  kind:
+    document_region: {en: document, es: documento}
+    fhir_import: {en: FHIR import, es: importación FHIR}
+    apple_health: {en: Apple Health, es: Apple Health}
+    genome_facts: {en: genome facts file, es: fichero de hallazgos genómicos}
+    manual: {en: entered by hand, es: introducido a mano}
+    device: {en: device, es: dispositivo}
+    agent_proposal: {en: agent proposal, es: propuesta de un agente}
+    calculated: {en: calculated, es: calculado}
+  footer:
+    en: "OwnHealth · {rules} · {summary} · state {hash} · page {page}/{pages}"
+    es: "OwnHealth · {rules} · {summary} · estado {hash} · página {page}/{pages}"

@@ -30,6 +30,10 @@ const SOURCES: &[(&str, Source)] = &[
     ("status", |s| Box::pin(status(s))),
     ("dashboard", |s| Box::pin(dashboards(s))),
     ("check_drug", |s| Box::pin(drug_checks(s))),
+    ("summary", |s| Box::pin(summaries(s))),
+    ("timeline", |_| {
+        Box::pin(async { Ok(vec![ownhealth_api::routes::timeline::phrases()]) })
+    }),
     ("clinvar_alerts", |_| Box::pin(clinvar_alerts())),
     ("due", |s| Box::pin(due(s))),
     ("calculators", |s| Box::pin(calculators(s))),
@@ -329,6 +333,28 @@ fn the_cited_loader_refuses_a_row_or_template_that_breaks_the_rules() -> R {
         }
     }
     Ok(())
+}
+
+/// The printed doctor summary's model, every profile, specialty and language (its PDF text layer is
+/// linted in `summary_pdf.rs`).
+async fn summaries(s: &Seeded) -> anyhow::Result<Vec<Value>> {
+    use ownhealth_rules::summary::{LANGS, Options, SPECIALTIES, build};
+    let mut tx = s.pool().begin().await?;
+    let mut out = Vec::new();
+    for slug in SLUGS {
+        for specialty in SPECIALTIES {
+            for lang in LANGS {
+                let o = Options {
+                    lang: lang.into(),
+                    specialty: specialty.into(),
+                    sensitive_open: false,
+                    as_of: as_of(),
+                };
+                out.push(build(&mut tx, s.pid(slug), &all_scopes(), &o).await?);
+            }
+        }
+    }
+    Ok(out)
 }
 
 /// The ClinVar alert wording is a cited data file too; the genome crate reads it at build time,

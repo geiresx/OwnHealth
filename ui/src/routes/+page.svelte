@@ -77,7 +77,7 @@
 	<div class="right">
 		<PhaseChip phase="v0.1" />
 		<button class="btn" aria-disabled="true" title={t('h1_soon_btn')}>{t('ice')} <PhaseChip phase="v1.0" /></button>
-		<button class="btn" aria-disabled="true" title={t('h1_soon_btn')}>{t('prep')} <PhaseChip phase="v0.3" /></button>
+		<a class="btn" href="/summary">{t('prep')}</a>
 	</div>
 </div>
 

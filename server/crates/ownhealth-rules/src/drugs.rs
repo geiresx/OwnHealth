@@ -1,11 +1,14 @@
 //! check_drug (`state/drugs.py`): PGx facts + current medications + relevant labs + CYP2D6
 //! phenoconversion (genomics.md 8).
 //!
-//! Guidance is quoted verbatim from the bundled CPIC snapshot (CC0) with its classification, the
-//! pair's CPIC level and the guideline URL. Our own words never advise: they say what the record holds
-//! and what is not assessed.
+//! Guidance is quoted verbatim from the bundled CPIC snapshot (CC0, from CPIC's own API) with its
+//! classification, the pair's CPIC level and the guideline URL. Nothing from ClinPGx or PharmGKB
+//! (CC BY-SA 4.0) is bundled. DPWG text is quoted from the person's own genome file, as received and
+//! for the genotype phenotype only. Our own words never advise: they say what the record holds and
+//! what is not assessed.
 
 use std::collections::{BTreeSet, HashMap};
+use std::sync::OnceLock;
 
 use chrono::NaiveDate;
 use ownhealth_core::access::{Scopes, today_utc};
@@ -25,6 +28,57 @@ use crate::rendering::capitalize;
 /// CPIC looks these genes up by activity score.
 const AS_GENES: [&str; 3] = ["CYP2D6", "CYP2C9", "DPYD"];
 const NO_RESULT: &str = "No Result";
+/// The drug check's texts outside the rule pack (DPWG), so the pack and its hash stay as shipped.
+const OWN_TEXTS: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../../data/rules/check_drug.yaml"
+));
+
+/// One `check_drug.yaml` template in `lang` (en or es).
+fn own_text(key: &str, lang: &str) -> Result<String> {
+    static DOC: OnceLock<std::result::Result<Value, String>> = OnceLock::new();
+    let doc = DOC
+        .get_or_init(|| serde_yaml::from_str(OWN_TEXTS).map_err(|e| e.to_string()))
+        .as_ref()
+        .map_err(|e| Error::Invalid(format!("check_drug.yaml: {e}")))?;
+    doc.get("templates")
+        .and_then(|t| t.get(key))
+        .and_then(|t| t.get(lang))
+        .and_then(Value::as_str)
+        .map(str::to_string)
+        .ok_or_else(|| Error::Invalid(format!("check_drug.yaml: no {lang} text for {key}")))
+}
+
+/// A DPWG entry of a fact's drug_guidance, kept only when it quotes text for the finding's own
+/// (genotype) phenotype. The file is untrusted: its url is kept only as an https URL and its level
+/// only as a short code, so neither carries free text past the quote's untrusted wrapper.
+fn dpwg_row(gene: &str, phenotype: Option<&str>, d: &Value) -> Option<Value> {
+    if d["source"] != "DPWG" {
+        return None;
+    }
+    let text = d["recommendation"]["text"]
+        .as_str()
+        .or_else(|| d["recommendation"].as_str())?;
+    if text.trim().is_empty() {
+        return None;
+    }
+    if let Some(p) = d["phenotype"].as_str()
+        && norm_value(gene, Some(p)) != norm_value(gene, phenotype)
+    {
+        return None;
+    }
+    let url = d["url"]
+        .as_str()
+        .filter(|u| u.starts_with("https://") && u.len() > 8 && u.len() <= 500 && !u.contains(char::is_whitespace));
+    let level = d["level"]
+        .as_str()
+        .filter(|l| (1..=4).contains(&l.len()) && l.chars().all(|c| c.is_ascii_alphanumeric()));
+    Some(json!({
+        "level": level,
+        "url": url,
+        "quote": {"trust": "untrusted_text", "origin": "genome_facts", "text": text},
+    }))
+}
 
 fn arr<'a>(v: &'a Value, key: &str) -> impl Iterator<Item = &'a Map<String, Value>> + 'a {
     v.get(key)
@@ -287,10 +341,8 @@ pub async fn check_drug(
     } else {
         Vec::new()
     };
-    let meds: Vec<&Map<String, Value>> = rows
-        .iter()
-        .filter(|m| str_of(m, "kind") == Some("medication"))
-        .collect();
+    // medicines and supplements alike (v0.3); each row below says which kind it is
+    let meds: Vec<&Map<String, Value>> = rows.iter().collect();
     let currently_taking = if has_records {
         json!(meds.iter().any(|m| med_drug(&pack, m).as_deref() == Some(&key)))
     } else {
@@ -300,6 +352,8 @@ pub async fn check_drug(
     let mut not_assessed: Vec<String> = Vec::new();
     let mut pgx = Vec::new();
     let mut findings: Vec<(String, Finding)> = Vec::new();
+    // DPWG rows of each kept finding's own drug_guidance (the genome crate keeps only this drug's)
+    let mut dpwg: Vec<(String, Value)> = Vec::new();
     let finding =
         |findings: &[(String, Finding)], gene: &str| findings.iter().find(|(g, _)| g == gene).map(|(_, f)| f.clone());
     if has_genome && !pairs.is_empty() {
@@ -310,6 +364,11 @@ pub async fn check_drug(
                     && genes.contains(&g)
                     && finding(&findings, &g).is_none()
                 {
+                    for d in raw["guidance"].as_array().into_iter().flatten() {
+                        if let Some(d) = dpwg_row(&g, f.phenotype.as_deref(), d) {
+                            dpwg.push((g.clone(), d));
+                        }
+                    }
                     findings.push((g, f));
                 }
             }
@@ -521,7 +580,35 @@ pub async fn check_drug(
                 }));
             }
         }
-        if guidance.is_empty() {
+        let cpic_empty = guidance.is_empty();
+        // DPWG beside CPIC: the genome file's own text, for the genotype phenotype only
+        for (gene, d) in &dpwg {
+            let Some(f) = finding(&findings, gene) else { continue };
+            let phen = format!("{gene} {}", f.phenotype.as_deref().unwrap_or("None"));
+            guidance.push(json!({
+                "source": "DPWG",
+                "level": d["level"],
+                "strength": null,
+                "applies_to": t("drug.applies.genotype", &[("phenotype", P::from(phen))])?,
+                "population": null,
+                "quote": d["quote"],
+                "url": d["url"],
+                "recommendation_id": null,
+                "origin": "genome_facts",
+                "license": null,
+                "based_on": f.src.into_iter().collect::<Vec<_>>(),
+            }));
+        }
+        // the checked genes whose fact carries no DPWG text we could quote
+        let uncovered: Vec<&str> = pgx
+            .iter()
+            .filter_map(|p| p["gene"].as_str())
+            .filter(|g| !dpwg.iter().any(|(d, _)| d == g))
+            .collect();
+        if !uncovered.is_empty() {
+            not_assessed.push(own_text("drug.na.dpwg", lang)?.replace("{genes}", &uncovered.join(", ")));
+        }
+        if cpic_empty {
             if key == "warfarin" {
                 not_assessed.push(t("drug.na.warfarin", &[])?);
             } else {
@@ -558,6 +645,7 @@ pub async fn check_drug(
         }
         current.push(json!({
             "name": med_label(m),
+            "kind": m.get("kind"),
             "since": m.get("started"),
             "relation": relation,
             "relation_text": relation_text,
@@ -604,7 +692,15 @@ pub async fn check_drug(
     if !phenoconversion.is_empty() {
         limitations.push(t("drug.lim.phenoconversion", &[])?);
     }
-    let populations: BTreeSet<String> = guidance.iter().map(|g| g["population"].to_string()).collect();
+    if !dpwg.is_empty() {
+        limitations.push(own_text("drug.lim.dpwg", lang)?);
+    }
+    // CPIC rows only: a DPWG row has no population and is not one more indication
+    let populations: BTreeSet<String> = guidance
+        .iter()
+        .filter(|g| g["source"] == "CPIC")
+        .map(|g| g["population"].to_string())
+        .collect();
     if populations.len() > 1 {
         limitations.push(t("drug.lim.indication", &[])?);
     }
@@ -645,6 +741,21 @@ pub async fn check_drug(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The texts beside the pack pass the cited-file checks: version, https cite, es and en, wording.
+    #[test]
+    fn own_texts_are_a_cited_file_in_both_languages() -> Result<()> {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../data/rules/check_drug.yaml");
+        let file = crate::cited::load(&path)?;
+        assert_eq!(file.version, "check_drug 0.1.0");
+        for key in ["drug.na.dpwg", "drug.lim.dpwg"] {
+            for lang in ["en", "es"] {
+                assert!(!own_text(key, lang)?.is_empty(), "{key} {lang}");
+            }
+        }
+        assert!(own_text("drug.na.missing", "en").is_err());
+        Ok(())
+    }
 
     #[test]
     fn score_keys_print_like_python() {

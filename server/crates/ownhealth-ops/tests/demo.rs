@@ -88,6 +88,29 @@ async fn demo_seed_matches_the_alex_fixture() -> anyhow::Result<()> {
     .fetch_one(p)
     .await?;
     assert_eq!(named, 6);
+    // Alex's traumatology visit with no report, typed by hand
+    let visits: Vec<(String, String)> = sqlx::query_as(
+        "select to_char(e.period_start at time zone 'UTC', 'YYYY-MM-DD'), s.kind from encounter e \
+         join src s on s.id = e.src_id join profile p on p.id = e.profile_id where p.slug = 'alex'",
+    )
+    .fetch_all(p)
+    .await?;
+    assert_eq!(visits, [("2025-11-10".to_string(), "manual".to_string())]);
+    // and one dated report that is not a lab report, so the timeline shows a document event
+    let docs: Vec<(String, String, String)> = sqlx::query_as(
+        "select d.doc_type, d.filename, to_char(d.collected_at at time zone 'UTC', 'YYYY-MM-DD') from document d \
+         join profile p on p.id = d.profile_id where p.slug = 'alex' and d.doc_type = 'ecg'",
+    )
+    .fetch_all(p)
+    .await?;
+    assert_eq!(
+        docs,
+        [(
+            "ecg".to_string(),
+            "ECG_Hospital_Norte_2024-02-14.pdf".to_string(),
+            "2024-02-14".to_string()
+        )]
+    );
     Ok(())
 }
 

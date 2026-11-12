@@ -8,7 +8,8 @@
 
 Writes `snapshot.json` beside this file: the curated CPIC level A drugs below, their gene pairs and
 every CPIC recommendation for them, with the recommendation text exactly as CPIC publishes it.
-CPIC content is released under CC0 1.0 (https://cpicpgx.org/license/).
+CPIC content fetched from CPIC's own API is released under CC0 1.0 (https://github.com/cpicpgx/cpic-data/blob/main/LICENSE.md).
+Nothing from ClinPGx or PharmGKB (CC BY-SA 4.0) is bundled.
 """
 
 from __future__ import annotations
@@ -130,7 +131,7 @@ def main() -> None:
         raise SystemExit(f"CPIC does not know: {missing}")
     snapshot = {
         "source": "CPIC API https://api.cpicpgx.org/v1",
-        "license": "CC0-1.0 (https://cpicpgx.org/license/)",
+        "license": "CC0-1.0 (https://github.com/cpicpgx/cpic-data/blob/main/LICENSE.md)",
         "retrieved": datetime.now(UTC).date().isoformat(),
         "drugs": sorted(drugs, key=lambda d: d["name"]),
         "drugs_ids_only": sorted(extra, key=lambda d: d["name"]),

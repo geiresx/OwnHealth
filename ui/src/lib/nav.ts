@@ -9,6 +9,8 @@ export interface NavItem {
 
 export const NAV: NavItem[] = [
 	{ path: '/', key: 'nav_dash', mockup: 'dashboard', icon: '<path d="M3 13h8V3H3zM13 21h8V11h-8zM3 21h8v-6H3zM13 3v6h8V3z"/>' },
+	// 0.4.0: the printed doctor summary (not one of the ten mockup screens; mockup #doctor-summary)
+	{ path: '/summary', key: 'sum_nav', mockup: 'doctor-summary', icon: '<path d="M6 3h9l3 3v15H6z"/><path d="M9 10h6M9 14h6M9 18h4"/>' },
 	{ path: '/biomarkers', key: 'nav_bio', mockup: 'biomarker', icon: '<path d="M3 3v18h18"/><path d="m7 15 4-5 3 3 5-6"/>' },
 	{ path: '/timeline', key: 'nav_tl', mockup: 'timeline', icon: '<path d="M12 3v18M7 7h5M12 12h5M7 17h5"/>' },
 	{

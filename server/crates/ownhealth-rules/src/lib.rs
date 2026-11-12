@@ -22,6 +22,7 @@ pub mod num;
 pub mod pack;
 pub mod prevention;
 pub mod rendering;
+pub mod summary;
 pub mod wording;
 
 use chrono::{DateTime, NaiveDate, Utc};

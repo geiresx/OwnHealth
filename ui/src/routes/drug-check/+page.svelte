@@ -64,7 +64,7 @@
 	});
 	const view = (r: RecordOut) => pgxFor(pgx.data, prof?.slug, drugOf(r), r.detail.kind);
 	const badges = (r: RecordOut) => view(r)?.pgx ?? [];
-	const guided = (r: RecordOut, gene: string) => (view(r)?.guidance ?? []).some((g) => g.applies_to.startsWith(gene));
+	const guided = (r: RecordOut, gene: string) => (view(r)?.guidance ?? []).some((g) => g.source !== 'DPWG' && g.applies_to.startsWith(gene));
 	// What a version's dates do not already say: corrected, retracted, stopped or on hold.
 	const stateWord = (r: RecordOut) =>
 		r.status === 'superseded'

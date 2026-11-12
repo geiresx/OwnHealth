@@ -328,7 +328,7 @@ async fn a_fhir_ips_bundle_projects_records_and_queues_the_rest() -> anyhow::Res
             json!("ips.json")
         )
     );
-    assert_eq!(job["result"]["accepted"], 8);
+    assert_eq!(job["result"]["accepted"], 9);
     assert_eq!(job["result"]["queued"], 2);
     assert_eq!(job["result"]["skipped"], 1);
     assert_eq!(
@@ -442,7 +442,7 @@ async fn a_fhir_ips_bundle_projects_records_and_queues_the_rest() -> anyhow::Res
         .into_iter()
         .find(|i| i["kind"] == "fhir_unmapped")
         .context("fhir_unmapped item")?;
-    assert_eq!(unmapped["payload"]["resource_type"], "Encounter");
+    assert_eq!(unmapped["payload"]["resource_type"], "CarePlan");
     assert_eq!(unmapped["payload"]["note"], "stored, not projected");
     let held = items(&q)
         .into_iter()

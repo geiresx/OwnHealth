@@ -839,6 +839,71 @@ async fn seed_records(conn: &mut PgConnection, ctx: &DemoContext, assigned: &mut
     Ok(())
 }
 
+/// The demo's ECG report: one synthetic page (built outside the async seed, as the writer is not `Send`).
+const ECG_LINES: [&str; 5] = [
+    "Hospital Norte · Cardiología",
+    "Electrocardiograma de 12 derivaciones",
+    "Paciente: RIVERA, ALEX · Fecha: 14/02/2024",
+    "Ritmo sinusal, 64 lpm. PR 160 ms, QRS 92 ms, QTc 412 ms.",
+    "Documento de demostración con datos sintéticos.",
+];
+
+fn ecg_pdf() -> Vec<u8> {
+    use ownhealth_core::pdfwrite::{Font, Writer};
+    let mut w = Writer::new();
+    for (i, line) in ECG_LINES.iter().enumerate() {
+        let (font, size) = if i < 2 {
+            (Font::Bold, 12.0)
+        } else {
+            (Font::Regular, 10.0)
+        };
+        w.paragraph(line, font, size, 16.0);
+    }
+    w.finish().pdf
+}
+
+/// Visits (slice 6): Alex's traumatology visit, whose report never arrived, on the timeline, and a
+/// dated ECG report from the same hospital, so the timeline shows a document event.
+async fn seed_visits(conn: &mut PgConnection, ctx: &DemoContext) -> Result<()> {
+    let src = manual(conn, ctx.family.user("alex"), None, "manual").await?;
+    let body = json!({
+        "profile_id": ctx.family.profile("alex"), "period_start": "2025-11-10T09:30:00+00:00",
+        "reason_text": "Right knee pain", "provider_name": "Traumatología · Hospital Norte",
+    });
+    record(conn, "visit", body, src).await?;
+    // A dated report that is not a lab report, so the timeline shows a document event.
+    let day = "2024-02-14";
+    let pdf = ecg_pdf();
+    let sha = ctx.blobs.put_bytes(&pdf)?;
+    let filename = format!("ECG_Hospital_Norte_{day}.pdf");
+    let doc = create_document(
+        conn,
+        &NewDocument {
+            filename: Some(&filename),
+            channel: "demo",
+            pages: Some(1),
+            doc_type: Some("ecg"),
+            ..NewDocument::upload(
+                ctx.family.household_id,
+                Some(ctx.family.profile("alex")),
+                &sha,
+                "application/pdf",
+                pdf.len() as i64,
+            )
+        },
+    )
+    .await?;
+    sqlx::query(
+        "update document set language = 'es', provider_name = 'Hospital Norte', collected_at = $1 where id = $2",
+    )
+    .bind(dt(day, 10)?)
+    .bind(doc.id)
+    .execute(&mut *conn)
+    .await?;
+    add_page(conn, doc.id, 1, &ECG_LINES.join("\n")).await?;
+    Ok(())
+}
+
 /// metric: (start value, end value, noise), in the Python dict's order (the draws depend on it).
 const WEARABLE_METRICS: [(&str, f64, f64, f64); 5] = [
     ("hr_resting", 58.0, 54.0, 1.5),      // bpm
@@ -1124,6 +1189,7 @@ pub async fn seed_base(conn: &mut PgConnection, ctx: &mut DemoContext) -> Result
     ] {
         ctx.src_ids.insert(k.into(), id(v)?);
     }
+    seed_visits(conn, ctx).await?;
     Ok(())
 }
 

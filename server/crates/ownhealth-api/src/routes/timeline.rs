@@ -6,9 +6,14 @@
 //! ```
 //!
 //! Lab draws (one event per report, not per value), medication starts and stops, diagnoses, vaccines,
-//! visits, imaging studies and genome imports. Only current facts; sensitive rows only with
-//! `read:sensitive`; each event type only with the scope that guards its facts. Every event cites a
-//! `src`.
+//! visits, procedures, non-lab documents, imaging studies and genome imports. Only current facts;
+//! sensitive rows only with `read:sensitive`; each event type only with the scope that guards its
+//! facts. Every fact event cites a `src`; a document event names its document, and its filename goes
+//! out as untrusted text.
+//!
+//! `spans` is the bars lane: one row per condition from onset to abatement, and one row per medicine
+//! (grouped by ingredient, else name) with one segment per course. A segment has the annotation shape
+//! of the biomarker chart, `{date, end, label}` (end null while it runs), plus its `src`.
 
 use std::collections::BTreeSet;
 
@@ -19,6 +24,7 @@ use axum::{Json, Router};
 use chrono::NaiveDate;
 use ownhealth_core::Runtime;
 use ownhealth_core::audit::{AuditEvent, write_audit};
+use ownhealth_core::documents::sensitive_document_sql;
 use ownhealth_core::pyjson::py_date;
 use serde_json::{Value, json};
 use sqlx::postgres::PgRow;
@@ -34,7 +40,7 @@ pub fn router() -> Router<Runtime> {
     Router::new().route("/profiles/{p}/timeline", get(timeline))
 }
 
-const TYPES: [&str; 7] = [
+const TYPES: [&str; 9] = [
     "lab",
     "visit",
     "imaging",
@@ -42,6 +48,8 @@ const TYPES: [&str; 7] = [
     "medication",
     "vaccine",
     "genome",
+    "procedure",
+    "document",
 ];
 
 fn scope(t: &str) -> &'static str {
@@ -62,6 +70,9 @@ struct Words {
     stopped: &'static str,
     genome: &'static str,
     visit: &'static str,
+    /// A document type (`document.doc_type`) as a title; any other type is `document`.
+    doc_types: &'static [(&'static str, &'static str)],
+    document: &'static str,
     /// Stored status words (condition verification, medication status) in this language.
     enums: &'static [(&'static str, &'static str)],
 }
@@ -75,6 +86,13 @@ const EN: Words = Words {
     stopped: "{name} stopped",
     genome: "Genome facts imported",
     visit: "Visit",
+    doc_types: &[
+        ("discharge", "Discharge report"),
+        ("imaging_report", "Imaging report"),
+        ("prescription", "Prescription"),
+        ("ecg", "ECG"),
+    ],
+    document: "Document",
     enums: &[("on-hold", "paused"), ("entered-in-error", "entered in error")],
 };
 
@@ -86,7 +104,14 @@ const ES: Words = Words {
     started: "Inicio de {name}",
     stopped: "Fin de {name}",
     genome: "Datos genómicos importados",
-    visit: "Consulta",
+    visit: "Visita médica",
+    doc_types: &[
+        ("discharge", "Informe de alta"),
+        ("imaging_report", "Informe de imagen"),
+        ("prescription", "Receta"),
+        ("ecg", "Electrocardiograma"),
+    ],
+    document: "Documento",
     enums: &[
         ("confirmed", "confirmado"),
         ("provisional", "provisional"),
@@ -113,6 +138,19 @@ impl Words {
     }
 }
 
+/// Every fixed phrase the timeline writes, in both languages, for the wording gate (`wording_all.rs`).
+pub fn phrases() -> Value {
+    let one = |w: &Words| {
+        let mut v = vec![
+            w.draw, w.draw1, w.flagged, w.flagged1, w.started, w.stopped, w.genome, w.visit, w.document,
+        ];
+        v.extend(w.doc_types.iter().map(|(_, t)| *t));
+        v.extend(w.enums.iter().map(|(_, t)| *t));
+        v
+    };
+    json!({"en": one(&EN), "es": one(&ES)})
+}
+
 /// What is true now on a clinical table aliased `a`: current, not superseded, sensitive only if allowed.
 fn live(a: &str, include_sensitive: bool) -> String {
     let sql = format!("{a}.status = 'current' and {a}.superseded_at is null");
@@ -132,10 +170,22 @@ fn joined(parts: &[Option<String>]) -> String {
         .join(" · ")
 }
 
+/// `ICD10 E78.0`: the code system upper-cased and the code, when both are recorded.
+fn coded(r: &PgRow) -> R<Option<String>> {
+    Ok(match (text(r, "code_system")?, text(r, "code")?) {
+        (Some(sys), Some(code)) if !sys.is_empty() && !code.is_empty() => {
+            Some(format!("{} {code}", sys.to_uppercase()))
+        }
+        _ => None,
+    })
+}
+
 struct Event {
     date: String,
     kind: &'static str,
     title: String,
+    /// Breaks ties between equal (date, type, title), so the same request gives the same bytes.
+    tie: String,
     json: Value,
 }
 
@@ -149,6 +199,7 @@ fn event(
     provider: Option<String>,
 ) -> Option<Event> {
     let date = py_date(&day?);
+    let tie = src.clone().unwrap_or_default();
     let json = json!({
         "date": date,
         "type": kind,
@@ -164,6 +215,7 @@ fn event(
         date,
         kind,
         title,
+        tie,
         json,
     })
 }
@@ -270,13 +322,7 @@ async fn records(
             live("c", sens)
         );
         for r in rows(conn, &sql, pid).await? {
-            let code = match (text(&r, "code_system")?, text(&r, "code")?) {
-                (Some(sys), Some(code)) if !sys.is_empty() && !code.is_empty() => {
-                    Some(format!("{} {code}", sys.to_uppercase()))
-                }
-                _ => None,
-            };
-            let detail = joined(&[code, t.word(text(&r, "verification_status")?)]);
+            let detail = joined(&[coded(&r)?, t.word(text(&r, "verification_status")?)]);
             out.push(event(
                 day(&r, "day")?,
                 "diagnosis",
@@ -329,6 +375,27 @@ async fn records(
             ));
         }
     }
+    if want.contains("procedure") {
+        let sql = format!(
+            "select p.text, p.code_system, p.code, coalesce(p.performed, p.effective_at::date) as day, p.src_id, s.label \
+             from procedure p join src s on s.id = p.src_id where p.profile_id = $1 and {}",
+            live("p", sens)
+        );
+        for r in rows(conn, &sql, pid).await? {
+            out.push(event(
+                day(&r, "day")?,
+                "procedure",
+                text(&r, "text")?.unwrap_or_default(),
+                coded(&r)?,
+                text(&r, "src_id")?,
+                text(&r, "label")?,
+                None,
+            ));
+        }
+    }
+    if want.contains("document") {
+        out.extend(documents(conn, pid, sens, t).await?);
+    }
     if want.contains("imaging") {
         let sql = "select i.modality, i.description, i.study_date, i.src_id, s.label \
                    from imaging_study i join src s on s.id = i.src_id where i.profile_id = $1 and i.status = 'current'";
@@ -350,6 +417,195 @@ async fn records(
         }
     }
     Ok(out)
+}
+
+/// Documents that are not lab reports (draws are lab events) or genome files (genome events), on the
+/// day they were collected, else reported. A document with neither date has no place on the timeline
+/// (the day it was uploaded is not a day anything happened). A document with a sensitive fact is
+/// sensitive. A document has no `src`: it is its own source.
+async fn documents(conn: &mut PgConnection, pid: Uuid, sens: bool, t: &Words) -> R<Vec<Option<Event>>> {
+    let hide = if sens {
+        String::new()
+    } else {
+        format!(" and not {}", sensitive_document_sql("d.id"))
+    };
+    let sql = format!(
+        "select d.id, d.doc_type, d.filename, d.provider_name, coalesce(d.collected_at, d.reported_at)::date as day \
+         from document d where d.profile_id = $1 and d.status = 'active' \
+         and d.doc_type is distinct from 'lab_report' and d.doc_type is distinct from 'genomics'{hide} \
+         order by d.id"
+    );
+    let mut out = Vec::new();
+    for r in rows(conn, &sql, pid).await? {
+        let doc_type = text(&r, "doc_type")?;
+        let title = t
+            .doc_types
+            .iter()
+            .find(|(k, _)| Some(*k) == doc_type.as_deref())
+            .map_or(t.document, |(_, w)| *w);
+        let provider = text(&r, "provider_name")?.filter(|p| !p.is_empty());
+        let Some(mut e) = event(
+            day(&r, "day")?,
+            "document",
+            title.to_string(),
+            provider.clone(),
+            None,
+            None,
+            provider,
+        ) else {
+            continue;
+        };
+        let id: Uuid = r.try_get("id")?;
+        let filename = text(&r, "filename")?.filter(|f| !f.is_empty()).map_or(
+            Value::Null,
+            |f| json!({"trust": "untrusted_text", "origin": "filename", "text": f}),
+        );
+        if let Some(m) = e.json.as_object_mut() {
+            m.insert("document_id".into(), json!(id));
+            m.insert("filename".into(), filename);
+        }
+        e.tie = id.to_string();
+        out.push(Some(e));
+    }
+    Ok(out)
+}
+
+/// One segment of a bar: `{date, end, label, src, src_label}`.
+struct Segment {
+    date: NaiveDate,
+    end: Option<NaiveDate>,
+    label: String,
+    src: Option<String>,
+    src_label: Option<String>,
+}
+
+impl Segment {
+    fn json(&self) -> Value {
+        json!({
+            "date": py_date(&self.date),
+            "end": self.end.as_ref().map(py_date),
+            "label": self.label,
+            "src": self.src,
+            "src_label": self.src_label,
+        })
+    }
+
+    /// Does the segment touch the window? An open segment runs to today.
+    fn within(&self, from: Option<NaiveDate>, to: Option<NaiveDate>) -> bool {
+        from.is_none_or(|f| self.end.is_none_or(|e| e >= f)) && to.is_none_or(|t| self.date <= t)
+    }
+}
+
+/// A row of the bars lane: its type (`diagnosis` | `medication`), label and segments by date.
+struct Span {
+    kind: &'static str,
+    label: String,
+    segments: Vec<Segment>,
+}
+
+/// The bars lane. A condition that is resolved but has no abatement date, or a course that stopped
+/// or is on hold with no stop date, is a one-day segment: it never reads as still running.
+async fn spans(
+    conn: &mut PgConnection,
+    pid: Uuid,
+    sens: bool,
+    want: &BTreeSet<&str>,
+    window: (Option<NaiveDate>, Option<NaiveDate>),
+) -> R<Vec<Value>> {
+    let mut out: Vec<Span> = Vec::new();
+    if want.contains("diagnosis") {
+        let sql = format!(
+            "select c.text, coalesce(c.onset, c.effective_at::date) as day, c.abatement, c.clinical_status, c.src_id, \
+             s.label from condition c join src s on s.id = c.src_id where c.profile_id = $1 and {} \
+             and c.verification_status not in ('refuted', 'entered-in-error')",
+            live("c", sens)
+        );
+        for r in rows(conn, &sql, pid).await? {
+            let Some(start) = day(&r, "day")? else { continue };
+            let over = matches!(
+                text(&r, "clinical_status")?.as_deref(),
+                Some("resolved" | "inactive" | "remission")
+            );
+            let label = text(&r, "text")?.unwrap_or_default();
+            out.push(Span {
+                kind: "diagnosis",
+                label: label.clone(),
+                segments: vec![Segment {
+                    date: start,
+                    end: day(&r, "abatement")?.or(over.then_some(start)),
+                    label,
+                    src: text(&r, "src_id")?,
+                    src_label: text(&r, "label")?,
+                }],
+            });
+        }
+    }
+    if want.contains("medication") {
+        let sql = format!(
+            "select lower(trim(coalesce(nullif(trim(m.ingredient), ''), m.name))) as key, m.name, m.strength, \
+             m.started, m.stopped, m.med_status, m.src_id, s.label from medication_statement m \
+             join src s on s.id = m.src_id where m.profile_id = $1 and m.started is not null and {} \
+             order by m.started, m.name, m.src_id",
+            live("m", sens)
+        );
+        let mut by_key: std::collections::BTreeMap<String, Span> = std::collections::BTreeMap::new();
+        for r in rows(conn, &sql, pid).await? {
+            let Some(start) = day(&r, "started")? else { continue };
+            let name = text(&r, "name")?.unwrap_or_default();
+            let label = [Some(name.clone()), text(&r, "strength")?]
+                .into_iter()
+                .flatten()
+                .filter(|s| !s.is_empty())
+                .collect::<Vec<_>>()
+                .join(" ");
+            // a course on hold is not running now: with no stop date it reads like a stopped one
+            let stopped = matches!(text(&r, "med_status")?.as_deref(), Some("stopped" | "on_hold"));
+            let seg = Segment {
+                date: start,
+                end: day(&r, "stopped")?.or(stopped.then_some(start)),
+                label,
+                src: text(&r, "src_id")?,
+                src_label: text(&r, "label")?,
+            };
+            let key: String = r.try_get::<Option<String>, _>("key")?.unwrap_or_default();
+            let span = by_key.entry(key).or_insert_with(|| Span {
+                kind: "medication",
+                label: name.clone(),
+                segments: Vec::new(),
+            });
+            // the row is named after its latest course (rows come by start, then name: a tie is stable)
+            if span.segments.iter().all(|s| s.date <= start) {
+                span.label = name;
+            }
+            span.segments.push(seg);
+        }
+        out.extend(by_key.into_values());
+    }
+    for s in &mut out {
+        s.segments.retain(|g| g.within(window.0, window.1));
+        s.segments
+            .sort_by(|a, b| (a.date, a.end.is_none(), a.end, &a.src).cmp(&(b.date, b.end.is_none(), b.end, &b.src)));
+    }
+    out.retain(|s| !s.segments.is_empty());
+    let rank = |k: &str| usize::from(k != "diagnosis");
+    out.sort_by(|a, b| {
+        (rank(a.kind), a.segments[0].date, &a.label, &a.segments[0].src).cmp(&(
+            rank(b.kind),
+            b.segments[0].date,
+            &b.label,
+            &b.segments[0].src,
+        ))
+    });
+    Ok(out
+        .iter()
+        .map(|s| {
+            json!({
+                "type": s.kind,
+                "label": s.label,
+                "segments": s.segments.iter().map(Segment::json).collect::<Vec<_>>(),
+            })
+        })
+        .collect())
 }
 
 async fn genome(conn: &mut PgConnection, pid: Uuid, t: &Words) -> R<Vec<Option<Event>>> {
@@ -427,6 +683,7 @@ async fn timeline(
     if want.contains("genome") {
         events.extend(genome(&mut tx, pid, t).await?);
     }
+    let (from_day, to_day) = (from, to);
     let from = from.map(|d| py_date(&d));
     let to = to.map(|d| py_date(&d));
     let mut items: Vec<Event> = events
@@ -434,8 +691,13 @@ async fn timeline(
         .flatten()
         .filter(|e| from.as_ref().is_none_or(|f| &e.date >= f) && to.as_ref().is_none_or(|t| &e.date <= t))
         .collect();
-    // Python's sort(reverse=True) is stable: equal keys keep their order
-    items.sort_by(|a, b| (&b.date, b.kind, &b.title).cmp(&(&a.date, a.kind, &a.title)));
+    // newest first, as Python's sort(reverse=True); the src breaks the remaining ties
+    items.sort_by(|a, b| {
+        (&b.date, b.kind, &b.title)
+            .cmp(&(&a.date, a.kind, &a.title))
+            .then(a.tie.cmp(&b.tie))
+    });
+    let spans = spans(&mut tx, pid, sens, &want, (from_day, to_day)).await?;
 
     let mut a = AuditEvent::new(principal.actor_kind(), "ui", "read");
     a.actor_id = principal.user_id;
@@ -448,5 +710,7 @@ async fn timeline(
     write_audit(&mut tx, &a).await?;
     tx.commit().await?;
     let events: Vec<Value> = items.into_iter().map(|e| e.json).collect();
-    Ok(Json(json!({"events": events, "withheld": {"by_scope": withheld}})))
+    Ok(Json(
+        json!({"events": events, "spans": spans, "withheld": {"by_scope": withheld}}),
+    ))
 }

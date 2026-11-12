@@ -1,0 +1,16 @@
+# Texts the drug check writes beside the rule pack's own (data/rules/pack/templates.yaml), kept out of
+# the pack so its hash stays put. Loaded by ownhealth-rules drugs.rs; checked by ownhealth_rules::cited.
+#
+# DPWG (Dutch Pharmacogenetics Working Group) text is never bundled: it is quoted from the person's own
+# genome file, as received, and only for the genotype phenotype.
+version: "check_drug 0.1.0"
+rows:
+  - id: drug.dpwg
+    cite: https://www.knmp.nl/dossiers/farmacogenetica
+templates:
+  drug.na.dpwg:
+    en: DPWG text for the genotype phenotype of {genes} not in this genome file
+    es: el archivo genómico no trae texto de DPWG para el fenotipo por genotipo de {genes}
+  drug.lim.dpwg:
+    en: DPWG text is quoted from the genome file as received; it is for the genotype phenotype only, not for a phenotype changed by a medicine.
+    es: El texto de DPWG se cita del archivo genómico tal como llegó; corresponde solo al fenotipo por genotipo, no a un fenotipo cambiado por un medicamento.

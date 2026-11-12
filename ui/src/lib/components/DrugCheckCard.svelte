@@ -1,7 +1,8 @@
 <script lang="ts">
 	// The check-a-drug box of the Medications screen (mockup #drug-check): gene × drug from OwnGenome
 	// findings, phenoconversion by current medicines, relevant labs and allergies, with CPIC guidance
-	// quoted verbatim. Quotes, never advice. The drug comes from ?drug= so a check is a link.
+	// quoted verbatim, and DPWG text from the genome file beside it. Quotes, never advice. The drug
+	// comes from ?drug= so a check is a link.
 	import '#lib/components/pages2/pages2.css';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
@@ -57,6 +58,8 @@
 		const k = prefix + code.toLowerCase().replace(/\W+/g, '_');
 		return t(k) === k ? code : t(k);
 	};
+	// CPIC quotes are plain text; DPWG quotes come from the genome file wrapped as untrusted text.
+	const quoteText = (q: DrugCheckView['guidance'][number]['quote']) => (q == null ? '' : typeof q === 'string' ? q : q.text);
 	const labValue = (v: string) => (/^-?\d+(\.\d+)?$/.test(v) ? fmtNum(Number(v)) : v);
 	const allergyItems = $derived((allergies.data ?? []).filter((r) => r.status === 'current' || r.status === 'provisional'));
 </script>
@@ -90,7 +93,8 @@
 	<div class="drug">
 		<div class="grid" style="align-content:start">
 			{#each c.pgx as x (x.gene)}
-				{@const recs = c.guidance.filter((gd) => gd.applies_to.startsWith(x.gene))}
+				{@const recs = c.guidance.filter((gd) => gd.source !== 'DPWG' && gd.applies_to.startsWith(x.gene))}
+				{@const dpwg = c.guidance.filter((gd) => gd.source === 'DPWG' && gd.applies_to.startsWith(x.gene) && quoteText(gd.quote))}
 				{@const missing = x.evidence == null && x.diplotype == null}
 				<!-- Amber only when the phenotype changes what CPIC says: standard dosing is not a warning. -->
 				{@const act = recs.length > 0 && isActionable(x.phenotype)}
@@ -117,14 +121,21 @@
 						</div>
 					</div>
 					{/if}
-					{#each recs as gd (gd.quote)}
+					{#each recs as gd (quoteText(gd.quote))}
 						<div class="dim" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em">{gd.source} · {gd.applies_to}{gd.population ? ' · ' + word('i2_pop_', gd.population) : ''}</div>
-						<blockquote>“{gd.quote}” <span class="dim" style="white-space:nowrap">{t('i2_classification')}: {word('i2_str_', gd.strength)}</span></blockquote>
+						<blockquote>“{quoteText(gd.quote)}” {#if gd.strength}<span class="dim" style="white-space:nowrap">{t('i2_classification')}: {word('i2_str_', gd.strength)}</span>{/if}</blockquote>
 					{/each}
 					{#if recs.length}
 						<div class="dim" style="font-size:11px">{[...new Set(recs.map((r) => r.url))].join(' · ')}</div>
 						{#if recs.length > 1}<div class="note" style="margin-top:8px">{t('i2_indication')}</div>{/if}
 					{/if}
+					{#each dpwg as gd, i (i)}
+						<div class="dpwg">
+							<div class="dim" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em">DPWG{gd.level ? ' ' + gd.level : ''} · {gd.applies_to}</div>
+							<blockquote>“{quoteText(gd.quote)}” <span class="chip untrusted" title={t('med_dpwg_from_file')}>{t('fu_untrusted_chip')}</span></blockquote>
+							<div class="dim" style="font-size:11px">{t('med_dpwg_from_file')}{#if gd.url}{' · '}<span style="overflow-wrap:anywhere">{gd.url}</span>{/if}</div>
+						</div>
+					{/each}
 				</section>
 			{:else}
 				<section class="card">
@@ -163,18 +174,18 @@
 
 		<div class="grid" style="align-content:start">
 			<section class="card">
-				<h3>{t('meds')}</h3>
+				<h3>{t('med_current')}</h3>
 				{#if c.current_medications_relevant.length}
 					<div class="tscroll">
 						<table class="t">
 							<tbody>
 								{#each c.current_medications_relevant as m (m.src + m.name)}
 									<tr>
-										<td style="white-space:nowrap"><b>{m.name}</b></td>
+										<td style="white-space:nowrap"><b>{m.name}</b>{#if m.kind === 'supplement'}<div style="margin-top:3px"><span class="chip">{t('med_supplement')}</span></div>{/if}</td>
 										<td><StatusChip status={relTone(m.relation)} label={m.relation_text} /></td>
 										<td class="muted" style="font-size:12px">
 											{#if m.since}<span style="white-space:nowrap">{t('i2_since')} <span class="num">{m.since}</span></span>{/if}
-											<span style="white-space:nowrap;margin-left:{m.since ? '6px' : '0'}"><SourceChip label="Rx" name={m.name} src={m.src} onopen={openSource} /></span>
+											<span style="white-space:nowrap;margin-left:{m.since ? '6px' : '0'}"><SourceChip label={m.kind === 'supplement' ? '' : 'Rx'} name={m.name} src={m.src} onopen={openSource} /></span>
 										</td>
 									</tr>
 								{/each}
@@ -240,6 +251,16 @@
 	}
 	.mcp-snip {
 		white-space: nowrap;
+	}
+	.dpwg {
+		margin-top: 10px;
+		padding-top: 8px;
+		border-top: 1px solid #20252f;
+	}
+	.chip.untrusted {
+		font-size: 10px;
+		color: var(--watch);
+		border-color: rgba(224, 168, 74, 0.45);
 	}
 	/* On a phone the MCP call may wrap, on its own line under the disclaimer. */
 	/* Below desktop the MCP call takes its own line under the disclaimer, so the text keeps its width. */

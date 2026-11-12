@@ -25,6 +25,7 @@ pub mod observations;
 pub mod records;
 pub mod review;
 pub mod status;
+pub mod summary;
 pub mod timeline;
 pub mod tokens;
 pub mod wearables;
@@ -55,6 +56,7 @@ pub fn all() -> Router<Runtime> {
         .merge(records::router())
         .merge(review::router())
         .merge(status::router())
+        .merge(summary::router())
         .merge(timeline::router())
         .merge(tokens::router())
         .merge(wearables::router())

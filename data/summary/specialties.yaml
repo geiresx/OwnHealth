@@ -1,0 +1,25 @@
+# The four views of the printed doctor summary. Each row names the lab series its marker table
+# lists, in print order; a series with no result prints as "not measured". The lists are the app's
+# own selection for a first visit, read from the guideline the row cites (basis: app_default where
+# no single guideline fixes the list). They choose what is printed, never a status or a threshold.
+# Every series is a marker of a pack system, so its status word comes from the rule engine.
+version: "summary-specialties 0.1.0"
+rows:
+  - id: gp
+    names: {en: General practice, es: Medicina general}
+    markers: [ldl_c, hba1c, glucose, egfr, creatinine, urine_acr, alt, ast, ggt, tsh, hemoglobin, ferritin, vitamin_d_25oh, vitamin_b12, crp_hs]
+    cite: https://github.com/GeiserX/OwnHealth/blob/main/docs/ROADMAP.md#v03-insight
+    basis: app_default
+  - id: cardiology
+    names: {en: Cardiology, es: Cardiología}
+    markers: [ldl_c, apob, lpa, hba1c, glucose, crp_hs, egfr, creatinine, urine_acr, alt, ast]
+    cite: https://doi.org/10.1093/eurheartj/ehz455
+  - id: endocrinology
+    names: {en: Endocrinology, es: Endocrinología}
+    markers: [hba1c, glucose, tsh, ft4, ldl_c, egfr, creatinine, urine_acr, vitamin_d_25oh, vitamin_b12, magnesium]
+    cite: https://diabetesjournals.org/care/issue/49/Supplement_1
+  - id: hematology
+    names: {en: Hematology, es: Hematología}
+    markers: [hemoglobin, mcv, platelets, wbc, ferritin, vitamin_b12, crp_hs, creatinine, alt]
+    cite: https://github.com/GeiserX/OwnHealth/blob/main/docs/ROADMAP.md#v03-insight
+    basis: app_default

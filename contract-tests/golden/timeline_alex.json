@@ -1,13 +1,34 @@
 {
   "events": {
     "[]": {
-      "<src>": "string",
+      "<src>": {
+        "|": [
+          "null",
+          "string"
+        ]
+      },
       "country": "null",
       "date": "date",
       "detail": {
         "|": [
           "null",
           "string"
+        ]
+      },
+      "document_id": {
+        "|": [
+          "absent",
+          "uuid"
+        ]
+      },
+      "filename": {
+        "|": [
+          "absent",
+          {
+            "origin": "=filename",
+            "text": "string",
+            "trust": "=untrusted_text"
+          }
         ]
       },
       "flags": {
@@ -19,15 +40,47 @@
           "string"
         ]
       },
-      "src": "src_id",
+      "src": {
+        "|": [
+          "null",
+          "src_id"
+        ]
+      },
       "title": "string",
       "type": {
         "|": [
           "=diagnosis",
+          "=document",
           "=genome",
           "=lab",
           "=medication",
-          "=vaccine"
+          "=vaccine",
+          "=visit"
+        ]
+      }
+    }
+  },
+  "spans": {
+    "[]": {
+      "label": "string",
+      "segments": {
+        "[]": {
+          "<src>": "string",
+          "date": "date",
+          "end": {
+            "|": [
+              "date",
+              "null"
+            ]
+          },
+          "label": "string",
+          "src": "src_id"
+        }
+      },
+      "type": {
+        "|": [
+          "=diagnosis",
+          "=medication"
         ]
       }
     }

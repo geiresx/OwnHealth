@@ -7,6 +7,7 @@
   "data": {
     "current_medications_relevant": {
       "[]": {
+        "kind": "=medication",
         "name": {
           "origin": "=fhir_note",
           "text": "string",

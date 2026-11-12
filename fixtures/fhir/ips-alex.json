@@ -410,6 +410,18 @@
    }
   },
   {
+   "fullUrl": "urn:uuid:careplan-alex-cp-1",
+   "resource": {
+    "resourceType": "CarePlan",
+    "id": "alex-cp-1",
+    "status": "active",
+    "intent": "plan",
+    "subject": {
+     "reference": "Patient/alex-rivera"
+    }
+   }
+  },
+  {
    "fullUrl": "urn:uuid:observation-alex-bp-1",
    "resource": {
     "resourceType": "Observation",

@@ -273,7 +273,8 @@ const NAV=[
   ["imaging","nav_img",'<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="12" cy="12" r="4"/>'],
   ["import-review","nav_imp",'<path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 17v3h16v-3"/>',7],
   ["family","nav_fam",'<circle cx="8" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 20c0-3 2.5-5 5-5s5 2 5 5M13 20c0-2.5 1.8-4 4-4s4 1.5 4 4"/>'],
-  ["mcp-access","nav_mcp",'<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>']
+  ["mcp-access","nav_mcp",'<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>'],
+  ["doctor-summary","prep",'<path d="M6 3h9l3 3v15H6z"/><path d="M9 10h6M9 14h6M9 18h4"/>']
 ];
 /* ---------- i18n (main labels; dashboard fully translated) ---------- */
 const T={
@@ -507,6 +508,7 @@ const EVENTS=[
  ["2025-12-01","med","Atorvastatin paused","myalgia; CK 210 U/L (in range)","ES","Visit note p2"],
  ["2025-11-18","imaging","MRI right knee","3 series · 412 images · report: medial meniscus tear","ES","DICOM + report"],
  ["2025-11-18","diagnosis","Medial meniscus tear, right knee","confirmed by MRI · conservative care","ES","Report p1"],
+ ["2025-11-10","visit","Visit · Right knee pain","Traumatología · Hospital Norte · no report on file","ES","entered by hand"],
  ["2025-11-05","med","Ibuprofen 600 mg started, stopped 2025-11-26","3 weeks, knee pain","ES","Prescription"],
  ["2024-05-22","lab","Annual check · 31 results","Labor Berlin · 0 out of range","DE","Befund p1-3"],
  ["2024-02-07","imaging","Chest X-ray PA/lateral","Praxis Berlin-Mitte · no acute findings","DE","DICOM + Befund"],
@@ -516,6 +518,25 @@ const EVENTS=[
  ["2021-01-26","lab","Lipid panel","Quest Diagnostics · LDL 158 mg/dL","US","FHIR (Blue Button)"],
  ["2019-08-14","visit","Annual physical","Bay Clinic, San Francisco (synthetic)","US","C-CDA"]
 ];
+/* bars lane: one row per condition and per medicine, a segment per course; null end = still running */
+const SPANS=[
+ ["diagnosis","Hypercholesterolaemia",[["2021-11-22",null,"Visit note"]]],
+ ["diagnosis","Medial meniscus tear, right knee",[["2025-11-18",null,"Report p1"]]],
+ ["med","Atorvastatin",[["2022-06-20","2025-12-01","Prescription"],["2026-03-10",null,"Prescription"]]],
+ ["med","Ibuprofen",[["2025-11-05","2025-11-26","Prescription"]]]
+];
+function lane(){
+  const t0=Date.parse("2019-01-01"),t1=Date.parse("2026-11-10"),x=d=>((Date.parse(d)-t0)/(t1-t0)*100).toFixed(2);
+  const shown=SPANS.filter(s=>S.tlTypes.size===0||S.tlTypes.has(s[0]));
+  if(!shown.length)return "";
+  const ticks=[2019,2020,2021,2022,2023,2024,2025,2026].map(y=>`<span style="position:absolute;left:${x(y+"-01-01")}%;font-size:10.5px;color:var(--dim)">${y}</span>`).join("");
+  const rows=shown.map(s=>{const c=TYPES[s[0]][1];
+   const segs=s[2].map(g=>{const l=x(g[0]),r=x(g[1]||"2026-11-10");return `<span title="${s[1]} · ${g[0]} – ${g[1]||"now"} · ${g[2]}" style="position:absolute;top:6px;height:10px;left:${l}%;width:${Math.max(r-l,0.8)}%;border-radius:${g[1]?"5px":"5px 0 0 5px"};background:${g[1]?c:`linear-gradient(90deg,${c} 80%,transparent)`}"></span>`}).join("");
+   return `<div style="display:grid;grid-template-columns:170px 1fr;gap:10px;align-items:center"><div style="font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${c};margin-right:6px"></i>${s[1]}</div><div style="position:relative;height:22px">${segs}</div></div>`}).join("");
+  return `<div class="card" style="margin-bottom:12px"><h3>Conditions and medicines over time</h3>
+   <div style="display:grid;grid-template-columns:170px 1fr;gap:10px"><div></div><div style="position:relative;height:18px;border-bottom:1px solid var(--line)">${ticks}</div></div>${rows}
+   ${shown.some(s=>s[1]==="Atorvastatin")?`<div style="display:flex;gap:8px;align-items:center;margin-top:8px;padding-top:6px;border-top:1px solid var(--line);font-size:12px"><b>Atorvastatin 20 mg</b><span class="muted num">2026-03-10 – now</span><span class="chip">ongoing</span>${src("Prescription")}</div>`:""}</div>`;
+}
 function timeline(){
   const ev=EVENTS.slice().sort((a,b)=>b[0].localeCompare(a[0]));
   const show=e=>(S.tlTypes.size===0||S.tlTypes.has(e[1]))&&(S.tlCountries.size===0||S.tlCountries.has(e[4]));
@@ -526,10 +547,11 @@ function timeline(){
     <div class="body"><div><div class="t1">${e[2]}</div><div class="t2">${e[3]}</div></div><div class="rt"><span class="chip">${ty[0]}</span>${e[4]!=="—"?`<span class="flag">${e[4]}</span>`:""}${src(e[5])}</div></div></div>`});
   const counts=k=>EVENTS.filter(e=>e[1]===k).length;
   return `
-  <div class="ph"><div><h1>Timeline</h1><div class="sub">Alex Rivera · ${EVENTS.length} events from 9 sources in 3 countries</div></div><div class="right"><span class="phase">v0.3</span><button class="btn">Export for doctor (PDF)</button></div></div>
+  <div class="ph"><div><h1>Timeline</h1><div class="sub">Alex Rivera · ${EVENTS.length} events from 9 sources in 3 countries</div></div></div>
   <div class="filters"><span class="lab">Type</span>${Object.entries(TYPES).map(([k,v])=>`<button class="chip tlt ${S.tlTypes.has(k)?"on":""}" data-k="${k}"><i style="width:8px;height:8px;border-radius:50%;background:${v[1]};display:inline-block"></i>${v[0]} <span class="dim">${counts(k)}</span></button>`).join("")}
    <span class="lab" style="margin-left:14px">Country</span>${["ES","DE","US"].map(c=>`<button class="chip tlc ${S.tlCountries.has(c)?"on":""}" data-k="${c}">${c}</button>`).join("")}
    ${S.tlTypes.size||S.tlCountries.size?`<button class="chip" id="tlclear">clear</button>`:""}</div>
+  ${lane()}
   <div class="tl"><div>${rows||'<div class="muted" style="padding:30px">No events match.</div>'}</div>
   <div class="grid" style="align-content:start">
    <div class="card"><h3>Sources</h3>
@@ -609,17 +631,21 @@ function drug(){
     <div class="dim" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em">CPIC guideline, neurovascular indications</div>
     <blockquote>Recommendation shown verbatim from the CPIC 2022 guideline, neurovascular section. <span class="dim">Classification: moderate</span></blockquote>
     <div class="dim" style="font-size:11px">Lee CR et al. CPIC guideline for CYP2C19 and clopidogrel therapy: 2022 update. Clin Pharmacol Ther 2022 · https://pubmed.ncbi.nlm.nih.gov/35034351/ · https://cpicpgx.org/guidelines/guideline-for-clopidogrel-and-cyp2c19/</div>
-    <div class="note" style="margin-top:8px">The indication decides which recommendation applies. The app does not know the indication, so it shows both.</div></div>
+    <div class="note" style="margin-top:8px">The indication decides which recommendation applies. The app does not know the indication, so it shows both.</div>
+    <div style="margin-top:10px;padding-top:8px;border-top:1px solid #20252f"><div class="dim" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em">DPWG 4 · CYP2C19 Intermediate Metabolizer (genotype)</div>
+    <blockquote>"Synthetic paraphrase: the genome file's own DPWG text for this phenotype sits here." <span class="chip" style="font-size:10px;color:var(--watch);border-color:rgba(224,168,74,.45)">untrusted</span></blockquote>
+    <div class="dim" style="font-size:11px">Quoted from the genome file as received, for the genotype phenotype. <span class="phase">v0.3</span></div></div></div>
    <div class="card"><h3>Phenoconversion <span class="r">rule pgx_phenoconversion.yaml v0.1.0</span></h3>
     <div style="display:flex;gap:10px;align-items:center"><span class="pill p-stale"><i></i>Not computed</span><span>You take <b>omeprazole</b>, a CYP2C19 inhibitor. CPIC has no conversion rule for CYP2C19, so the effect on your phenotype is not computed. The genotype phenotype above stays as called.</span></div></div>
    <div class="card"><h3>Relevant labs <span class="r">latest</span></h3>
     ${[["Platelets","231 ×10⁹/L","ok","LabNorte · 2026-09-14 · p1"],["Haemoglobin","15.1 g/dL","ok","LabNorte · 2026-09-14 · p1"],["eGFR (CKD-EPI 2021)","94 mL/min/1.73m²","ok","calc · 2026-09-14"],["ALT","24 U/L","ok","LabNorte · 2026-09-14 · p1"]].map(l=>`<div style="display:flex;gap:10px;align-items:center;padding:5px 0;border-top:1px solid #20252f"><span style="flex:1">${l[0]}</span>${src(l[3])}<span class="num" style="font-weight:600;width:130px;text-align:right">${l[1]}</span>${pill(l[2])}</div>`).join("")}</div>
   </div>
   <div class="grid" style="align-content:start">
-   <div class="card"><h3>Current medications</h3>
+   <div class="card"><h3>Current medicines and supplements</h3>
     <table class="t"><tbody>
      <tr><td style="white-space:nowrap"><b>Omeprazole</b> 20 mg</td><td>${pill("watch","CYP2C19 inhibitor")}</td><td class="muted" style="font-size:12px">since 2026-04-01 · named in the phenoconversion card · ${src("Rx · src_m05")}</td></tr>
      <tr><td style="white-space:nowrap"><b>Atorvastatin</b> 20 mg</td><td>${pill("stale","Not assessed")}</td><td class="muted" style="font-size:12px">since 2026-03-10 · ${src("Rx · src_m02")}</td></tr>
+     <tr><td style="white-space:nowrap"><b>Vitamin D3</b> 1000 IU <span class="chip">Supplement</span></td><td>${pill("stale","Not assessed")}</td><td class="muted" style="font-size:12px">since 2025-10-01 · ${src("entered by hand")}</td></tr>
     </tbody></table>
     <div class="note" style="margin-top:6px">not_assessed: drug-drug interactions (no open-licence source configured).</div></div>
    <div class="card"><h3>Allergies and intolerances</h3><div class="muted">No drug allergy on record · statin myalgia 2025 (intolerance, not allergy)</div></div>
@@ -873,6 +899,33 @@ function mcp(){
     <tr><td class="dim">Document text</td><td><span class="mono">read:documents_text</span> · off by default</td></tr></tbody></table></div>
   </div></div>`;
 }
+/* ---------- #doctor-summary (0.4.0): options left, the server-rendered two-page PDF right ---------- */
+function doctorSummary(){
+  const es=S.lang==="es";
+  const L=es?{t:"Resumen para el médico",sub:"Dos páginas A4 para entregar en la consulta. Cada valor cita su fuente.",o:"Qué imprimir",sp:"Especialidad",sps:["Medicina general","Cardiología","Endocrinología","Hematología"],spd:"La especialidad elige los valores de laboratorio de la hoja. Un valor nunca medido figura como «no medido».",lg:"Idioma de la hoja",sens:"Incluir hallazgos genómicos sensibles",sensd:"Solo para esta impresión. Se imprimen solo si el interruptor de datos sensibles de este perfil está activado (Ajustes).",show:"Ver el resumen",dl:"Descargar PDF",open:"Abrir en otra pestaña"}
+   :{t:"Doctor summary",sub:"Two A4 pages to hand over at a visit. Every value names its source.",o:"What to print",sp:"Specialty",sps:["General practice","Cardiology","Endocrinology","Hematology"],spd:"The specialty picks the lab values the sheet lists. A value never measured reads \"not measured\".",lg:"Language of the sheet",sens:"Include sensitive genome findings",sensd:"Only for this print. They print only while the sensitive switch of this profile is on (Settings).",show:"Show the summary",dl:"Download PDF",open:"Open in a new tab"};
+  const rows=[["LDL-C","97 mg/dL","< 130","2026-09-14","src_brgiggq4","118 · 2026-03-02 · src_9f3"],["HbA1c","5.6 %","4.0 - 5.6","2026-09-14","src_8qt2ptbp","5.5 · 2026-03-02 · src_yp2f8s2h"],["Vitamin D 25-OH","24 ng/mL","30 - 100","2026-09-14","src_a12","31 · 2026-03-02 · src_zejbc6tk"],["AST",es?"no medido":"not measured","","","",""]];
+  return `
+  <div class="ph"><div><h1>${L.t} · ${PROFILES.find(p=>p.id===S.profile).name}</h1><div class="sub">${L.sub}</div></div><div class="right"><span class="phase">v0.4</span></div></div>
+  <div style="display:grid;grid-template-columns:minmax(240px,300px) 1fr;gap:14px;align-items:start">
+   <div class="card"><h3>${L.o}</h3>
+    <div class="muted" style="font-size:12px">${L.sp}</div>
+    ${L.sps.map((x,i)=>`<label style="display:flex;gap:8px;padding:3px 0"><input type="radio" name="sp" ${i?"":"checked"}>${x}</label>`).join("")}
+    <div class="dim" style="font-size:11.5px;margin:4px 0 10px">${L.spd}</div>
+    <div class="muted" style="font-size:12px">${L.lg}</div>
+    <label style="display:flex;gap:8px;padding:3px 0"><input type="radio" name="lg" ${es?"checked":""}>Español</label>
+    <label style="display:flex;gap:8px;padding:3px 0"><input type="radio" name="lg" ${es?"":"checked"}>English</label>
+    <label style="display:flex;gap:8px;padding:10px 0 3px"><input type="checkbox">${L.sens}</label>
+    <div class="dim" style="font-size:11.5px">${L.sensd}</div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px"><button class="btn pri">${L.show}</button><button class="btn">${L.dl}</button><button class="btn">${L.open}</button></div></div>
+   <div class="card"><div class="page" style="height:auto">
+    <b style="font-size:15px;font-family:Arial,Helvetica,sans-serif">${L.t} · ${L.sps[0]}</b><br><b style="font-family:Arial,Helvetica,sans-serif">Alex Rivera · ${es?"Hombre · 47 años":"Male · 47 years"}</b>
+    <table style="margin-top:10px"><thead><tr><th align="left">${es?"Prueba":"Test"}</th><th align="left">${es?"Valor":"Value"}</th><th align="left">${es?"Rango lab.":"Lab range"}</th><th align="left">${es?"Fecha":"Date"}</th><th align="left">${es?"Fuente":"Source"}</th><th align="left">${es?"Valor anterior":"Previous value"}</th></tr></thead>
+    <tbody>${rows.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table>
+    <div style="margin-top:14px;font-family:Arial,Helvetica,sans-serif;font-size:9px;color:#555">OwnHealth · ownhealth-rules 0.1.0 · summary-templates 0.1.0 · ${es?"estado":"state"} 4940b85a2df5 · ${es?"página":"page"} 1/2</div>
+   </div></div>
+  </div>`;
+}
 /* ---------- 11. due (0.4.0) ---------- */
 Object.assign(T.en,{nav_due:"Due",due_all:"All"});Object.assign(T.es,{nav_due:"Por hacer",due_all:"Ver todo"});
 function due(){
@@ -899,7 +952,7 @@ function due(){
   <div class="foot-hash"><span>prevention_hash <span class="mono">sha256:9829…</span></span><span>es.yaml prevention-es 0.1.0</span></div>`;
 }
 /* ---------- router ---------- */
-const ROUTES={dashboard,biomarker,timeline,genome,"drug-check":drug,due,wearables,imaging,"import-review":importReview,family,"mcp-access":mcp};
+const ROUTES={dashboard,biomarker,timeline,genome,"drug-check":drug,due,wearables,imaging,"import-review":importReview,family,"mcp-access":mcp,"doctor-summary":doctorSummary};
 function renderChrome(){
   document.documentElement.lang=S.lang;
   document.querySelectorAll("[data-i18n]").forEach(e=>e.textContent=t(e.dataset.i18n));
