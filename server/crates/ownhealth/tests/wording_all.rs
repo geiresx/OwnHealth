@@ -30,6 +30,9 @@ const SOURCES: &[(&str, Source)] = &[
     ("status", |s| Box::pin(status(s))),
     ("dashboard", |s| Box::pin(dashboards(s))),
     ("check_drug", |s| Box::pin(drug_checks(s))),
+    ("timeline", |_| {
+        Box::pin(async { Ok(vec![ownhealth_api::routes::timeline::phrases()]) })
+    }),
     ("clinvar_alerts", |_| Box::pin(clinvar_alerts())),
     ("due", |s| Box::pin(due(s))),
     ("calculators", |s| Box::pin(calculators(s))),

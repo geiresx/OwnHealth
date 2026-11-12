@@ -14,15 +14,10 @@
     "note": "string",
     "projection": "null",
     "resource": {
-      "class": {
-        "code": "string"
-      },
       "id": "string",
-      "period": {
-        "start": "datetime_offset"
-      },
+      "intent": "string",
       "resourceType": "string",
-      "status": "=finished",
+      "status": "=active",
       "subject": {
         "reference": "string"
       }

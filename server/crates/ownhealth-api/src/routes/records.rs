@@ -1,6 +1,6 @@
 //! Lane C: `api/records.py`. Records and manual entry: conditions, medications, allergies, vaccines,
-//! procedures, and observations typed by hand. A correction is a new version; the old one stays,
-//! superseded.
+//! procedures, visits, and observations typed by hand. A correction is a new version; the old one
+//! stays, superseded.
 //!
 //! Reads need `read:records` and write one audit row. Writes need the role action `write` and a
 //! browser session: a personal access token never reaches these routes (`Caller` refuses it; agents
@@ -38,7 +38,14 @@ pub fn router() -> Router<Runtime> {
         .route("/profiles/{p}/manual-observations", post(manual_observation))
 }
 
-const KINDS: [&str; 5] = ["condition", "medication", "allergy", "immunization", "procedure"];
+const KINDS: [&str; 6] = [
+    "condition",
+    "medication",
+    "allergy",
+    "immunization",
+    "procedure",
+    "visit",
+];
 const HIDDEN: [&str; 8] = [
     "profile_id",
     "src_id",
@@ -94,7 +101,7 @@ fn kind_param(kind: &str) -> Result<&'static str, Failure> {
         invalid(
             "literal_error",
             &["path", "kind"],
-            "Input should be 'condition', 'medication', 'allergy', 'immunization' or 'procedure'",
+            "Input should be 'condition', 'medication', 'allergy', 'immunization', 'procedure' or 'visit'",
             json!(kind),
         )
     })
@@ -141,6 +148,8 @@ fn title(kind: &str, r: &Map<String, Value>) -> Value {
         ),
         "allergy" => r.get("substance").cloned().unwrap_or(Value::Null),
         "immunization" => r.get("vaccine").cloned().unwrap_or(Value::Null),
+        // the reason, else the clinic; the day is in the detail
+        "visit" => json!(s("reason_text").or(s("provider_name")).unwrap_or_default()),
         _ => r.get("text").cloned().unwrap_or(Value::Null),
     }
 }
@@ -293,6 +302,13 @@ fn record_fields(kind: &str) -> &'static [(&'static str, Field, bool)] {
             ("lot", OptStr, false),
         ],
         "procedure" => &[("text", Str, true), CODED[0], CODED[1], ("performed", OptDate, false)],
+        "visit" => &[
+            ("class", OptStr, false),
+            ("provider_name", OptStr, false),
+            ("period_start", OptDatetime, true),
+            ("period_end", OptDatetime, false),
+            ("reason_text", OptStr, false),
+        ],
         _ => &[],
     }
 }

@@ -507,6 +507,7 @@ const EVENTS=[
  ["2025-12-01","med","Atorvastatin paused","myalgia; CK 210 U/L (in range)","ES","Visit note p2"],
  ["2025-11-18","imaging","MRI right knee","3 series · 412 images · report: medial meniscus tear","ES","DICOM + report"],
  ["2025-11-18","diagnosis","Medial meniscus tear, right knee","confirmed by MRI · conservative care","ES","Report p1"],
+ ["2025-11-10","visit","Visit · Right knee pain","Traumatología · Hospital Norte · no report on file","ES","entered by hand"],
  ["2025-11-05","med","Ibuprofen 600 mg started, stopped 2025-11-26","3 weeks, knee pain","ES","Prescription"],
  ["2024-05-22","lab","Annual check · 31 results","Labor Berlin · 0 out of range","DE","Befund p1-3"],
  ["2024-02-07","imaging","Chest X-ray PA/lateral","Praxis Berlin-Mitte · no acute findings","DE","DICOM + Befund"],
@@ -516,6 +517,25 @@ const EVENTS=[
  ["2021-01-26","lab","Lipid panel","Quest Diagnostics · LDL 158 mg/dL","US","FHIR (Blue Button)"],
  ["2019-08-14","visit","Annual physical","Bay Clinic, San Francisco (synthetic)","US","C-CDA"]
 ];
+/* bars lane: one row per condition and per medicine, a segment per course; null end = still running */
+const SPANS=[
+ ["diagnosis","Hypercholesterolaemia",[["2021-11-22",null,"Visit note"]]],
+ ["diagnosis","Medial meniscus tear, right knee",[["2025-11-18",null,"Report p1"]]],
+ ["med","Atorvastatin",[["2022-06-20","2025-12-01","Prescription"],["2026-03-10",null,"Prescription"]]],
+ ["med","Ibuprofen",[["2025-11-05","2025-11-26","Prescription"]]]
+];
+function lane(){
+  const t0=Date.parse("2019-01-01"),t1=Date.parse("2026-11-10"),x=d=>((Date.parse(d)-t0)/(t1-t0)*100).toFixed(2);
+  const shown=SPANS.filter(s=>S.tlTypes.size===0||S.tlTypes.has(s[0]));
+  if(!shown.length)return "";
+  const ticks=[2019,2020,2021,2022,2023,2024,2025,2026].map(y=>`<span style="position:absolute;left:${x(y+"-01-01")}%;font-size:10.5px;color:var(--dim)">${y}</span>`).join("");
+  const rows=shown.map(s=>{const c=TYPES[s[0]][1];
+   const segs=s[2].map(g=>{const l=x(g[0]),r=x(g[1]||"2026-11-10");return `<span title="${s[1]} · ${g[0]} – ${g[1]||"now"} · ${g[2]}" style="position:absolute;top:6px;height:10px;left:${l}%;width:${Math.max(r-l,0.8)}%;border-radius:${g[1]?"5px":"5px 0 0 5px"};background:${g[1]?c:`linear-gradient(90deg,${c} 80%,transparent)`}"></span>`}).join("");
+   return `<div style="display:grid;grid-template-columns:170px 1fr;gap:10px;align-items:center"><div style="font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${c};margin-right:6px"></i>${s[1]}</div><div style="position:relative;height:22px">${segs}</div></div>`}).join("");
+  return `<div class="card" style="margin-bottom:12px"><h3>Conditions and medicines over time</h3>
+   <div style="display:grid;grid-template-columns:170px 1fr;gap:10px"><div></div><div style="position:relative;height:18px;border-bottom:1px solid var(--line)">${ticks}</div></div>${rows}
+   ${shown.some(s=>s[1]==="Atorvastatin")?`<div style="display:flex;gap:8px;align-items:center;margin-top:8px;padding-top:6px;border-top:1px solid var(--line);font-size:12px"><b>Atorvastatin 20 mg</b><span class="muted num">2026-03-10 – now</span><span class="chip">ongoing</span>${src("Prescription")}</div>`:""}</div>`;
+}
 function timeline(){
   const ev=EVENTS.slice().sort((a,b)=>b[0].localeCompare(a[0]));
   const show=e=>(S.tlTypes.size===0||S.tlTypes.has(e[1]))&&(S.tlCountries.size===0||S.tlCountries.has(e[4]));
@@ -526,10 +546,11 @@ function timeline(){
     <div class="body"><div><div class="t1">${e[2]}</div><div class="t2">${e[3]}</div></div><div class="rt"><span class="chip">${ty[0]}</span>${e[4]!=="—"?`<span class="flag">${e[4]}</span>`:""}${src(e[5])}</div></div></div>`});
   const counts=k=>EVENTS.filter(e=>e[1]===k).length;
   return `
-  <div class="ph"><div><h1>Timeline</h1><div class="sub">Alex Rivera · ${EVENTS.length} events from 9 sources in 3 countries</div></div><div class="right"><span class="phase">v0.3</span><button class="btn">Export for doctor (PDF)</button></div></div>
+  <div class="ph"><div><h1>Timeline</h1><div class="sub">Alex Rivera · ${EVENTS.length} events from 9 sources in 3 countries</div></div></div>
   <div class="filters"><span class="lab">Type</span>${Object.entries(TYPES).map(([k,v])=>`<button class="chip tlt ${S.tlTypes.has(k)?"on":""}" data-k="${k}"><i style="width:8px;height:8px;border-radius:50%;background:${v[1]};display:inline-block"></i>${v[0]} <span class="dim">${counts(k)}</span></button>`).join("")}
    <span class="lab" style="margin-left:14px">Country</span>${["ES","DE","US"].map(c=>`<button class="chip tlc ${S.tlCountries.has(c)?"on":""}" data-k="${c}">${c}</button>`).join("")}
    ${S.tlTypes.size||S.tlCountries.size?`<button class="chip" id="tlclear">clear</button>`:""}</div>
+  ${lane()}
   <div class="tl"><div>${rows||'<div class="muted" style="padding:30px">No events match.</div>'}</div>
   <div class="grid" style="align-content:start">
    <div class="card"><h3>Sources</h3>

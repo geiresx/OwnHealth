@@ -358,7 +358,7 @@ export interface WearablesSummary {
 
 export interface RecordOut {
 	id: Uuid;
-	kind: 'condition' | 'medication' | 'allergy' | 'immunization' | 'procedure';
+	kind: 'condition' | 'medication' | 'allergy' | 'immunization' | 'procedure' | 'visit';
 	title: string;
 	detail: Record<string, unknown>;
 	status: Lifecycle;
@@ -373,7 +373,7 @@ export interface RecordOut {
 
 export interface TimelineEvent {
 	date: IsoDate;
-	type: 'lab' | 'visit' | 'imaging' | 'diagnosis' | 'medication' | 'vaccine' | 'genome';
+	type: 'lab' | 'visit' | 'imaging' | 'diagnosis' | 'medication' | 'vaccine' | 'genome' | 'procedure' | 'document';
 	title: string;
 	detail: string | null;
 	country: string | null;
@@ -381,6 +381,31 @@ export interface TimelineEvent {
 	src: string | null;
 	src_label: string | null; // 'LabNorte · 2026-09-14 · p1'
 	provider: string | null; // lab or clinic name when the source records one
+	/** document events only: the document is its own source */
+	document_id?: Uuid;
+	filename?: UntrustedText | null;
+}
+
+/** One course of a medicine or the run of a condition: the biomarker chart's annotation shape plus its src. */
+export interface TimelineSegment {
+	date: IsoDate;
+	end: IsoDate | null; // null while it runs
+	label: string;
+	src: string | null;
+	src_label: string | null; // 'Rx · 2022-06-20'
+}
+
+/** A row of the timeline's bars lane (slice 6). */
+export interface TimelineSpan {
+	type: 'diagnosis' | 'medication';
+	label: string;
+	segments: TimelineSegment[];
+}
+
+export interface Timeline {
+	events: TimelineEvent[];
+	spans: TimelineSpan[];
+	withheld: { by_scope: string[] };
 }
 
 // ------------------------------------------------ lane B: documents ----

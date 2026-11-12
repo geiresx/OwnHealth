@@ -2,7 +2,7 @@
 // Backends: lane E (status.py, drug_check.py), lane A (observations.py), lane H (timeline.py), lane D (genome.py).
 import { get, p } from './core';
 import type { DueDoc } from '../logic/due';
-import type { Calculators, Dashboard, ObservationOut, Status, TimelineEvent, Trend, TrendPoint } from './types';
+import type { Calculators, Dashboard, ObservationOut, Status, Timeline, Trend, TrendPoint } from './types';
 
 export type Units = 'si' | 'conventional' | 'as_reported';
 
@@ -20,7 +20,7 @@ export const getTrend = (profile: string, code: string, window = 'P10Y', units: 
 	get<Trend>(`${p(profile)}/trend`, { code, window, units, lang });
 
 export const getTimeline = (profile: string, q: { types?: string; from?: string; to?: string; lang?: string } = {}) =>
-	get<{ events: TimelineEvent[]; withheld: { by_scope: string[] } }>(`${p(profile)}/timeline`, q);
+	get<Timeline>(`${p(profile)}/timeline`, q);
 
 /** A trend point may carry the status word lane E computed for it (requested in .lanes/H-ui-1-requests.md). */
 export type TrendPointStatus = TrendPoint & { status?: Status };

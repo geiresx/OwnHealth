@@ -1,5 +1,5 @@
-//! Records: conditions, medications (and supplements), allergies, immunizations, procedures
-//! (`core/records.py`).
+//! Records: conditions, medications (and supplements), allergies, immunizations, procedures and
+//! visits (`core/records.py`; the visit kind is new in 0.4.0 and writes the `encounter` table).
 //!
 //! Same lifecycle as observations: add, supersede with a new version, retract with a reason. The
 //! typed columns are the query source; `fhir` is built from them unless an importer passes the
@@ -19,12 +19,13 @@ use crate::provenance::{SrcIn, SrcRef, ensure_src};
 use crate::pyjson;
 
 /// Record kind -> table.
-pub const KINDS: [(&str, &str); 5] = [
+pub const KINDS: [(&str, &str); 6] = [
     ("condition", "condition"),
     ("medication", "medication_statement"),
     ("allergy", "allergy"),
     ("immunization", "immunization"),
     ("procedure", "procedure"),
+    ("visit", "encounter"),
 ];
 
 pub fn table_of(kind: &str) -> Result<&'static str> {
@@ -191,6 +192,27 @@ pub struct ProcedureIn {
     pub performed: Option<NaiveDate>,
 }
 
+/// A visit to a clinician (a row of `encounter`). It always has a start, so it has a place on the
+/// timeline; the other fields are as written or as the source sent them.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct VisitIn {
+    #[serde(flatten)]
+    pub common: Common,
+    /// The FHIR Encounter class code as received (AMB, EMER, IMP, VR ...).
+    #[serde(default)]
+    pub class: Option<String>,
+    /// The clinic or clinician, as written.
+    #[serde(default)]
+    pub provider_name: Option<String>,
+    #[serde(default, with = "pyjson::opt_datetime")]
+    pub period_start: Option<DateTime<FixedOffset>>,
+    #[serde(default, with = "pyjson::opt_datetime")]
+    pub period_end: Option<DateTime<FixedOffset>>,
+    /// Why the visit happened, as written ("Knee pain").
+    #[serde(default)]
+    pub reason_text: Option<String>,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum RecordIn {
     Condition(ConditionIn),
@@ -198,6 +220,7 @@ pub enum RecordIn {
     Allergy(AllergyIn),
     Immunization(ImmunizationIn),
     Procedure(ProcedureIn),
+    Visit(VisitIn),
 }
 
 fn check(field: &str, v: &str, allowed: &[&str]) -> Result<()> {
@@ -216,12 +239,14 @@ impl RecordIn {
             RecordIn::Allergy(_) => "allergy",
             RecordIn::Immunization(_) => "immunization",
             RecordIn::Procedure(_) => "procedure",
+            RecordIn::Visit(_) => "visit",
         }
     }
 
     pub fn table(&self) -> &'static str {
         match self {
             RecordIn::Medication(_) => "medication_statement",
+            RecordIn::Visit(_) => "encounter",
             _ => self.kind(),
         }
     }
@@ -233,6 +258,7 @@ impl RecordIn {
             RecordIn::Allergy(r) => &r.common,
             RecordIn::Immunization(r) => &r.common,
             RecordIn::Procedure(r) => &r.common,
+            RecordIn::Visit(r) => &r.common,
         }
     }
 
@@ -245,6 +271,7 @@ impl RecordIn {
             "allergy" => RecordIn::Allergy(serde_json::from_value(v).map_err(invalid)?),
             "immunization" => RecordIn::Immunization(serde_json::from_value(v).map_err(invalid)?),
             "procedure" => RecordIn::Procedure(serde_json::from_value(v).map_err(invalid)?),
+            "visit" => RecordIn::Visit(serde_json::from_value(v).map_err(invalid)?),
             other => return Err(Error::Invalid(format!("unknown record kind {other}"))),
         };
         r.validate()?;
@@ -285,6 +312,11 @@ impl RecordIn {
                 Some(c) => check("criticality", c, &["low", "high", "unable-to-assess"]),
                 None => Ok(()),
             },
+            RecordIn::Visit(v) => match (v.period_start, v.period_end) {
+                (None, _) => Err(Error::Invalid("period_start: a visit needs the day it happened".into())),
+                (Some(s), Some(e)) if e < s => Err(Error::Invalid("period_end: before period_start".into())),
+                _ => Ok(()),
+            },
             _ => Ok(()),
         }
     }
@@ -296,6 +328,7 @@ impl RecordIn {
             RecordIn::Allergy(r) => crate::fhir::allergy(r),
             RecordIn::Immunization(r) => crate::fhir::immunization(r),
             RecordIn::Procedure(r) => crate::fhir::procedure(r),
+            RecordIn::Visit(r) => crate::fhir::encounter(r),
         }
     }
 
@@ -307,6 +340,7 @@ impl RecordIn {
             RecordIn::Allergy(r) => serde_json::to_value(r)?,
             RecordIn::Immunization(r) => serde_json::to_value(r)?,
             RecordIn::Procedure(r) => serde_json::to_value(r)?,
+            RecordIn::Visit(r) => serde_json::to_value(r)?,
         };
         let Value::Object(mut m) = v else {
             return Err(Error::Invalid("a record model is not an object".into()));
@@ -321,7 +355,7 @@ impl RecordIn {
 fn sql_type(column: &str) -> &'static str {
     match column {
         "profile_id" => "uuid",
-        "effective_at" => "timestamptz",
+        "effective_at" | "period_start" | "period_end" => "timestamptz",
         "sensitivity" => "text[]",
         "onset" | "abatement" | "started" | "stopped" | "occurred" | "performed" => "date",
         "dose_number" => "int",

@@ -200,7 +200,16 @@ async fn test_timeline_filters_scopes_and_access() -> R {
     assert!(!events(&out).is_empty());
     assert_eq!(
         out["withheld"]["by_scope"],
-        json!(["diagnosis", "genome", "imaging", "medication", "vaccine", "visit"])
+        json!([
+            "diagnosis",
+            "document",
+            "genome",
+            "imaging",
+            "medication",
+            "procedure",
+            "vaccine",
+            "visit"
+        ])
     );
     // Records only: the sensitive diagnosis stays out.
     categories(&["read:records"]).await?;
@@ -224,7 +233,9 @@ async fn test_timeline_filters_scopes_and_access() -> R {
     .await?;
     assert_eq!(
         withheld,
-        Some(json!({"by_scope": ["diagnosis", "genome", "imaging", "medication", "vaccine", "visit"]}))
+        Some(
+            json!({"by_scope": ["diagnosis", "document", "genome", "imaging", "medication", "procedure", "vaccine", "visit"]})
+        )
     );
     Ok(())
 }

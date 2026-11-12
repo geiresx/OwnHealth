@@ -7,8 +7,8 @@
 //!
 //! - Observations go through `review::route_fact`: a valid LOINC code (format and check digit) and a
 //!   UCUM unit, with the Patient matching the profile, auto-accept; anything else waits in review.
-//! - Condition, AllergyIntolerance, Immunization, Procedure, MedicationStatement and MedicationRequest
-//!   become records under the same auto-accept rule; held ones wait in review as `fhir_unmapped` with
+//! - Condition, AllergyIntolerance, Immunization, Procedure, Encounter (a visit), MedicationStatement
+//!   and MedicationRequest become records under the same auto-accept rule; held ones wait in review as `fhir_unmapped` with
 //!   the projected record in the payload, and accepting creates it.
 //! - Other resource types are stored as received (the bundle is the blob) and listed in review as
 //!   `fhir_unmapped`, "stored, not projected". Nothing is dropped.
@@ -470,6 +470,7 @@ impl Run<'_> {
             "AllergyIntolerance" => Some(mapping::allergy(r, pid)),
             "Immunization" => Some(mapping::immunization(r, pid)),
             "Procedure" => Some(mapping::procedure(r, pid)),
+            "Encounter" => Some(mapping::encounter(r, pid)),
             "MedicationStatement" | "MedicationRequest" => Some(mapping::medication(r, pid, |x| index.resolve(x))),
             "FamilyMemberHistory" => Some(mapping::family_member_history(r, pid)),
             _ => None,
@@ -758,6 +759,7 @@ pub fn record_json(record: &RecordIn) -> Result<Value> {
         RecordIn::Allergy(r) => serde_json::to_value(r)?,
         RecordIn::Immunization(r) => serde_json::to_value(r)?,
         RecordIn::Procedure(r) => serde_json::to_value(r)?,
+        RecordIn::Visit(r) => serde_json::to_value(r)?,
     })
 }
 
@@ -789,10 +791,24 @@ async fn accept_fhir_item(
         .and_then(Value::as_object)
         .cloned()
         .unwrap_or_default();
+    let received = data.clone();
     if let Some(Value::Object(e)) = edits {
         data.extend(e.clone());
     }
-    let record = RecordIn::from_json(kind, Value::Object(data))?;
+    let mut record = RecordIn::from_json(kind, Value::Object(data))?;
+    // a visit whose period was edited: the stored resource carries the edited period, so the export
+    // never says a date the visit's columns do not
+    if let RecordIn::Visit(v) = &mut record
+        && let Some(Value::Object(e)) = edits
+        && ["period_start", "period_end"]
+            .iter()
+            .any(|k| e.contains_key(*k) && e.get(*k) != received.get(*k))
+    {
+        let period = ownhealth_core::fhir::encounter(v)["period"].clone();
+        if let Some(Value::Object(resource)) = v.common.fhir.as_mut() {
+            resource.insert("period".into(), period);
+        }
+    }
     let src = held_src(payload, user_id)?;
     let committed = match payload.get("supersedes").and_then(Value::as_str) {
         Some(old) => {
