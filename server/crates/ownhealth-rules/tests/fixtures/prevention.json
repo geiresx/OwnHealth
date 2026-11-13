@@ -3,7 +3,7 @@
     "schema": "ownhealth.prevention/v1",
     "profile": "alex",
     "as_of": "2026-11-07",
-    "rules": "es.yaml prevention-es 0.1.0",
+    "rules": "es.yaml prevention-es 0.2.0",
     "country": "ES",
     "items": [
       {
@@ -107,13 +107,13 @@
       }
     ],
     "unmatched": [],
-    "prevention_hash": "sha256:bc963671c623b3a47a8392ec084d4e6943f3d436f1798bd36eb8e5e02aed971a"
+    "prevention_hash": "sha256:f1ab2c2e764b7010e70185913df1b962034a82c003dbc18ef83eec7cc8fbd128"
   },
   "sam": {
     "schema": "ownhealth.prevention/v1",
     "profile": "sam",
     "as_of": "2026-11-07",
-    "rules": "es.yaml prevention-es 0.1.0",
+    "rules": "es.yaml prevention-es 0.2.0",
     "country": "ES",
     "items": [
       {
@@ -151,23 +151,23 @@
       }
     ],
     "unmatched": [],
-    "prevention_hash": "sha256:09fe5dd7d7be921d095ca543a6bb9bd4a7e000f33effbc8ebbdf7c6071b1f1b5"
+    "prevention_hash": "sha256:89f95bdcf482024ff53c5ad68f2abd0da38a06ecb8dd5a1742c556ef3f7acb15"
   },
   "lucia": {
     "schema": "ownhealth.prevention/v1",
     "profile": "lucia",
     "as_of": "2026-11-07",
-    "rules": "es.yaml prevention-es 0.1.0",
+    "rules": "es.yaml prevention-es 0.2.0",
     "country": "ES",
     "items": [],
     "unmatched": [],
-    "prevention_hash": "sha256:75211b66d50b785df094eeb4e5f3274a57bca86809bacb76d7b7e53852604deb"
+    "prevention_hash": "sha256:1228f227a9bb91b0c85614cb00221e7e620d1ca1b22b4b9514c7ca0dee898bb3"
   },
   "carmen": {
     "schema": "ownhealth.prevention/v1",
     "profile": "carmen",
     "as_of": "2026-11-07",
-    "rules": "es.yaml prevention-es 0.1.0",
+    "rules": "es.yaml prevention-es 0.2.0",
     "country": "ES",
     "items": [
       {
@@ -260,13 +260,13 @@
       }
     ],
     "unmatched": [],
-    "prevention_hash": "sha256:259d136f28e39d72fc1fe509016ad71612f059cf7023561910349eb224e4b94e"
+    "prevention_hash": "sha256:d428c13a6a0721a5528dc437c38dcaaab8e0923fccf9a085e3632d44ccf81a5a"
   },
   "jordan": {
     "schema": "ownhealth.prevention/v1",
     "profile": "jordan",
     "as_of": "2026-11-07",
-    "rules": "us.yaml prevention-us 0.1.0",
+    "rules": "us.yaml prevention-us 0.2.0",
     "country": "US",
     "items": [
       {
@@ -369,6 +369,18 @@
         "src": [
           "src_x"
         ]
+      },
+      {
+        "key": "us.cancer.lung",
+        "rule": "us.cancer.lung",
+        "area": "screening",
+        "kind": "every_n_months",
+        "status": "not_assessed",
+        "source": "USPSTF 2021 (B)",
+        "cite": "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/lung-cancer-screening",
+        "src": [],
+        "reason_code": "no_answer",
+        "answer": "smoking_history"
       }
     ],
     "unmatched": [

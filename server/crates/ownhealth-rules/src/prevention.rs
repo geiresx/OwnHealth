@@ -3,9 +3,15 @@
 //! ownhealth.prevention/v1 document, computed on read and never stored:
 //!
 //! ```text
-//! {schema, profile, as_of, rules: "<file> <version>", country, items, unmatched, prevention_hash}
-//! item = {key, rule, area, kind, status, due, last: {date, src}, source, cite, src: [..], labs, reason_code}
+//! {schema, profile, as_of, rules: "<file> <version>", country, items, hidden, unmatched, prevention_hash}
+//! item = {key, rule, area, kind, status, due, last: {date, src}, source, cite, src: [..], labs, reason_code,
+//!         answer, decision: {kind, until | evidence: {table, id}}}
 //! ```
+//!
+//! The person's inputs (migration 1130) are inputs of the evaluation like the records: answers
+//! (`prevention_answer`) decide whether a row with `needs` or `unless` applies, and decisions
+//! (`prevention_decision`) move an item to `hidden` or mark it. `hidden` is absent when empty, so a
+//! profile without decisions keeps the hash it had before they existed.
 //!
 //! Items come from two places, each with one stable key:
 //! - a row of the country file (`es.yaml`, `us.yaml`): key = the row id;
@@ -73,6 +79,10 @@ pub struct Row {
     pub doses: Option<usize>,
     pub gap_days: Option<i64>,
     pub season_start: Option<(u32, u32)>,
+    /// The row applies only when the person gave this answer (unanswered: not_assessed, `no_answer`).
+    pub needs: Option<(String, String)>,
+    /// The row does not apply when the person gave this answer (unanswered: it applies).
+    pub unless: Option<(String, String)>,
     pub source: String,
     pub cite: String,
     pub name: Value,
@@ -113,6 +123,8 @@ pub struct Prevention {
     pub countries: BTreeMap<String, CountryRules>,
     pub groups: BTreeMap<String, Group>,
     pub templates: Value,
+    /// The closed list of answers a person may give about themselves (`pack.yaml` answer_keys).
+    pub answer_keys: Vec<String>,
 }
 
 fn err(file: &str, what: impl std::fmt::Display) -> CitedError {
@@ -218,10 +230,39 @@ fn age(v: Option<&Value>) -> Option<i32> {
     int(v).and_then(|n| i32::try_from(n).ok())
 }
 
+/// `needs` or `unless`: one `{answer_key: "yes" | "no"}`.
+fn answer_condition(
+    r: &Map<String, Value>,
+    field: &str,
+    keys: &[String],
+) -> std::result::Result<Option<(String, String)>, String> {
+    let Some(v) = r.get(field).filter(|v| !v.is_null()) else {
+        return Ok(None);
+    };
+    let m = v
+        .as_object()
+        .filter(|m| m.len() == 1)
+        .ok_or_else(|| format!("{field} is one {{answer_key: yes | no}}"))?;
+    let Some((k, v)) = m.iter().next() else {
+        return Ok(None);
+    };
+    if !keys.contains(k) {
+        return Err(format!(
+            "{field} names {k}, which is not one of the answer_keys {keys:?}"
+        ));
+    }
+    let v = v
+        .as_str()
+        .filter(|v| ["yes", "no"].contains(v))
+        .ok_or_else(|| format!("{field} {k} is \"yes\" or \"no\""))?;
+    Ok(Some((k.clone(), v.to_string())))
+}
+
 fn parse_row(
     file: &str,
     r: &Map<String, Value>,
     groups: &BTreeMap<String, Group>,
+    answer_keys: &[String],
 ) -> std::result::Result<Row, CitedError> {
     let id = r
         .get("id")
@@ -300,6 +341,8 @@ fn parse_row(
         _ => {}
     }
     let name = r.get("name").cloned().ok_or_else(|| e("no name"))?;
+    let needs = answer_condition(r, "needs", answer_keys).map_err(|m| e(&m))?;
+    let unless = answer_condition(r, "unless", answer_keys).map_err(|m| e(&m))?;
     Ok(Row {
         id: id.clone(),
         kind,
@@ -314,6 +357,8 @@ fn parse_row(
         doses,
         gap_days,
         season_start,
+        needs,
+        unless,
         source: r.get("source").map(text).ok_or_else(|| e("no source"))?,
         cite: r.get("cite").map(text).unwrap_or_default(),
         name,
@@ -343,6 +388,24 @@ pub fn build(
     }
     let evidence = cited::load_bytes(&at("evidence.yaml"), &read("evidence.yaml")?)?;
     let templates = cited::load_bytes(&at("templates.yaml"), &read("templates.yaml")?)?;
+    let answer_keys = strings(head.doc.get("answer_keys"));
+    for k in &answer_keys {
+        let q = templates
+            .doc
+            .get("answers")
+            .and_then(|a| a.get(k))
+            .and_then(|a| a.get("question"));
+        if ["en", "es"].iter().any(|l| {
+            q.and_then(|q| q.get(*l))
+                .and_then(Value::as_str)
+                .is_none_or(|s| s.trim().is_empty())
+        }) {
+            return Err(err(
+                "templates.yaml",
+                format!("answer {k} has no question in en and es"),
+            ));
+        }
+    }
     let tsv = String::from_utf8(read("vaccines.tsv")?).map_err(|e| err("vaccines.tsv", e))?;
     let mut groups = BTreeMap::new();
     for g in parse_groups("evidence.yaml", &evidence.doc)?
@@ -417,7 +480,7 @@ pub fn build(
                 pack_rules.push((id, rule));
                 continue;
             }
-            rows.push(parse_row(&file, r, &groups)?);
+            rows.push(parse_row(&file, r, &groups, &answer_keys)?);
         }
         for id in rows.iter().map(|r| &r.id).chain(pack_rules.iter().map(|(id, _)| id)) {
             if !ids.insert(id.clone()) {
@@ -442,6 +505,7 @@ pub fn build(
         countries,
         groups,
         templates: templates.doc,
+        answer_keys,
     })
 }
 
@@ -644,8 +708,10 @@ fn item(row: &Row, prev: &Prevention, birth: NaiveDate, as_of: NaiveDate, facts:
         "series" => {
             // a dose counts only when it comes at least gap_days after the previous counted one
             let gap = chrono::Duration::days(row.gap_days.unwrap_or(0));
+            let mut dated: Vec<NaiveDate> = counted.iter().map(|f| f.date).collect();
+            dated.sort();
             let mut days: Vec<NaiveDate> = Vec::new();
-            for d in counted.iter().map(|f| f.date) {
+            for d in dated {
                 if days.last().is_none_or(|l| d - *l >= gap) {
                     days.push(d);
                 }
@@ -669,8 +735,13 @@ fn item(row: &Row, prev: &Prevention, birth: NaiveDate, as_of: NaiveDate, facts:
             };
             let next = next.max(if start > as_of { next_season(start, s) } else { start });
             // off season with no dose this season, the row claims nothing until the next season is
-            // near: up to date needs a dose, and due needs a season that is running
-            if start <= as_of && !done && !in_season && (next - as_of).num_days() > prev.upcoming_days {
+            // near: up to date needs a dose, and due needs a season that is running. Before the
+            // start age this holds too when no dose is on record at all.
+            if (start <= as_of || mine.is_empty())
+                && !done
+                && !in_season
+                && (next - as_of).num_days() > prev.upcoming_days
+            {
                 return None;
             }
             (Some(next), false)
@@ -686,8 +757,14 @@ fn item(row: &Row, prev: &Prevention, birth: NaiveDate, as_of: NaiveDate, facts:
         Some(_) => "due",
     };
     let last = mine.iter().max_by_key(|f| (f.date, f.src.clone()));
-    let mut src: Vec<String> = counted.iter().map(|f| f.src.clone()).collect();
+    // a fact a document proves (a `done` decision) has no src id: its decision names the document
+    let mut src: Vec<String> = counted
+        .iter()
+        .map(|f| f.src.clone())
+        .filter(|s| !s.is_empty())
+        .collect();
     if let Some(l) = last
+        && !l.src.is_empty()
         && !src.contains(&l.src)
     {
         src.push(l.src.clone());
@@ -702,7 +779,7 @@ fn item(row: &Row, prev: &Prevention, birth: NaiveDate, as_of: NaiveDate, facts:
         "kind": row.kind,
         "status": status,
         "due": next.map(iso),
-        "last": last.map(|f| json!({"date": iso(f.date), "src": f.src})),
+        "last": last.map(|f| json!({"date": iso(f.date), "src": (!f.src.is_empty()).then_some(&f.src)})),
         "source": row.source,
         "cite": row.cite,
         "src": src,
@@ -715,6 +792,234 @@ fn not_assessed(row: &Row, reason: &str) -> Value {
         "key": row.id, "rule": row.id, "area": row.area, "kind": row.kind, "status": "not_assessed",
         "source": row.source, "cite": row.cite, "src": [], "reason_code": reason,
     })
+}
+
+// ------------------------------------------------------------- person inputs ----
+
+/// The record tables a `done` decision may point at; a document is the other kind of evidence.
+pub const EVIDENCE_TABLES: [&str; 3] = ["immunization", "procedure", "encounter"];
+
+/// What proves a `done` decision, while it still holds.
+#[derive(Debug, Clone)]
+pub struct Evidence {
+    /// One of EVIDENCE_TABLES, or `document`.
+    pub table: String,
+    pub id: uuid::Uuid,
+    /// The day it was done, when the record or document has one.
+    pub day: Option<NaiveDate>,
+    /// The record's src id (none for a document).
+    pub src: Option<String>,
+}
+
+/// The evidence a `done` decision points at, when it still holds: a record of this profile that is
+/// current now (following its corrections to the version that replaced it) and not tagged sensitive,
+/// or an active document of this profile. None when it was retracted, never existed, belongs to
+/// another profile or is sensitive.
+pub async fn evidence(
+    conn: &mut PgConnection,
+    profile_id: uuid::Uuid,
+    table: &str,
+    id: uuid::Uuid,
+) -> Result<Option<Evidence>> {
+    let found: Option<(Option<NaiveDate>, Option<String>)> = if table == "document" {
+        sqlx::query_as(
+            "select coalesce(collected_at, reported_at)::date, null::text from document \
+             where id = $1 and profile_id = $2 and status = 'active'",
+        )
+        .bind(id)
+        .bind(profile_id)
+        .fetch_optional(&mut *conn)
+        .await?
+    } else {
+        let Some(t) = EVIDENCE_TABLES.iter().find(|t| **t == table) else {
+            return Ok(None);
+        };
+        let day = |a: &str| match *t {
+            "immunization" => format!("coalesce({a}.occurred, {a}.effective_at::date)"),
+            "procedure" => format!("coalesce({a}.performed, {a}.effective_at::date)"),
+            _ => format!("coalesce({a}.period_start::date, {a}.effective_at::date)"),
+        };
+        let sql = format!(
+            "with recursive chain as ( \
+               select r.id, r.status, r.src_id, r.sensitivity, {} as day from {t} r \
+               where r.id = $1 and r.profile_id = $2 \
+               union all \
+               select n.id, n.status, n.src_id, n.sensitivity, {} from {t} n join chain c on n.supersedes = c.id) \
+             select day, src_id from chain where status = 'current' and cardinality(sensitivity) = 0 limit 1",
+            day("r"),
+            day("n"),
+        );
+        sqlx::query_as(sqlx::AssertSqlSafe(sql))
+            .bind(id)
+            .bind(profile_id)
+            .fetch_optional(&mut *conn)
+            .await?
+    };
+    Ok(found.map(|(day, src)| Evidence {
+        table: table.to_string(),
+        id,
+        day,
+        src,
+    }))
+}
+
+/// One current decision about one item.
+#[derive(Debug, Clone)]
+struct Decision {
+    kind: String,
+    until: Option<NaiveDate>,
+    /// For `done`: the evidence while it holds; None when it no longer does, which reopens the item.
+    evidence: Option<Evidence>,
+}
+
+type DecisionRow = (
+    String,
+    String,
+    Option<NaiveDate>,
+    Option<String>,
+    Option<uuid::Uuid>,
+    Option<uuid::Uuid>,
+);
+
+/// The person's current answers and decisions of one profile.
+async fn person_inputs(
+    conn: &mut PgConnection,
+    profile_id: uuid::Uuid,
+) -> Result<(HashMap<String, String>, BTreeMap<String, Decision>)> {
+    let answers: Vec<(String, String)> =
+        sqlx::query_as("select key, value from prevention_answer where profile_id = $1 and status = 'current'")
+            .bind(profile_id)
+            .fetch_all(&mut *conn)
+            .await?;
+    let rows: Vec<DecisionRow> = sqlx::query_as(
+        "select item_key, kind, until, evidence_table, evidence_id, document_id from prevention_decision \
+         where profile_id = $1 and status = 'current' order by item_key",
+    )
+    .bind(profile_id)
+    .fetch_all(&mut *conn)
+    .await?;
+    let mut decisions = BTreeMap::new();
+    for (key, kind, until, table, record, document) in rows {
+        let found = match (table, record, document) {
+            (Some(t), Some(id), _) => evidence(&mut *conn, profile_id, &t, id).await?,
+            (_, _, Some(id)) => evidence(&mut *conn, profile_id, "document", id).await?,
+            _ => None,
+        };
+        decisions.insert(
+            key,
+            Decision {
+                kind,
+                until,
+                evidence: found,
+            },
+        );
+    }
+    Ok((answers.into_iter().collect(), decisions))
+}
+
+/// Whether a `done` decision still covers its item on `as_of`. The evidence needs a day, on or
+/// before `as_of`. A guideline row needs nothing more (the day counted as a fact). A lab gap never
+/// measured is covered by any evidence. A stale lab (`last`, `due`) is covered when the evidence is
+/// not older than the last value it reports, up to that day plus the rule's window: then the next
+/// retest is due again, and a later stale cycle (a newer `last`) is not covered either.
+fn done_holds(item: &Value, e: &Evidence, row: bool, as_of: NaiveDate) -> bool {
+    let Some(day) = e.day.filter(|d| *d <= as_of) else {
+        return false;
+    };
+    if row {
+        return true;
+    }
+    let Some(last) = item.get("last").and_then(|l| date_field(l, "date")) else {
+        return true;
+    };
+    let window = date_field(item, "due").map_or(0, |due| (due - last).num_days());
+    day >= last && as_of <= day + chrono::Duration::days(window)
+}
+
+/// Split the items by the person's decisions: (shown, hidden). Each item with a decision that
+/// counts carries it as `decision` {kind, until | evidence}:
+/// - snooze: hidden up to and including `until`, shown again from the day after;
+/// - dismiss: hidden;
+/// - done: a guideline row stays shown (its evidence already counted as a fact); a lab gap is
+///   hidden while the evidence covers it (`done_holds`). Evidence that no longer holds or no longer
+///   covers the item reopens it: it shows as if there were no decision.
+fn apply_decisions(
+    items: Vec<Value>,
+    decisions: &BTreeMap<String, Decision>,
+    rows: &HashSet<&str>,
+    as_of: NaiveDate,
+) -> (Vec<Value>, Vec<Value>) {
+    let mut shown = Vec::new();
+    let mut hidden = Vec::new();
+    for mut it in items {
+        let key = text(&it["key"]);
+        let Some(d) = decisions.get(&key) else {
+            shown.push(it);
+            continue;
+        };
+        let (hide, mark) = match (d.kind.as_str(), &d.evidence) {
+            ("snooze", _) => (
+                d.until.is_none_or(|u| as_of <= u),
+                json!({"kind": "snooze", "until": d.until.map(iso)}),
+            ),
+            ("dismiss", _) => (true, json!({"kind": "dismiss"})),
+            ("done", Some(e)) if done_holds(&it, e, rows.contains(key.as_str()), as_of) => (
+                !rows.contains(key.as_str()),
+                json!({"kind": "done", "evidence": {"table": e.table, "id": e.id}}),
+            ),
+            _ => {
+                shown.push(it);
+                continue;
+            }
+        };
+        if let Some(m) = it.as_object_mut() {
+            m.insert("decision".into(), mark);
+        }
+        if hide {
+            hidden.push(it);
+        } else {
+            shown.push(it);
+        }
+    }
+    (shown, hidden)
+}
+
+/// The answer keys some guideline row of this country uses for a person of this sex and age (every
+/// row when the sex or age is not recorded; a row counts from a year before its start age to its end),
+/// in the pack's order.
+pub fn answer_keys_for(prev: &Prevention, country: Option<&str>, sex: Option<&str>, age: Option<i32>) -> Vec<String> {
+    let rows: Vec<&Row> = country
+        .and_then(|c| prev.countries.get(c))
+        .map(|r| {
+            r.rows
+                .iter()
+                .filter(|r| r.sex.is_none() || sex.is_none() || r.sex.as_deref() == sex)
+                .filter(|r| age.is_none_or(|a| a + 1 >= r.from && r.to.is_none_or(|t| a <= t)))
+                .collect()
+        })
+        .unwrap_or_default();
+    prev.answer_keys
+        .iter()
+        .filter(|k| {
+            rows.iter().any(|r| {
+                [&r.needs, &r.unless]
+                    .iter()
+                    .any(|c| c.as_ref().is_some_and(|(n, _)| n == *k))
+            })
+        })
+        .cloned()
+        .collect()
+}
+
+/// The question of one answer key in one language.
+pub fn question(prev: &Prevention, key: &str, lang: &str) -> Option<String> {
+    pick(
+        prev.templates
+            .get("answers")
+            .and_then(|a| a.get(key))
+            .and_then(|a| a.get("question")),
+        if lang == "es" { "es" } else { "en" },
+    )
 }
 
 /// The rule pack's lab gaps of the state body, as items.
@@ -791,6 +1096,7 @@ pub async fn document(
     let rules = country.and_then(|c| prev.countries.get(c));
     let mut items = Vec::new();
     let mut unmatched = Vec::new();
+    let (answers, decisions) = person_inputs(&mut *conn, profile.id).await?;
     if let Some(rules) = rules {
         let (facts, unknown) = facts(&mut *conn, profile.id, as_of, prev).await?;
         unmatched = unknown;
@@ -799,6 +1105,48 @@ pub async fn document(
             .as_deref()
             .filter(|s| ["female", "male"].contains(s));
         for row in &rules.rows {
+            if row.unless.as_ref().is_some_and(|(k, v)| answers.get(k) == Some(v)) {
+                continue;
+            }
+            let unanswered = match &row.needs {
+                None => None,
+                Some((k, v)) => match answers.get(k) {
+                    None => Some(k),
+                    Some(a) if a == v => None,
+                    Some(_) => continue,
+                },
+            };
+            // a record or document a `done` decision points at counts as a fact of the row, on its own
+            // day. A record already matched to one of the row's groups counts as that group alone;
+            // anything else counts as the row's group with the shortest interval, so it never claims
+            // longer cover than the row allows.
+            let done = decisions
+                .get(&row.id)
+                .filter(|d| d.kind == "done")
+                .and_then(|d| d.evidence.as_ref())
+                .and_then(|e| e.day.filter(|d| *d <= as_of).map(|day| (day, e.src.clone())));
+            let mut own = facts.clone();
+            if let Some((date, src)) = done {
+                // one source may hold several records, so the record is the fact of its source on its day
+                let matched = src.as_ref().is_some_and(|s| {
+                    facts
+                        .iter()
+                        .any(|f| &f.src == s && f.date == date && row.evidence.contains(&f.group))
+                });
+                let base = row.months.unwrap_or(12);
+                let shortest = row
+                    .evidence
+                    .iter()
+                    .min_by_key(|g| row.interval_for.get(*g).copied().unwrap_or(base));
+                if let (false, Some(group)) = (matched, shortest) {
+                    own.push(Fact {
+                        date,
+                        src: src.unwrap_or_default(),
+                        group: group.clone(),
+                        lab: false,
+                    });
+                }
+            }
             match (profile.birth_date, &row.sex, sex) {
                 (_, Some(want), Some(have)) if want != have => {}
                 (None, _, _) => items.push(not_assessed(row, "no_birth_date")),
@@ -807,7 +1155,14 @@ pub async fn document(
                         items.push(not_assessed(row, "no_sex"));
                     }
                 }
-                (Some(birth), _, _) => items.extend(item(row, prev, birth, as_of, &facts)),
+                (Some(birth), _, _) if unanswered.is_some() => {
+                    if item(row, prev, birth, as_of, &[]).is_some() {
+                        let mut na = not_assessed(row, "no_answer");
+                        na["answer"] = json!(unanswered);
+                        items.push(na);
+                    }
+                }
+                (Some(birth), _, _) => items.extend(item(row, prev, birth, as_of, &own)),
             }
         }
     }
@@ -842,6 +1197,10 @@ pub async fn document(
         (Some(_), None) => Some("country_not_covered"),
         _ => None,
     };
+    let row_ids: HashSet<&str> = rules
+        .map(|r| r.rows.iter().map(|row| row.id.as_str()).collect())
+        .unwrap_or_default();
+    let (items, hidden) = apply_decisions(items, &decisions, &row_ids, as_of);
     let mut doc = drop_nulls(json!({
         "schema": SCHEMA,
         "profile": profile.slug,
@@ -850,6 +1209,9 @@ pub async fn document(
         "country": country,
         "reason_code": reason,
         "items": items,
+        // what the person's decisions hide; the key is absent when nothing is, so a profile without
+        // decisions keeps the document (and its hash) it had before decisions existed
+        "hidden": if hidden.is_empty() { Value::Null } else { json!(hidden) },
         "unmatched": unmatched,
     }));
     let hash = prevention_hash(&doc)?;
@@ -898,10 +1260,10 @@ fn pick(v: Option<&Value>, lang: &str) -> Option<String> {
         .map(str::to_string)
 }
 
-/// The document in one language for one caller: every item gains `title` and `why` (or `reason`
-/// for not_assessed), and a guideline row `record` {kind, text} for a form that records it. Items
-/// the scopes do not cover are left out, counted in `withheld`, and the scopes they need are named
-/// in `withheld_scopes`.
+/// The document in one language for one caller: every item (shown or `hidden`) gains `title` and
+/// `why` (or `reason` for not_assessed), and a guideline row `record` {kind, text} for a form that
+/// records it. Items the scopes do not cover are left out, counted in `withheld`, and the scopes they
+/// need are named in `withheld_scopes`. Without read:records `prevention_hash` is left out too.
 pub fn render(doc: &Value, pack: &Pack, lang: &str, scopes: &Scopes) -> Result<Value> {
     let prev = load(pack)?;
     let lang = if lang == "es" { "es" } else { "en" };
@@ -919,91 +1281,109 @@ pub fn render(doc: &Value, pack: &Pack, lang: &str, scopes: &Scopes) -> Result<V
         }
         pick(Some(v), lang)
     };
-    let mut items = Vec::new();
     let mut withheld = 0;
     let mut lacking: Vec<&str> = Vec::new();
-    for it in doc.get("items").and_then(Value::as_array).into_iter().flatten() {
-        if !visible(it, scopes) {
-            withheld += 1;
-            for s in needs(it, scopes) {
-                if !lacking.contains(&s) {
-                    lacking.push(s);
+    let mut whole = doc.as_object().cloned().unwrap_or_default();
+    for list in ["items", "hidden"] {
+        let mut items = Vec::new();
+        for it in doc.get(list).and_then(Value::as_array).into_iter().flatten() {
+            if !visible(it, scopes) {
+                withheld += 1;
+                for s in needs(it, scopes) {
+                    if !lacking.contains(&s) {
+                        lacking.push(s);
+                    }
                 }
+                continue;
             }
-            continue;
-        }
-        let mut out = it.as_object().cloned().unwrap_or_default();
-        let rule = it.get("rule").map(text).unwrap_or_default();
-        let (title, why) = if let Some(row) = rows.get(rule.as_str()) {
-            let open = row.to.is_none();
-            let key = match row.kind.as_str() {
-                "every_n_months" | "once" if open => format!("{}_open", row.kind),
-                k => k.to_string(),
+            let mut out = it.as_object().cloned().unwrap_or_default();
+            let rule = it.get("rule").map(text).unwrap_or_default();
+            let (title, why) = if let Some(row) = rows.get(rule.as_str()) {
+                let open = row.to.is_none();
+                let key = match row.kind.as_str() {
+                    "every_n_months" | "once" if open => format!("{}_open", row.kind),
+                    k => k.to_string(),
+                };
+                let months = row.months.unwrap_or(0).to_string();
+                let why = t(&["why", &key]).map(|w| {
+                    fill(
+                        &w,
+                        &[
+                            ("months", months),
+                            ("from", row.from.to_string()),
+                            ("to", row.to.map(|n| n.to_string()).unwrap_or_default()),
+                            ("doses", row.doses.unwrap_or(1).to_string()),
+                        ],
+                    )
+                });
+                // what the Due screen's "record it" form fills in: the record kind and a name the
+                // evidence join matches, so the new record counts for this row
+                if let Some(g) = row.evidence.first().and_then(|g| prev.groups.get(g)) {
+                    let kind = if g.vaccine { "immunization" } else { "procedure" };
+                    out.insert(
+                        "record".into(),
+                        json!({"kind": kind, "text": pick(Some(&g.name), lang)}),
+                    );
+                }
+                (pick(Some(&row.name), lang), why)
+            } else {
+                let group = it.get("group").map(text).unwrap_or_default();
+                let why = if it.get("kind").and_then(Value::as_str) == Some("never_measured") {
+                    pack.text("due.never", lang, &[("rule", crate::pack::P::from(&rule))])?
+                } else {
+                    pack.text(
+                        "due.stale",
+                        lang,
+                        &[
+                            ("rule", crate::pack::P::from(&rule)),
+                            (
+                                "window_months",
+                                crate::pack::P::I(crate::rendering::window_months(pack, &rule)),
+                            ),
+                        ],
+                    )?
+                };
+                (Some(pack.name(&group, lang)), Some(why))
             };
-            let months = row.months.unwrap_or(0).to_string();
-            let why = t(&["why", &key]).map(|w| {
-                fill(
-                    &w,
-                    &[
-                        ("months", months),
-                        ("from", row.from.to_string()),
-                        ("to", row.to.map(|n| n.to_string()).unwrap_or_default()),
-                        ("doses", row.doses.unwrap_or(1).to_string()),
-                    ],
-                )
-            });
-            // what the Due screen's "record it" form fills in: the record kind and a name the
-            // evidence join matches, so the new record counts for this row
-            if let Some(g) = row.evidence.first().and_then(|g| prev.groups.get(g)) {
-                let kind = if g.vaccine { "immunization" } else { "procedure" };
+            out.insert("title".into(), json!(title));
+            out.insert("why".into(), json!(why));
+            if let Some(code) = it.get("reason_code").and_then(Value::as_str) {
+                let question = it
+                    .get("answer")
+                    .and_then(Value::as_str)
+                    .and_then(|k| question(prev, k, lang))
+                    .unwrap_or_default();
                 out.insert(
-                    "record".into(),
-                    json!({"kind": kind, "text": pick(Some(&g.name), lang)}),
+                    "reason".into(),
+                    json!(t(&["reasons", code]).map(|r| fill(&r, &[("question", question)]))),
                 );
             }
-            (pick(Some(&row.name), lang), why)
-        } else {
-            let group = it.get("group").map(text).unwrap_or_default();
-            let why = if it.get("kind").and_then(Value::as_str) == Some("never_measured") {
-                pack.text("due.never", lang, &[("rule", crate::pack::P::from(&rule))])?
-            } else {
-                pack.text(
-                    "due.stale",
-                    lang,
-                    &[
-                        ("rule", crate::pack::P::from(&rule)),
-                        (
-                            "window_months",
-                            crate::pack::P::I(crate::rendering::window_months(pack, &rule)),
-                        ),
-                    ],
-                )?
-            };
-            (Some(pack.name(&group, lang)), Some(why))
-        };
-        out.insert("title".into(), json!(title));
-        out.insert("why".into(), json!(why));
-        if let Some(code) = it.get("reason_code").and_then(Value::as_str) {
-            out.insert("reason".into(), json!(t(&["reasons", code])));
+            items.push(Value::Object(out));
         }
-        items.push(Value::Object(out));
+        if list == "items" || !items.is_empty() {
+            whole.insert(list.into(), Value::Array(items));
+        } else {
+            whole.shift_remove(list);
+        }
     }
-    let mut out = doc.as_object().cloned().unwrap_or_default();
-    out.insert("items".into(), Value::Array(items));
-    out.insert("lang".into(), json!(lang));
+    whole.insert("lang".into(), json!(lang));
     if let Some(code) = doc.get("reason_code").and_then(Value::as_str) {
-        out.insert("reason".into(), json!(t(&["reasons", code])));
+        whole.insert("reason".into(), json!(t(&["reasons", code])));
     }
     if let Some(d) = rules.and_then(|r| r.disclaimer.as_ref()) {
-        out.insert("disclaimer".into(), json!(pick(Some(d), lang)));
+        whole.insert("disclaimer".into(), json!(pick(Some(d), lang)));
     }
+    // the hash covers immunizations, procedures, encounters and the person's decisions and answers,
+    // which the state body does not hold: without read:records the same hash twice would still say
+    // whether one of them changed. (A lab change shows in the state_hash every token gets already.)
     if !scopes.contains("read:records") {
-        out.shift_remove("unmatched");
+        whole.shift_remove("unmatched");
+        whole.shift_remove("prevention_hash");
     }
-    out.insert("withheld".into(), json!(withheld));
+    whole.insert("withheld".into(), json!(withheld));
     lacking.sort_unstable();
-    out.insert("withheld_scopes".into(), json!(lacking));
-    Ok(Value::Object(out))
+    whole.insert("withheld_scopes".into(), json!(lacking));
+    Ok(Value::Object(whole))
 }
 
 /// How many items the `due` section of get_health_status lists; the rest are counted in `due_total`.
@@ -1016,8 +1396,9 @@ const OPEN: [&str; 3] = ["overdue", "due", "upcoming"];
 /// document's hash. An item due or overdue that was never recorded has no `due`: its date is where
 /// the age window opened, not a deadline. Rule ids, no URLs: the cites stay in the document. The lab gaps are left out, because the
 /// status lists them already under never_measured and stale; an item a lab value shows needs
-/// read:labs. None when nothing is open (the status page has 2 KB and spends none of it on an empty
-/// list) or the profile is not in the store.
+/// read:labs. Open items the person's decisions hide are left out and counted in `due_hidden`. None
+/// when nothing is open or hidden (the status page has 2 KB and spends none of it on an empty list)
+/// or the profile is not in the store.
 pub async fn status_section(
     conn: &mut PgConnection,
     profile_id: uuid::Uuid,
@@ -1030,13 +1411,19 @@ pub async fn status_section(
         return Ok(None);
     };
     let doc = document(conn, &profile, as_of, body, pack).await?;
-    let open: Vec<&Value> = doc["items"]
-        .as_array()
-        .into_iter()
-        .flatten()
-        .filter(|i| i["area"] != "lab" && visible(i, scopes))
-        .filter(|i| i["status"].as_str().is_some_and(|s| OPEN.contains(&s)))
-        .collect();
+    let open_in = |list: &str| -> Vec<Value> {
+        doc[list]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter(|i| i["area"] != "lab" && visible(i, scopes))
+            .filter(|i| i["status"].as_str().is_some_and(|s| OPEN.contains(&s)))
+            .cloned()
+            .collect()
+    };
+    let open = open_in("items");
+    // open items the person's decisions hide (snoozed, dismissed, done): counted, never listed
+    let hidden = open_in("hidden").len();
     let items: Vec<Value> = open
         .iter()
         .take(STATUS_TOP)
@@ -1058,14 +1445,19 @@ pub async fn status_section(
             Value::Object(m)
         })
         .collect();
-    if open.is_empty() {
+    if open.is_empty() && hidden == 0 {
         return Ok(None);
     }
     // the scalars first and named for the section, so the text form does not read them as fields
     // of the whole status
-    Ok(Some(json!({
-        "due_total": open.len(),
-        "prevention_hash": doc["prevention_hash"],
-        "items": items,
-    })))
+    let mut section = Map::new();
+    section.insert("due_total".into(), json!(open.len()));
+    if hidden > 0 {
+        section.insert("due_hidden".into(), json!(hidden));
+    }
+    section.insert("prevention_hash".into(), doc["prevention_hash"].clone());
+    if !items.is_empty() {
+        section.insert("items".into(), json!(items));
+    }
+    Ok(Some(Value::Object(section)))
 }

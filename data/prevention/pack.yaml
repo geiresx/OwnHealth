@@ -3,13 +3,16 @@
 # document computed on read and never stored. Lab-type screening that the rule pack already owns
 # (data/rules/pack/screening.yaml and its recency rules) stays there: a row here may only name it by
 # rule id (`pack_rule`), never evaluate the same analyte again.
-version: "prevention 0.1.0"
+version: "prevention 0.2.0"
 # Days ahead of a due date that an item reads as upcoming.
 upcoming_days: 90
 statuses: [overdue, due, upcoming, up_to_date, not_assessed]
 kinds: [once, every_n_months, series, seasonal]
-# The closed list of answers a person may give about themselves (stored from slice 17 on).
-answer_keys: [smoking_history, hysterectomy, pregnant]
+# The closed list of answers a person may give about themselves, each "yes" or "no" (table
+# prevention_answer). A country row uses one with `needs` (the row applies only with that answer, and
+# is not_assessed until there is one) or `unless` (the row does not apply with that answer). Each key
+# has its question in templates.yaml `answers`.
+answer_keys: [smoking_history, hysterectomy]
 # One rule file per country (ISO 3166-1 alpha-2). A profile in any other country gets the rule
 # pack's lab items only, with the reason `country_not_covered`.
 countries:

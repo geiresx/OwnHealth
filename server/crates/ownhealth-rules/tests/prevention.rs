@@ -143,7 +143,7 @@ async fn goldens_for_the_riveras_and_a_us_profile() -> R {
     assert_eq!(item(jordan, "us.cancer.breast")["due"], "2027-01-15");
     assert_eq!(item(jordan, "us.vac.td")["status"], "overdue");
     assert_eq!(jordan["unmatched"][0]["name"], "Yellow fever");
-    assert_eq!(jordan["rules"], "us.yaml prevention-us 0.1.0");
+    assert_eq!(jordan["rules"], "us.yaml prevention-us 0.2.0");
     tx.rollback().await?;
     Ok(())
 }
@@ -323,7 +323,7 @@ fn the_shipped_files_load_and_every_row_is_cited() -> R {
 fn the_loader_refuses_each_broken_file() -> R {
     let pack = load_pack()?;
     let cite = "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/breast-cancer-screening";
-    let cases: [(&str, &str, &str, String, &str); 13] = [
+    let cases: [(&str, &str, &str, String, &str); 16] = [
         (
             "http cite",
             "us.yaml",
@@ -408,6 +408,27 @@ fn the_loader_refuses_each_broken_file() -> R {
             "interval_for: {colonoscopy: 180}",
             "interval_for: {hpv_test: 180}".into(),
             "interval_for",
+        ),
+        (
+            "a row that needs an answer nobody can give",
+            "us.yaml",
+            "needs: {smoking_history: \"yes\"}",
+            "needs: {pack_years: \"yes\"}".into(),
+            "not one of the answer_keys",
+        ),
+        (
+            "an answer that is not yes or no",
+            "es.yaml",
+            "unless: {hysterectomy: \"yes\"}",
+            "unless: {hysterectomy: \"maybe\"}".into(),
+            "is \"yes\" or \"no\"",
+        ),
+        (
+            "an answer key with no question",
+            "templates.yaml",
+            "  hysterectomy:\n    question:",
+            "  hysterectomy_old:\n    question:".into(),
+            "answer hysterectomy has no question",
         ),
     ];
     for (what, file, from, to, reason) in cases {
@@ -740,6 +761,294 @@ async fn a_pack_rule_named_by_a_country_row_carries_its_cite() -> R {
     // a Spanish profile keeps the pack's own cite
     let alex = build_document(&mut tx, s.pid("alex"), as_of()).await?;
     assert!(item(&alex, "infect.hcv.once_adult").get("source").is_none());
+    tx.rollback().await?;
+    Ok(())
+}
+
+/// The hash covers immunizations, procedures, encounters and the person's decisions and answers,
+/// which the state body does not hold. A caller without read:records sees none of them, so it gets
+/// no hash either: the same hash before and after would tell it whether such a record changed.
+#[tokio::test]
+async fn a_caller_without_read_records_gets_no_prevention_hash() -> R {
+    let s = seeded().await?;
+    let mut tx = s.pool().begin().await?;
+    let pack = load_pack()?;
+    let doc = build_document(&mut tx, s.pid("alex"), as_of()).await?;
+    let summary = prevention::render(&doc, &pack, "en", &scope_set(["read:summary"]))?;
+    assert!(summary.get("prevention_hash").is_none(), "{summary}");
+    let mut no_labs = all_scopes();
+    no_labs.remove("read:labs");
+    let r = prevention::render(&doc, &pack, "en", &no_labs)?;
+    assert_eq!(r["prevention_hash"], doc["prevention_hash"]);
+    tx.rollback().await?;
+    Ok(())
+}
+
+/// A seasonal row whose start age is a few weeks away, off season and with no dose on record, claims
+/// nothing: it is not up to date, because up to date needs a dose.
+#[tokio::test]
+async fn an_off_season_row_before_its_start_age_claims_nothing_without_a_dose() -> R {
+    let s = seeded().await?;
+    let mut tx = s.pool().begin().await?;
+    let household: Uuid = sqlx::query_scalar("select household_id from profile where id = $1")
+        .bind(s.pid("alex"))
+        .fetch_one(&mut *tx)
+        .await?;
+    let pid = create_profile(
+        &mut tx,
+        &ProfileIn {
+            household_id: household,
+            slug: "riley".into(),
+            display_name: "Riley Test".into(),
+            relationship: Some("other".into()),
+            birth_date: chrono::NaiveDate::from_ymd_opt(2008, 6, 1),
+            sex_at_birth: Some("male".into()),
+            country: Some("US".into()),
+            ..ProfileIn::default()
+        },
+    )
+    .await?;
+    // 19 on 2027-06-01, 47 days after this date; the season opens on 09-01
+    let doc = build_document(&mut tx, pid, day("2027-04-15")).await?;
+    let flu = item(&doc, "us.vac.influenza");
+    assert!(flu.is_null(), "{flu}");
+    tx.rollback().await?;
+    Ok(())
+}
+
+/// A procedure on `on` and a current `done` decision about `key` that points at it.
+async fn done_with(tx: &mut PgConnection, pid: Uuid, key: &str, on: chrono::NaiveDate) -> R {
+    done_with_named(tx, pid, key, "Blood draw, private clinic", on).await
+}
+
+/// A procedure named `text` on `on` and a current `done` decision about `key` that points at it.
+async fn done_with_named(tx: &mut PgConnection, pid: Uuid, key: &str, text: &str, on: chrono::NaiveDate) -> R {
+    let src = record(
+        tx,
+        "procedure",
+        json!({"profile_id": pid, "text": text, "performed": on.to_string()}),
+    )
+    .await?;
+    let id: Uuid = sqlx::query_scalar("select id from procedure where src_id = $1")
+        .bind(&src)
+        .fetch_one(&mut *tx)
+        .await?;
+    decide_done(tx, pid, key, Some(id), None).await
+}
+
+/// A current `done` decision about `key` that points at a record (a procedure) or a document.
+async fn decide_done(tx: &mut PgConnection, pid: Uuid, key: &str, record: Option<Uuid>, doc: Option<Uuid>) -> R {
+    sqlx::query(
+        "update prevention_decision set status = 'superseded', superseded_at = clock_timestamp() \
+         where profile_id = $1 and item_key = $2 and status = 'current'",
+    )
+    .bind(pid)
+    .bind(key)
+    .execute(&mut *tx)
+    .await?;
+    sqlx::query(
+        "insert into prevention_decision (profile_id, item_key, kind, evidence_table, evidence_id, document_id) \
+         values ($1, $2, 'done', $3, $4, $5)",
+    )
+    .bind(pid)
+    .bind(key)
+    .bind(record.map(|_| "procedure"))
+    .bind(record)
+    .bind(doc)
+    .execute(&mut *tx)
+    .await?;
+    Ok(())
+}
+
+/// A done decision on the cervical HPV row whose evidence is a cytology the record already counts
+/// keeps the cytology's 36-month interval; a document, which names no group, gets the row's
+/// shortest interval, never the HPV test's 60 months.
+#[tokio::test]
+async fn done_on_a_cytology_keeps_its_own_interval() -> R {
+    let s = seeded().await?;
+    let mut tx = s.pool().begin().await?;
+    let jordan = us_profile(&s, &mut tx).await?;
+    let key = "us.cancer.cervix_hpv";
+    done_with_named(&mut tx, jordan, key, "Pap test", day("2026-01-01")).await?;
+    let doc = build_document(&mut tx, jordan, as_of()).await?;
+    assert_eq!(item(&doc, key)["due"], "2029-01-01", "{doc}");
+
+    let file: Uuid = sqlx::query_scalar(
+        "insert into document (household_id, profile_id, blob_sha256, mime, size_bytes, collected_at) \
+         select household_id, id, decode(repeat('cd', 32), 'hex'), 'application/pdf', 1, '2026-02-01' \
+         from profile where id = $1 returning id",
+    )
+    .bind(jordan)
+    .fetch_one(&mut *tx)
+    .await?;
+    decide_done(&mut tx, jordan, key, None, Some(file)).await?;
+    let doc = build_document(&mut tx, jordan, as_of()).await?;
+    assert_eq!(item(&doc, key)["due"], "2029-02-01", "{doc}");
+    tx.rollback().await?;
+    Ok(())
+}
+
+/// A series counts its doses in date order, so a done decision that proves an earlier dose than
+/// the one on record completes it when the two are the gap apart.
+#[tokio::test]
+async fn done_with_an_earlier_dose_completes_a_series() -> R {
+    let s = seeded().await?;
+    let mut tx = s.pool().begin().await?;
+    let carmen = s.pid("carmen");
+    let key = "es.vac.zoster";
+    record(
+        &mut tx,
+        "immunization",
+        json!({"profile_id": carmen, "vaccine": "Shingrix", "occurred": "2026-11-01"}),
+    )
+    .await?;
+    let file: Uuid = sqlx::query_scalar(
+        "insert into document (household_id, profile_id, blob_sha256, mime, size_bytes, collected_at) \
+         select household_id, id, decode(repeat('ef', 32), 'hex'), 'application/pdf', 1, '2026-09-01' \
+         from profile where id = $1 returning id",
+    )
+    .bind(carmen)
+    .fetch_one(&mut *tx)
+    .await?;
+    decide_done(&mut tx, carmen, key, None, Some(file)).await?;
+    let doc = build_document(&mut tx, carmen, as_of()).await?;
+    assert_eq!(item(&doc, key)["status"], "up_to_date", "{doc}");
+    tx.rollback().await?;
+    Ok(())
+}
+
+/// One source may hold several records. A done decision that points at a record the rules do not
+/// match still counts on its own day when another record of the same source counts on another day.
+#[tokio::test]
+async fn done_on_a_record_that_shares_its_source_still_counts() -> R {
+    let s = seeded().await?;
+    let mut tx = s.pool().begin().await?;
+    let carmen = s.pid("carmen");
+    let key = "es.vac.zoster";
+    let src = record(
+        &mut tx,
+        "immunization",
+        json!({"profile_id": carmen, "vaccine": "Shingrix", "occurred": "2026-09-01"}),
+    )
+    .await?;
+    let body = json!({"profile_id": carmen, "text": "Vaccination visit", "performed": "2026-11-01"});
+    let done = add_record(
+        &mut tx,
+        &RecordIn::from_json("procedure", body)?,
+        &SrcRef::Id(src),
+        RecordOptions::new("person"),
+    )
+    .await?;
+    let id: Uuid = sqlx::query_scalar("select id from procedure where src_id = $1 and performed = '2026-11-01'")
+        .bind(&done.src_id)
+        .fetch_one(&mut *tx)
+        .await?;
+    decide_done(&mut tx, carmen, key, Some(id), None).await?;
+    let doc = build_document(&mut tx, carmen, as_of()).await?;
+    assert_eq!(item(&doc, key)["status"], "up_to_date", "{doc}");
+    tx.rollback().await?;
+    Ok(())
+}
+
+/// The name the Due screen fills in to record a group is one its own aliases match, in every
+/// language, so the record it saves counts.
+#[test]
+fn every_group_name_matches_its_own_aliases() -> R {
+    let pack = load_pack()?;
+    let p = load_dir(Path::new(DATA), &pack)?;
+    let mut misses = Vec::new();
+    for g in p.groups.values() {
+        for (lang, name) in g.name.as_object().into_iter().flatten() {
+            let w = prevention::words(name.as_str().unwrap_or_default());
+            let hit =
+                |list: &Vec<Vec<String>>| list.iter().any(|a| !a.is_empty() && w.windows(a.len()).any(|x| x == a));
+            if !hit(&g.aliases) || hit(&g.aliases_not) {
+                misses.push(format!("{} {lang}: {name}", g.id));
+            }
+        }
+    }
+    assert!(misses.is_empty(), "{misses:?}");
+    Ok(())
+}
+
+/// Lung screening counts only a low-dose CT of the chest: a low-dose CT of another part of the body,
+/// such as one for kidney stones, says nothing about the lungs.
+#[test]
+fn only_a_chest_low_dose_ct_counts_for_lung_screening() -> R {
+    let pack = load_pack()?;
+    let p = load_dir(Path::new(DATA), &pack)?;
+    let g = &p.groups["ldct_chest"];
+    let hit = |name: &str| {
+        let w = prevention::words(name);
+        let any = |list: &Vec<Vec<String>>| list.iter().any(|a| !a.is_empty() && w.windows(a.len()).any(|x| x == a));
+        any(&g.aliases) && !any(&g.aliases_not)
+    };
+    for yes in [
+        "Low-dose CT chest",
+        "LDCT lung screening",
+        "Low dose chest CT",
+        "TAC de tórax de baja dosis",
+        "CT chest low dose",
+        "Chest CT low dose",
+    ] {
+        assert!(hit(yes), "{yes}");
+    }
+    for no in [
+        "Low-dose CT abdomen",
+        "LDCT abdomen",
+        "Low dose CT kidney stones",
+        "TC de baja dosis abdominal",
+        "Low dose computed tomography of the sinuses",
+    ] {
+        assert!(!hit(no), "{no}");
+    }
+    Ok(())
+}
+
+/// A retest marked done is hidden while its evidence covers it: from a day no older than the last
+/// value the item reports, for the rule's window. Then the next retest is due again, shown as if
+/// nothing had been decided; evidence older than the last value covers nothing.
+#[tokio::test]
+async fn done_on_a_retest_lasts_one_window_from_its_evidence() -> R {
+    let s = seeded().await?;
+    let mut tx = s.pool().begin().await?;
+    let alex = s.pid("alex");
+    let key = "stale:recency.thyroid:tsh";
+    let before = build_document(&mut tx, alex, as_of()).await?;
+    let stale = item(&before, key).clone();
+    let (last, due) = (
+        day(stale["last"]["date"].as_str().unwrap_or_default()),
+        day(stale["due"].as_str().unwrap_or_default()),
+    );
+    let window = due - last;
+    let listed = |doc: &Value, list: &str| {
+        doc[list]
+            .as_array()
+            .and_then(|a| a.iter().find(|i| i["key"] == key))
+            .cloned()
+    };
+
+    done_with(&mut tx, alex, key, last - chrono::Duration::days(1)).await?;
+    let doc = build_document(&mut tx, alex, as_of()).await?;
+    let shown = listed(&doc, "items").expect("older evidence covers nothing");
+    assert!(shown.get("decision").is_none(), "{shown}");
+
+    let on = as_of() - chrono::Duration::days(3);
+    done_with(&mut tx, alex, key, on).await?;
+    for d in [as_of(), on + window] {
+        let doc = build_document(&mut tx, alex, d).await?;
+        assert!(listed(&doc, "items").is_none(), "{d}: still listed");
+        assert_eq!(
+            listed(&doc, "hidden").map(|h| h["decision"]["kind"].clone()),
+            Some(json!("done")),
+            "{d}"
+        );
+    }
+    let later = on + window + chrono::Duration::days(1);
+    let doc = build_document(&mut tx, alex, later).await?;
+    let back = listed(&doc, "items").expect("due again once the window has run");
+    assert!(back.get("decision").is_none(), "{back}");
+    assert!(listed(&doc, "hidden").is_none(), "{doc}");
     tx.rollback().await?;
     Ok(())
 }

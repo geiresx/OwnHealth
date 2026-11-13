@@ -1,7 +1,7 @@
 // Endpoints the "health" pages read (lane H owns this file): dashboard, biomarkers, timeline (genome and drug check: manage.ts).
 // Backends: lane E (status.py, drug_check.py), lane A (observations.py), lane H (timeline.py), lane D (genome.py).
-import { get, p } from './core';
-import type { DueDoc } from '../logic/due';
+import { del, get, p, post, request } from './core';
+import type { DueAnswer, DueDecisionIn, DueDoc } from '../logic/due';
 import type { Calculators, Dashboard, ObservationOut, Status, Timeline, Trend, TrendPoint } from './types';
 
 export type Units = 'si' | 'conventional' | 'as_reported';
@@ -28,3 +28,11 @@ export type TrendPointStatus = TrendPoint & { status?: Status };
 // v0.3 calculators: eGFR (CKD-EPI 2021), FIB-4, HOMA-IR, computed on read (read:labs).
 export const getCalculators = (profile: string, lang: string, asOf?: string) =>
 	get<Calculators>(`${p(profile)}/calculators`, { lang, as_of: asOf });
+
+// v0.3 Due actions: a decision about one item, its undo, and the answers some rows need.
+const dueKey = (profile: string, key: string) => `${p(profile)}/due/${encodeURIComponent(key)}/decision`;
+export const decideDue = (profile: string, key: string, body: DueDecisionIn) => post<{ id: string; item_key: string; kind: string }>(dueKey(profile, key), body);
+export const undoDue = (profile: string, key: string) => del<{ item_key: string; retracted: string }>(dueKey(profile, key));
+export const getDueAnswers = (profile: string, lang: string) => get<{ items: DueAnswer[] }>(`${p(profile)}/prevention-answers`, { lang });
+export const putDueAnswers = (profile: string, answers: Record<string, 'yes' | 'no' | null>, lang: string) =>
+	request<{ items: DueAnswer[] }>('PUT', `${p(profile)}/prevention-answers`, { query: { lang }, body: answers });

@@ -2,7 +2,7 @@
 # immunization schedule. Rows are for adults. Hepatitis C screening is the rule pack's
 # infect.hcv.once_adult (data/rules/pack/screening.yaml): this file names it by rule id and never
 # evaluates it a second time.
-version: "prevention-us 0.1.0"
+version: "prevention-us 0.2.0"
 reviewer: "OwnHealth maintainers (not clinicians)"
 reviewed: 2026-11-11
 disclaimer:
@@ -36,6 +36,7 @@ rows:
     ages: [21, 29]
     months: 36
     evidence: [cervical_cytology]
+    unless: {hysterectomy: "yes"}
     source: USPSTF 2018 (A)
     cite: https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/cervical-cancer-screening
     name: {en: "Cervical cancer screening (cytology)", es: "Cribado de cáncer de cuello de útero (citología)"}
@@ -46,10 +47,21 @@ rows:
     ages: [30, 65]
     months: 60
     evidence: [hpv_test, cervical_cytology]
+    unless: {hysterectomy: "yes"}
     interval_for: {cervical_cytology: 36}
     source: USPSTF 2018 (A)
     cite: https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/cervical-cancer-screening
     name: {en: "Cervical cancer screening (HPV test)", es: "Cribado de cáncer de cuello de útero (prueba del VPH)"}
+  - id: us.cancer.lung
+    kind: every_n_months
+    area: screening
+    ages: [50, 80]
+    months: 12
+    evidence: [ldct_chest]
+    needs: {smoking_history: "yes"}
+    source: USPSTF 2021 (B)
+    cite: https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/lung-cancer-screening
+    name: {en: "Lung cancer screening (low-dose CT)", es: "Cribado de cáncer de pulmón (TC de baja dosis)"}
   - id: us.infect.hcv
     pack_rule: infect.hcv.once_adult
     source: USPSTF 2020 (B)

@@ -1,6 +1,6 @@
 # The words the Due screen shows beside each row, in both languages. Information only: each sentence
 # says what the guideline lists, never what the person ought to do.
-version: "prevention-templates 0.1.0"
+version: "prevention-templates 0.2.0"
 why:
   every_n_months:
     en: "The guideline lists it every {months} months between ages {from} and {to}."
@@ -24,6 +24,9 @@ reasons:
   no_birth_date:
     en: "The profile has no birth date, so the rows by age cannot be checked."
     es: "El perfil no tiene fecha de nacimiento, así que las filas por edad no se pueden comprobar."
+  no_answer:
+    en: "This row depends on an answer the profile does not hold yet: {question}."
+    es: "Esta fila depende de una respuesta que el perfil aún no tiene: {question}."
   no_sex:
     en: "The profile has no sex at birth, so this row cannot be checked."
     es: "El perfil no tiene sexo al nacer, así que esta fila no se puede comprobar."
@@ -33,3 +36,13 @@ reasons:
   no_country:
     en: "The profile has no country, so no prevention list applies yet. Only the lab gaps of the rule pack show."
     es: "El perfil no tiene país, así que aún no se aplica ninguna lista de prevención. Solo se muestran los huecos de analíticas del paquete de reglas."
+# The questions of pack.yaml `answer_keys`, as the Settings card and a not_assessed row show them.
+answers:
+  smoking_history:
+    question:
+      en: "A smoking history of 20 pack-years or more, with smoking now or stopped within the last 15 years (one pack a day for one year is one pack-year)"
+      es: "Un historial de tabaquismo de 20 paquetes-año o más, con consumo actual o abandonado en los últimos 15 años (un paquete al día durante un año es un paquete-año)"
+  hysterectomy:
+    question:
+      en: "A hysterectomy that removed the cervix, not done for cervical cancer or a high-grade precancer"
+      es: "Una histerectomía con extirpación del cuello del útero, no realizada por cáncer de cuello de útero ni por una lesión precancerosa de alto grado"

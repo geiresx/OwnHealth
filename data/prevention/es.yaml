@@ -6,8 +6,10 @@
 # inclusive, null for no end); sex female | male when the row is for one sex; evidence: the groups that
 # count as done (evidence.yaml or vaccines.tsv); months: the interval of every_n_months, with
 # interval_for giving another interval to one evidence group; count_from: an age before which a dose
-# does not count for this row; doses and gap_days for a series; season_start (MM-DD) for seasonal.
-version: "prevention-es 0.1.0"
+# does not count for this row; doses and gap_days for a series; season_start (MM-DD) for seasonal;
+# needs / unless: one {answer_key: "yes" | "no"} of pack.yaml, when an answer of the person decides
+# whether the row applies.
+version: "prevention-es 0.2.0"
 reviewer: "OwnHealth maintainers (not clinicians)"
 reviewed: 2026-11-11
 calendar_updated: 2025-12-12
@@ -39,6 +41,7 @@ rows:
     ages: [25, 34]
     months: 36
     evidence: [cervical_cytology]
+    unless: {hysterectomy: "yes"}
     source: PAPPS 2024
     cite: https://www.elsevier.es/es-revista-atencion-primaria-27-articulo-recomendaciones-prevencion-del-cancer-actualizacion-S0212656724002701
     name: {en: "Cervical cancer screening (cytology)", es: "Cribado de cáncer de cuello de útero (citología)"}
@@ -49,6 +52,7 @@ rows:
     ages: [35, 65]
     months: 60
     evidence: [hpv_test, cervical_cytology]
+    unless: {hysterectomy: "yes"}
     interval_for: {cervical_cytology: 36}
     source: PAPPS 2024
     cite: https://www.elsevier.es/es-revista-atencion-primaria-27-articulo-recomendaciones-prevencion-del-cancer-actualizacion-S0212656724002701

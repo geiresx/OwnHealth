@@ -2,7 +2,7 @@
 // with nothing shown twice.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { dueCard, dueColor, dueScreenOpen, isOpen, lockedScopes, partialScopes, type DueItem, type GlanceDue } from '../src/lib/logic/due.ts';
+import { dueCard, dueCardView, dueColor, dueScreenOpen, isOpen, lockedScopes, partialScopes, type DueItem, type GlanceDue } from '../src/lib/logic/due.ts';
 
 const item = (key: string, status: DueItem['status'], extra: Partial<DueItem> = {}): DueItem => ({
 	key,
@@ -79,4 +79,20 @@ test('the Due card links to the Due screen only when the caller can read what it
 	assert.equal(dueScreenOpen(['read:labs']), true);
 	assert.equal(dueScreenOpen(['read:records']), false);
 	assert.equal(dueScreenOpen(['read:labs', 'read:records']), false);
+});
+
+// The dashboard's Due card lists six rows. With the Due screen open to the caller the rest are a
+// link away; without read:records there is no screen, so the card itself reveals them.
+test('the Due card reveals its hidden rows when the Due screen is closed to the caller', () => {
+	const rows = Array.from({ length: 8 }, (_, n) => ({ key: `k${n}`, title: `t${n}`, why: '', color: 'watch', word: 'due', area: 'lab', phase: null }));
+	assert.deepEqual(
+		[dueCardView(rows, 6, true, false)].map((v) => [v.rows.length, v.more, v.action]),
+		[[6, 2, 'link']]
+	);
+	const shut = dueCardView(rows, 6, false, false);
+	assert.deepEqual([shut.rows.length, shut.more, shut.action], [6, 2, 'expand']);
+	const all = dueCardView(rows, 6, false, true);
+	assert.deepEqual([all.rows.length, all.more, all.action], [8, 0, 'collapse']);
+	const few = dueCardView(rows.slice(0, 4), 6, false, false);
+	assert.deepEqual([few.rows.length, few.more, few.action], [4, 0, null]);
 });
