@@ -354,6 +354,8 @@ pub async fn check_drug(
     let mut findings: Vec<(String, Finding)> = Vec::new();
     // DPWG rows of each kept finding's own drug_guidance (the genome crate keeps only this drug's)
     let mut dpwg: Vec<(String, Value)> = Vec::new();
+    // each kept finding's `stale` (v0.3): a call made against an older CPIC or PharmCAT release
+    let mut stale: HashMap<String, Value> = HashMap::new();
     let finding =
         |findings: &[(String, Finding)], gene: &str| findings.iter().find(|(g, _)| g == gene).map(|(_, f)| f.clone());
     if has_genome && !pairs.is_empty() {
@@ -369,6 +371,7 @@ pub async fn check_drug(
                             dpwg.push((g.clone(), d));
                         }
                     }
+                    stale.insert(g.clone(), raw.get("stale").cloned().unwrap_or(Value::Null));
                     findings.push((g, f));
                 }
             }
@@ -386,6 +389,7 @@ pub async fn check_drug(
                     "confidence": f.confidence,
                     "call_state": f.call_state,
                     "cpic_level": level.get(gene),
+                    "stale": stale.get(gene).cloned().unwrap_or(Value::Null),
                     "src": f.src,
                 }));
             }

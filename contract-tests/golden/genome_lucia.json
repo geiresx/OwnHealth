@@ -41,6 +41,7 @@
       "activity_score": "null",
       "call_state": "=alt",
       "category": "=pgx",
+      "chip_note": "null",
       "clinvar": "null",
       "condition": "null",
       "confidence": "string",
@@ -77,6 +78,7 @@
       },
       "n_sources": "int",
       "phenotype": "string",
+      "prs": "null",
       "related_loinc": {
         "[]": "empty"
       },
@@ -88,6 +90,15 @@
         "tool": "string"
       },
       "src": "src_id",
+      "stale": {
+        "by": {
+          "[]": "string"
+        },
+        "rerun_steps": {
+          "[]": "int"
+        },
+        "since": "date"
+      },
       "status": "=current",
       "summary": {
         "origin": "=genome_facts",
@@ -138,6 +149,88 @@
   },
   "notice": "string",
   "notice_code": "string",
+  "pgx_grid": {
+    "[]": {
+      "actionable": "bool",
+      "activity_score": "null",
+      "call_state": {
+        "|": [
+          "=alt",
+          "null"
+        ]
+      },
+      "confidence": {
+        "|": [
+          "null",
+          "string"
+        ]
+      },
+      "coverage": {
+        "reason": {
+          "|": [
+            "=not_in_coverage_map",
+            "null"
+          ]
+        },
+        "state": "string"
+      },
+      "diplotype": {
+        "|": [
+          "null",
+          "string"
+        ]
+      },
+      "evidence": {
+        "|": [
+          "=E1",
+          "null"
+        ]
+      },
+      "fact_ids": {
+        "[]": "string"
+      },
+      "gene": "string",
+      "markers": {
+        "[]": "empty"
+      },
+      "meds": {
+        "[]": "empty"
+      },
+      "phenotype": {
+        "|": [
+          "null",
+          "string"
+        ]
+      },
+      "src": {
+        "|": [
+          "null",
+          "src_id"
+        ]
+      },
+      "stale": {
+        "|": [
+          "null",
+          {
+            "by": {
+              "[]": "string"
+            },
+            "rerun_steps": {
+              "[]": "int"
+            },
+            "since": "date"
+          }
+        ]
+      },
+      "status": {
+        "|": [
+          "=found",
+          "=no_finding",
+          "=not_assessed"
+        ]
+      }
+    }
+  },
   "tiles": {
     "[]": {
       "actionable": "int",

@@ -163,6 +163,7 @@ pub async fn overview(rt: &Runtime, principal: &Principal, p: &str, min_evidence
         ..FindingsQuery::default()
     };
     let found = ownhealth_genome::list_findings_typed(&mut tx, perm.profile.id, &gate, &q).await?;
+    let pgx_grid = pgx::grid(&mut tx, &perm, &found).await?;
     let mut locked_rows: Vec<Value> = Vec::new();
     if surface(principal) == "ui" && !gate.minor {
         for r in visible_rows(&mut tx, perm.profile.id, None).await? {
@@ -208,6 +209,7 @@ pub async fn overview(rt: &Runtime, principal: &Principal, p: &str, min_evidence
     Ok(json!({
         "dataset": dataset,
         "tiles": tiles(&found.findings, &locked_by_cat),
+        "pgx_grid": pgx_grid,
         "findings": found.findings,
         "coverage": found.coverage,
         "not_assessed": found.not_assessed,
@@ -417,3 +419,5 @@ pub fn router() -> Router<Runtime> {
 
 /// The ClinVar diff's history, a submodule router (merged in routes.rs).
 pub mod events;
+/// The PGx gene grid of the overview.
+pub mod pgx;

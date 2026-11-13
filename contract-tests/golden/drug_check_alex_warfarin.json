@@ -80,6 +80,20 @@
           "null",
           "src_id"
         ]
+      },
+      "stale": {
+        "|": [
+          "null",
+          {
+            "by": {
+              "[]": "string"
+            },
+            "rerun_steps": {
+              "[]": "int"
+            },
+            "since": "date"
+          }
+        ]
       }
     }
   },

@@ -63,7 +63,7 @@ async fn alex_clopidogrel() -> R {
     assert_eq!(
         out["pgx"],
         json!([{"gene": "CYP2C19", "diplotype": "*1/*2", "phenotype": "Intermediate Metabolizer", "activity_score": null,
-                "evidence": "E1", "confidence": "high", "call_state": "alt", "cpic_level": "A", "src": "src_g07"}])
+                "evidence": "E1", "confidence": "high", "call_state": "alt", "cpic_level": "A", "stale": null, "src": "src_g07"}])
     );
     let acs = find(&out, "population", "CVI ACS PCI");
     assert_eq!(acs["quote"], CLOPIDOGREL_IM_ACS);

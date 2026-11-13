@@ -44,6 +44,7 @@
             "=risk_marker"
           ]
         },
+        "chip_note": "null",
         "clinvar": {
           "|": [
             "null",
@@ -130,6 +131,7 @@
             "string"
           ]
         },
+        "prs": "null",
         "related_loinc": {
           "[]": "string"
         },
@@ -146,6 +148,20 @@
           "tool": "string"
         },
         "src": "src_id",
+        "stale": {
+          "|": [
+            "null",
+            {
+              "by": {
+                "[]": "string"
+              },
+              "rerun_steps": {
+                "[]": "int"
+              },
+              "since": "date"
+            }
+          ]
+        },
         "status": "=current",
         "summary": {
           "origin": "=genome_facts",

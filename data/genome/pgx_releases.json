@@ -1,0 +1,29 @@
+{
+ "version": "pgx_releases 2026-11-12",
+ "rows": [
+  {
+   "id": "pharmcat",
+   "latest": "3.4.0",
+   "released": "2026-07-14",
+   "cite": "https://github.com/PharmGKB/PharmCAT/releases/tag/v3.4.0"
+  },
+  {
+   "id": "owngenome.step.36",
+   "step": 36,
+   "name": "pgx-consensus",
+   "cite": "https://github.com/GeiserX/OwnGenome/blob/main/docs/36-pgx-consensus.md"
+  },
+  {
+   "id": "owngenome.step.7",
+   "step": 7,
+   "name": "pharmacogenomics",
+   "cite": "https://github.com/GeiserX/OwnGenome/blob/main/docs/07-pharmacogenomics.md"
+  },
+  {
+   "id": "owngenome.step.27",
+   "step": 27,
+   "name": "cpic-lookup",
+   "cite": "https://github.com/GeiserX/OwnGenome/blob/main/docs/27-cpic-lookup.md"
+  }
+ ]
+}

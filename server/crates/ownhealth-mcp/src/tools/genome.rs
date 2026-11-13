@@ -16,7 +16,7 @@ use crate::services::{FindingsArgs, LookupError, VariantArgs};
 
 const GENOME_LIMITATION: &str =
     "Research-grade analysis, not a clinical laboratory report. Confirm actionable findings with a clinical test.";
-const SUMMARY_FIELDS: [&str; 18] = [
+const SUMMARY_FIELDS: [&str; 21] = [
     "id",
     "category",
     "gene",
@@ -34,6 +34,9 @@ const SUMMARY_FIELDS: [&str; 18] = [
     "verification",
     "drugs",
     "text",
+    "stale",
+    "prs",
+    "chip_note",
     "src",
 ];
 /// Checked as vocabulary at import (genome/schema.py).

@@ -727,3 +727,36 @@ pub async fn seed_genome(
     let summary = import(conn, blobs, r.id, attachments, None, imported_at).await?;
     Ok((r.id, summary))
 }
+
+/// Sam's facts as a consumer chip with one planted rare BRCA2 P/LP (synthetic), unconfirmed as
+/// importer rule 6 requires: the Genome screen's chip PPV note (genomics.md 4).
+pub fn chip_with_rare_brca2() -> Value {
+    let mut doc = sam_facts();
+    doc["assay"] = json!({"type": "chip", "build": "GRCh38", "platform": "consumer array (synthetic)"});
+    for f in doc["facts"].as_array_mut().into_iter().flatten() {
+        let low = f["gene"] == "CYP2D6";
+        f["confidence"]["level"] = json!(if low { "low" } else { "medium" });
+    }
+    let var = json!({
+        "chrom": "chr13", "pos": 32340300, "ref": "GT", "alt": "G", "rsid": "rs80359550",
+        "hgvs_c": "c.5946del", "hgvs_p": "p.Ser1982fs", "clinvar_variation_id": 9322,
+        "vrs_id": vrs_id("chr13", 32340300, "GT", "G"),
+        "genotype": {"call_state": "alt", "gt": "0/1", "zygosity": "het"},
+    });
+    let id = fact_id("acmg_sf", "BRCA2", var["vrs_id"].as_str().unwrap_or_default());
+    if let Some(facts) = doc["facts"].as_array_mut() {
+        facts.push(json!({
+            "id": id,
+            "category": "acmg_sf",
+            "gene": "BRCA2",
+            "variants": [var],
+            "condition": {"name": "Hereditary breast and ovarian cancer", "inheritance": "AD"},
+            "summary": "A rare BRCA2 variant classified pathogenic in ClinVar, typed on a chip (synthetic).",
+            "evidence": {"level": "E1", "native": "ClinVar Pathogenic, 3 stars", "clinvar_stars": 3},
+            "confidence": {"level": "unconfirmed", "basis": "rare variant typed on an array"},
+            "sensitivity": {"level": "sensitive", "reason": "ACMG SF gene"},
+            "confirm_clinically": true,
+        }));
+    }
+    doc
+}

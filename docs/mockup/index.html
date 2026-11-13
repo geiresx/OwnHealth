@@ -574,8 +574,16 @@ function genome(){
    ["hla","HLA-B","T1K 2-field","B*57:01 absent · B*15:02 absent","E1","high","n/a","abacavir, carbamazepine"],
    ["risk_marker","LPA","rs10455872 A/G","1 risk allele · fits Lp(a) 142 nmol/L","E2","medium","alt","linked to lab 2025-09-08"],
    ["prs","CAD","PGS000018","71st percentile · EUR reference","E3","medium","n/a","ancestry match: EUR 0.94"],
+   ["prs","T2D","PGS000014","not interpretable for this person","E3","medium","n/a","the score matched fewer than 75% of its variants"],
    ["trait","LCT","rs4988235 −13910 C/T","lactase persistence likely","E2","high","alt","—"],
    ["pgx","DPYD","c.1905+1G>A, c.2846A>T","no variant found","E1","high","ref","CPIC A · fluoropyrimidines"]
+  ];
+  const G=[
+   ["CYP2C19","*1/*2 · Intermediate Metabolizer",1,1,"Omeprazole 20 mg"],["CYP2C9","*1/*1 · Normal Metabolizer",0,0,""],
+   ["CYP2D6","*1/*41 · Normal Metabolizer",0,0,""],["CYP3A5","assessed · no call in the file",0,0,""],
+   ["DPYD","*1/*1 · Normal Metabolizer",0,0,""],["HLA-B","B*58:01 absent",0,0,""],["NUDT15","not in the coverage map",0,0,""],
+   ["SLCO1B1","*1/*5 · Decreased Function",0,1,"Atorvastatin 20 mg"],["TPMT","*1/*1 · Normal Metabolizer",1,0,""],
+   ["UGT1A1","not assessed · not run",0,0,""],["VKORC1","-1639G>A het",0,1,""]
   ];
   return `
   <div class="ph"><div><h1>Genome</h1><div class="sub">Alex Rivera · WGS 30× · GRCh38 · <span class="mono">genome-facts.json</span> from <a href="https://github.com/GeiserX/OwnGenome" target="_blank" rel="noopener">OwnGenome</a> v1.4.2 · ClinVar 2026-09-28 · CPIC 2026-09 · ingested 2026-10-02</div></div><div class="right"><span class="phase">v0.1</span><span class="phase">ClinVar diff v0.3</span><button class="btn">Lookup variant</button></div></div>
@@ -590,6 +598,11 @@ function genome(){
    <div class="tile"><div class="k">Traits</div><div class="n">12</div><div class="d">E4 items hidden by default</div></div>
    <div class="tile"><div class="k">PRS</div><div class="n">3</div><div class="d">CAD · T2D · AF · EUR match</div></div>
   </div>
+  <div class="card" style="margin-bottom:12px"><div style="display:flex;flex-wrap:wrap;gap:4px 10px;align-items:baseline;margin-bottom:8px"><b>Pharmacogenes (CPIC)</b><span class="dim" style="font-size:11.5px">One box per gene that CPIC ties to a medicine: the call, or why there is none.</span> <span class="phase">v0.3</span></div>
+   <div style="display:flex;gap:8px;align-items:baseline;font-size:12px;margin-bottom:8px"><span class="pill p-stale"><i></i>Stale</span><span class="muted">Stale: CYP2C19 and TPMT were called with an older CPIC or PharmCAT release (CPIC 2026-08-03 is newer, since 2026-02-03). OwnGenome steps 36, 7 and 27 make the calls again.</span></div>
+   <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px">
+   ${G.map(g=>`<div style="border:1px solid ${g[3]?"rgba(224,168,74,.55)":"var(--line)"};${g[3]?"box-shadow:inset 3px 0 0 var(--watch);":""}border-radius:8px;padding:8px 10px;font-size:12.5px"><div style="display:flex;gap:6px;align-items:center"><b>${g[0]}</b>${g[2]?'<span class="pill p-stale" style="font-size:10.5px"><i></i>Stale</span>':""}</div><div style="margin-top:3px;color:${g[1].startsWith("not")||g[1].startsWith("assessed")?"var(--dim)":"var(--text)"}">${g[1]}</div>${g[4]?`<div style="margin-top:3px;font-size:11.5px;color:var(--watch)">current medicine: ${g[4]}</div>`:""}</div>`).join("")}
+   </div></div>
   <div class="card" style="padding:4px 6px">
    <table class="t"><thead><tr><th>Category</th><th>Gene</th><th>Variant / method</th><th>Result</th><th>Evidence</th><th>Confidence</th><th>call_state</th><th>Note</th></tr></thead><tbody>
    ${R.map(r=>`<tr><td><span class="chip mono">${r[0]}</span></td><td><b>${r[1]}</b></td><td class="mono muted">${r[2]}</td><td>${r[3]}</td><td>${ev(r[4])}</td><td>${cf(r[5])}</td><td class="mono" style="color:${r[6]==="alt"?"var(--text)":"var(--muted)"}">${r[6]}</td><td class="muted" style="font-size:12px">${r[7]}</td></tr>`).join("")}

@@ -565,6 +565,39 @@ export interface GenomeFindingFull extends Omit<GenomeFinding, 'call_state'> {
 	limitations: UntrustedText[];
 	variants: { rsid: string | null; call_state: CallState; gt: string | null; zygosity: string | null }[];
 	source: { assay: string; tool: string; sample_id: string | null } | null;
+	/** A PGx call made against an older CPIC or PharmCAT release (null when current). */
+	stale?: PgxStale | null;
+	/** A PRS outside its validated coverage or ancestry has no percentile: status says so, reason_code why. */
+	prs?: { status: 'interpretable' | 'not_interpretable'; reason_code: 'low_variant_match' | 'ancestry_outside_evaluation' | null } | null;
+	/** A rare P/LP typed on a chip: unconfirmed, with the PPV figure and its source. */
+	chip_note?: { code: 'chip_rare_unconfirmed'; ppv_pct: number; cite: string } | null;
+}
+
+/** Since when a PGx call is stale, the releases that superseded it, and the OwnGenome steps that make it again. */
+export interface PgxStale {
+	since: IsoDate;
+	by: string[];
+	rerun_steps: number[];
+}
+
+/** One CPIC gene on the Genome screen: its call, or why there is none, and the current medicines it touches. */
+export interface PgxGridRow {
+	gene: string;
+	status: 'found' | 'no_finding' | 'not_assessed' | 'withheld';
+	diplotype: string | null;
+	phenotype: string | null;
+	activity_score: number | null;
+	call_state: CallState | null;
+	markers: { marker: string; present: boolean }[];
+	evidence: string | null;
+	confidence: string | null;
+	actionable: boolean;
+	stale: PgxStale | null;
+	coverage: { state: string; reason: string | null } | null;
+	/** null: the reader may not see records. */
+	meds: { name: string; kind: string | null; src: string | null }[] | null;
+	fact_ids: string[];
+	src: string | null;
 }
 
 /** One ClinVar classification in a genome event: our class vocabulary, ClinVar's own wording and stars. */
@@ -618,6 +651,7 @@ export interface GenomeView {
 		src: string;
 	} | null;
 	tiles: { key: string; value: string; detail: string; actionable?: number; genes?: string; hidden?: number }[];
+	pgx_grid?: PgxGridRow[];
 	findings: GenomeFindingFull[];
 	coverage: { target: string; panel: string | null; state: 'assessed' | 'partial' | 'not_assessed'; reason: string | null }[];
 	not_assessed: { gene?: string; panel: string; reason: string }[];

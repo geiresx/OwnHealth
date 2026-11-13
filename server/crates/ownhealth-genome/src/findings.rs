@@ -6,6 +6,11 @@
 //!   need `gate.sensitive`; otherwise they are counted in `withheld_sensitive` and not described;
 //! - for a minor, sensitive, adult-onset, carrier and PRS findings are counted in `withheld_minor`,
 //!   whatever the switches say.
+//!
+//! Three readings protect the person from a number that no longer holds (v0.3): a PGx call made
+//! against an older CPIC change log or PharmCAT minor carries `stale` with the OwnGenome steps to
+//! re-run; a PRS outside its validated coverage or ancestry loses its percentile (`prs` says why);
+//! a rare P/LP typed on a chip carries `chip_note` with the PPV figure and its source.
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::LazyLock;
@@ -22,10 +27,20 @@ use sqlx::types::Json;
 use sqlx::{AssertSqlSafe, PgConnection};
 use uuid::Uuid;
 
-use crate::schema::py_str;
+use crate::schema::{CHIP_ASSAYS, UNCONFIRMED_ON_CHIP, py_str};
 use crate::{CATEGORIES, CONFIDENCE, EVIDENCE, Gate};
 
 const CPIC_SNAPSHOT: &str = include_str!("../../../../data/rules/cpic/snapshot.json");
+const PGX_RELEASES: &str = include_str!("../../../../data/genome/pgx_releases.json");
+
+/// Positive predictive value of a very rare P/LP call on a genotyping array in UK Biobank (about 16%),
+/// Weedon et al. 2021, BMJ (PMID 33589468).
+pub const CHIP_PPV_PCT: i64 = 16;
+pub const CHIP_PPV_CITE: &str = "https://pubmed.ncbi.nlm.nih.gov/33589468/";
+/// genomics.md 12: no percentile for a PRS that matched fewer of its variants than this.
+pub const PRS_MIN_MATCHED_PCT: f64 = 75.0;
+/// The keys of a PRS value that place the person in the distribution.
+const PRS_POSITION_KEYS: [&str; 4] = ["percentile", "z_norm1", "z_norm2", "z_score"];
 
 #[allow(clippy::expect_used)]
 static NORMAL_PHENOTYPE: LazyLock<Regex> = LazyLock::new(|| {
@@ -240,6 +255,165 @@ fn round4(x: f64) -> f64 {
     format!("{x:.4}").parse().unwrap_or(x)
 }
 
+// ---------------------------------------------------------------- stale ----
+
+/// One CPIC change log row that can change a call or its guidance (gene, recommendation or guideline).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CpicChange {
+    pub date: String,
+    pub genes: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Release {
+    pub version: String,
+    pub released: String,
+}
+
+/// What a PGx call is measured against: the CPIC change log (`rules/cpic/snapshot.json`), the latest
+/// PharmCAT release and the OwnGenome steps that re-make a call (`genome/pgx_releases.json`). Both are
+/// written by `data/rules/cpic/fetch.py`; nothing is fetched at runtime.
+#[derive(Debug, Clone, Default)]
+pub struct PgxReleases {
+    pub cpic_changes: Vec<CpicChange>,
+    pub pharmcat: Option<Release>,
+    pub rerun_steps: Vec<i64>,
+}
+
+static SHIPPED: LazyLock<PgxReleases> = LazyLock::new(|| {
+    let snap: Value = serde_json::from_str(CPIC_SNAPSHOT).unwrap_or_default();
+    let rel: Value = serde_json::from_str(PGX_RELEASES).unwrap_or_default();
+    let rows: &[Value] = rel.get("rows").and_then(Value::as_array).map_or(&[], Vec::as_slice);
+    let str_of = |v: &Value, k: &str| v.get(k).and_then(Value::as_str).unwrap_or_default().to_string();
+    PgxReleases {
+        cpic_changes: snap
+            .get("change_log")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .map(|c| CpicChange {
+                date: str_of(c, "date"),
+                genes: c
+                    .get("genes")
+                    .and_then(Value::as_array)
+                    .into_iter()
+                    .flatten()
+                    .filter_map(Value::as_str)
+                    .map(str::to_uppercase)
+                    .collect(),
+            })
+            .collect(),
+        pharmcat: rows.iter().find(|r| r["id"] == "pharmcat").map(|r| Release {
+            version: str_of(r, "latest"),
+            released: str_of(r, "released"),
+        }),
+        rerun_steps: rows
+            .iter()
+            .filter_map(|r| r.get("step").and_then(Value::as_i64))
+            .collect(),
+    }
+});
+
+/// `YYYY-MM` or `YYYY-MM-DD`.
+fn is_cpic_version(v: &str) -> bool {
+    let b = v.as_bytes();
+    let digits = |r: std::ops::Range<usize>| b[r].iter().all(u8::is_ascii_digit);
+    (b.len() == 7 || b.len() == 10)
+        && digits(0..4)
+        && b[4] == b'-'
+        && digits(5..7)
+        && (b.len() == 7 || (b[7] == b'-' && digits(8..10)))
+}
+
+/// `3.4.0` or `v3.4` to (3, 4).
+fn major_minor(v: &str) -> Option<(u32, u32)> {
+    let mut parts = v.trim().trim_start_matches('v').split('.');
+    Some((parts.next()?.parse().ok()?, parts.next()?.parse().ok()?))
+}
+
+impl PgxReleases {
+    pub fn shipped() -> &'static PgxReleases {
+        &SHIPPED
+    }
+
+    /// `{since, by, rerun_steps}` when a call of `gene` made with these `db_versions` is older than a
+    /// CPIC change to that gene or the PharmCAT minor known on `on`; None when current or when the
+    /// versions cannot be read (we never guess a call stale).
+    pub fn stale(&self, gene: &str, db_versions: &Value, on: NaiveDate) -> Option<Value> {
+        let on = on.format("%Y-%m-%d").to_string();
+        let gene = gene.to_uppercase();
+        let version = |k: &str| db_versions.get(k).and_then(Value::as_str).unwrap_or_default();
+        let mut since: Vec<&str> = Vec::new();
+        let mut by: Vec<String> = Vec::new();
+        let cpic = version("cpic");
+        if is_cpic_version(cpic) {
+            let newer: Vec<&str> = self
+                .cpic_changes
+                .iter()
+                .filter(|c| c.date.len() >= cpic.len() && c.date.as_str() <= on.as_str())
+                .filter(|c| &c.date[..cpic.len()] > cpic && c.genes.contains(&gene))
+                .map(|c| c.date.as_str())
+                .collect();
+            if let (Some(&first), Some(last)) = (newer.iter().min(), newer.iter().max()) {
+                since.push(first);
+                by.push(format!("CPIC {last}"));
+            }
+        }
+        if let (Some(have), Some(p)) = (major_minor(version("pharmcat")), &self.pharmcat)
+            && let Some(latest) = major_minor(&p.version)
+            && have < latest
+            && !p.released.is_empty()
+            && p.released.as_str() <= on.as_str()
+        {
+            since.push(&p.released);
+            by.push(format!("PharmCAT {}", p.version));
+        }
+        let since = since.into_iter().min()?;
+        Some(json!({"since": since, "by": by, "rerun_steps": self.rerun_steps}))
+    }
+}
+
+/// A PGx call's `stale` on `on` (null when current, or for any other category).
+fn stale_of(row: &FindingRow, on: NaiveDate) -> Value {
+    if row.category != "pgx" {
+        return Value::Null;
+    }
+    let gene = row.gene.as_deref().unwrap_or_default();
+    PgxReleases::shipped()
+        .stale(gene, &row.db_versions.0, on)
+        .unwrap_or(Value::Null)
+}
+
+fn day_of(as_of: Option<NaiveDate>) -> NaiveDate {
+    as_of.unwrap_or_else(|| Utc::now().date_naive())
+}
+
+// ------------------------------------------------------------ PRS, chip ----
+
+/// The reason a PRS percentile is not interpretable for this person (genomics.md 12), else None.
+/// A missing match rate or ancestry counts as outside: we never assume the score applies.
+fn prs_refusal(value: &Value) -> Option<&'static str> {
+    let matched = value.get("matched_pct").and_then(Value::as_f64);
+    if matched.is_none_or(|m| m < PRS_MIN_MATCHED_PCT) {
+        return Some("low_variant_match");
+    }
+    let pop = value.get("most_similar_pop").and_then(Value::as_str);
+    let inside = value
+        .get("evaluated_in")
+        .and_then(Value::as_array)
+        .is_some_and(|e| pop.is_some_and(|p| e.iter().any(|x| x.as_str() == Some(p))));
+    (!inside).then_some("ancestry_outside_evaluation")
+}
+
+/// The note a rare P/LP typed on a chip carries: unconfirmed, with the PPV figure and its source.
+fn chip_note(row: &FindingRow) -> Value {
+    if CHIP_ASSAYS.contains(&row.assay.as_str()) && UNCONFIRMED_ON_CHIP.contains(&row.category.as_str()) {
+        json!({"code": "chip_rare_unconfirmed", "ppv_pct": CHIP_PPV_PCT, "cite": CHIP_PPV_CITE})
+    } else {
+        Value::Null
+    }
+}
+
 fn coverage_out(c: &CoverageRow) -> Value {
     let mut out = Map::new();
     out.insert("scope".into(), json!(c.scope));
@@ -321,8 +495,34 @@ fn title(row: &FindingRow) -> String {
         .join(" · ")
 }
 
-/// One finding as every surface returns it. Free text is wrapped as untrusted_text.
+/// One finding as every surface returns it. Free text is wrapped as untrusted_text. A PRS outside
+/// its validated coverage or ancestry goes out without its position and without the producer's
+/// sentence, which quotes it.
 pub fn finding_out(row: &FindingRow) -> Value {
+    let refusal = (row.category == "prs")
+        .then(|| prs_refusal(row.fact.0.get("value").unwrap_or(&Value::Null)))
+        .flatten();
+    let gated;
+    let row = if refusal.is_some() {
+        let mut r = row.clone();
+        if let Some(fact) = r.fact.0.as_object_mut() {
+            fact.shift_remove("summary");
+            if let Some(Value::Object(v)) = fact.get_mut("value") {
+                for k in PRS_POSITION_KEYS {
+                    v.shift_remove(k);
+                }
+            }
+        }
+        gated = r;
+        &gated
+    } else {
+        row
+    };
+    let prs = if row.category == "prs" {
+        json!({"status": (if refusal.is_some() { "not_interpretable" } else { "interpretable" }), "reason_code": refusal})
+    } else {
+        Value::Null
+    };
     let fact = &row.fact.0;
     let ev = fact
         .get("evidence")
@@ -430,6 +630,8 @@ pub fn finding_out(row: &FindingRow) -> Value {
         "guidance_cpic_version": row.guidance_cpic_version,
         "related_loinc": get(fact, "related_loinc").cloned().unwrap_or_else(|| json!([])),
         "source": {"assay": row.assay, "tool": row.owngenome_version, "sample_id": row.sample_id},
+        "prs": prs,
+        "chip_note": chip_note(row),
         "src": row.src_id,
     })
 }
@@ -558,7 +760,10 @@ pub fn dataset_notes(datasets: &[DatasetRow]) -> Vec<(&'static str, String, Stri
             out.push((
                 "chip_unconfirmed",
                 kind.to_string(),
-                "Chip: rare pathogenic calls are unconfirmed and a negative is not reassurance.".into(),
+                format!(
+                    "Chip: rare pathogenic calls are unconfirmed (about {CHIP_PPV_PCT}% of very rare array calls \
+                     were real in UK Biobank, PMID 33589468) and a negative is not reassurance."
+                ),
             ));
         }
     }
@@ -588,6 +793,9 @@ pub struct Findings {
     /// `{code, assay}` per limitation, in the same order (the UI's words for them).
     #[serde(skip)]
     pub limitation_codes: Vec<Value>,
+    /// Upper-case genes with a withheld finding, so the gene grid never reads them as "no finding".
+    #[serde(skip)]
+    pub withheld_genes: Vec<String>,
 }
 
 /// Gated findings, strongest evidence first. `min_evidence` is the weakest level included (E2 shows
@@ -654,7 +862,14 @@ pub async fn collect_findings(
         {
             continue;
         }
-        match withheld_reason(&r, gate) {
+        let why = withheld_reason(&r, gate);
+        if why.is_some()
+            && let Some(g) = r.gene.as_deref().map(str::to_uppercase)
+            && !result.withheld_genes.contains(&g)
+        {
+            result.withheld_genes.push(g);
+        }
+        match why {
             Some("minor") => {
                 result.withheld_minor += 1;
                 continue;
@@ -674,12 +889,14 @@ pub async fn collect_findings(
         shown.push(r);
     }
     shown.sort_by_key(sort_key);
+    let on = day_of(as_of);
     result.findings = shown
         .iter()
         .map(|r| {
             let mut f = finding_out(r);
             if let Some(o) = f.as_object_mut() {
                 o.insert("n_sources".into(), json!(r.n_sources));
+                o.insert("stale".into(), stale_of(r, on));
             }
             f
         })
@@ -891,11 +1108,113 @@ pub async fn pgx_for_drug_with(
                 "guidance": guidance,
                 "guidance_cpic_version": f["guidance_cpic_version"],
                 "coverage": coverage,
+                "stale": stale_of(r, day_of(as_of)),
                 "src": f["src"],
             }));
         }
     }
     Ok(out)
+}
+
+// ----------------------------------------------------------------- grid ----
+
+/// The genes CPIC ties to a drug in the shipped snapshot, upper-case and sorted.
+pub fn cpic_genes() -> Vec<String> {
+    let set: std::collections::BTreeSet<String> = CPIC_PAIRS
+        .values()
+        .flat_map(|d| d.genes.iter().map(|g| g.to_uppercase()))
+        .collect();
+    set.into_iter().collect()
+}
+
+/// The genes CPIC ties to a drug, by the drug's CPIC name (`atorvastatin`).
+pub fn genes_for_drug_name(name: &str) -> Vec<String> {
+    let name = name.trim().to_lowercase();
+    CPIC_PAIRS
+        .values()
+        .find(|d| d.name.as_deref().is_some_and(|n| n.to_lowercase() == name))
+        .map(|d| d.genes.iter().map(|g| g.to_uppercase()).collect())
+        .unwrap_or_default()
+}
+
+/// One row per CPIC gene (the snapshot's, the coverage map's `cpic` panel, and any other gene with a
+/// PGx or HLA finding), alphabetical: the call, or
+/// why there is none (`no_finding` on an assessed gene, `not_assessed` with the coverage reason or
+/// `not_in_coverage_map`, `withheld`), whether it is stale, and the current medicines it touches.
+/// `meds` is gene -> medicines from the person's records; None when the reader may not see records.
+pub fn pgx_grid(found: &Findings, meds: Option<&BTreeMap<String, Vec<Value>>>) -> Vec<Value> {
+    let upper = |v: &Value| v.as_str().unwrap_or_default().to_uppercase();
+    let calls: Vec<&Value> = found
+        .findings
+        .iter()
+        .filter(|f| f["category"] == "pgx" || f["category"] == "hla")
+        .collect();
+    let mut genes = cpic_genes();
+    let cpic_panel = found
+        .coverage
+        .iter()
+        .filter(|c| c["scope"] == "gene" && c["panel"] == "cpic")
+        .map(|c| &c["target"]);
+    for g in calls.iter().map(|f| &f["gene"]).chain(cpic_panel).map(upper) {
+        if !g.is_empty() && !genes.contains(&g) {
+            genes.push(g);
+        }
+    }
+    genes.sort();
+    genes
+        .into_iter()
+        .map(|gene| {
+            let hits: Vec<&&Value> = calls.iter().filter(|f| upper(&f["gene"]) == gene).collect();
+            let cov = found.coverage.iter().find(|c| upper(&c["target"]) == gene);
+            let coverage = match cov {
+                Some(c) => json!({"state": c["state"], "reason": c["reason"]}),
+                None => json!({"state": "not_assessed", "reason": "not_in_coverage_map"}),
+            };
+            let meds = meds.map_or(Value::Null, |m| json!(m.get(&gene).cloned().unwrap_or_default()));
+            let mut row = json!({
+                "gene": gene, "status": "", "diplotype": null, "phenotype": null, "activity_score": null,
+                "call_state": null, "markers": [], "evidence": null, "confidence": null, "actionable": false,
+                "stale": null, "coverage": coverage, "meds": meds, "fact_ids": [], "src": null,
+            });
+            let status = if let Some(first) = hits.iter().find(|f| f["category"] == "pgx").or(hits.first()) {
+                for k in [
+                    "diplotype",
+                    "phenotype",
+                    "activity_score",
+                    "call_state",
+                    "evidence",
+                    "confidence",
+                    "stale",
+                    "src",
+                ] {
+                    row[k] = first[k].clone();
+                }
+                if first["category"] == "hla" && first["diplotype"].is_null() {
+                    row["diplotype"] = first["value"]["alleles"].as_array().map_or(Value::Null, |a| {
+                        json!(a.iter().filter_map(Value::as_str).collect::<Vec<_>>().join("/"))
+                    });
+                }
+                row["markers"] = json!(
+                    hits.iter()
+                        .filter(|f| f["category"] == "hla" && f["value"]["marker"].is_string())
+                        .map(|f| json!({"marker": f["value"]["marker"], "present": f["value"]["present"]}))
+                        .collect::<Vec<_>>()
+                );
+                row["actionable"] = json!(hits.iter().any(|f| actionable(f, &[])));
+                row["fact_ids"] = json!(hits.iter().map(|f| f["id"].clone()).collect::<Vec<_>>());
+                "found"
+            } else if found.withheld_genes.contains(&gene) {
+                row["coverage"] = Value::Null;
+                "withheld"
+            } else if cov.is_some_and(|c| c["state"] != "not_assessed") {
+                "no_finding"
+            } else {
+                "not_assessed"
+            };
+            row["status"] = json!(status);
+            row
+        })
+        .collect()
 }
 
 #[cfg(test)]
