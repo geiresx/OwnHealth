@@ -367,6 +367,8 @@ export interface RecordOut {
 	supersedes: Uuid | null;
 	src: string;
 	recorded_at: IsoDateTime;
+	/** A medicine or supplement: its label photos (document ids), newest first. */
+	labels?: Uuid[];
 }
 
 // ---------------------------------------------------------- lane H: timeline ----

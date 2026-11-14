@@ -375,6 +375,8 @@ pub fn sensitive_document_sql(doc: &str) -> String {
          or exists (select 1 from review_item r where r.document_id = {doc} \
          and jsonb_typeof(r.payload->'observation'->'sensitivity') = 'array' \
          and jsonb_array_length(r.payload->'observation'->'sensitivity') > 0) \
+         or exists (select 1 from medication_label l join medication_statement m on m.id = l.medication_id \
+         where l.document_id = {doc} and cardinality(m.sensitivity) > 0) \
          or {via_src})"
     )
 }

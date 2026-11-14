@@ -532,6 +532,23 @@ pub async fn export_profile<W: Write + Seek>(
         }
         counts.insert(format!("ownhealth/{table}"), json!(n));
     }
+    // label photos (migration 1101): the link has no profile_id, so it is reached through its record
+    {
+        let path = "ownhealth/medication_label.ndjson";
+        w.touch(path);
+        let mut rows = sqlx::query_scalar::<_, Value>(
+            "select to_jsonb(l) from medication_label l join medication_statement m on m.id = l.medication_id \
+             where m.profile_id = $1 order by l.medication_id, l.document_id",
+        )
+        .bind(profile_id)
+        .fetch(&mut *conn);
+        let mut n = 0u64;
+        while let Some(row) = rows.try_next().await? {
+            w.line(path, &row)?;
+            n += 1;
+        }
+        counts.insert("ownhealth/medication_label".into(), json!(n));
+    }
     blocking(|| w.close_lines())?;
     let versions: Vec<i32> = sqlx::query_scalar("select version from schema_migrations order by version")
         .fetch_all(&mut *conn)

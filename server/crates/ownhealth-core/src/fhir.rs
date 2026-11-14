@@ -269,6 +269,49 @@ pub fn medication_statement(m: &MedicationIn) -> Value {
     ])
 }
 
+/// The extension that carries the person's recorded decision on a medicine or supplement (migration
+/// 1101): `code` (keep | stop | do_not_repurchase), `reason` and `date`.
+pub const DECISION_EXTENSION: &str = "urn:ownhealth:decision";
+
+/// Put the person's recorded decision on a stored MedicationStatement, so the export keeps it. Any
+/// decision extension already in the resource (a re-imported export) is replaced by the columns'.
+pub fn set_medication_decision(resource: &mut Value, m: &MedicationIn) {
+    let Some(obj) = resource.as_object_mut() else {
+        return;
+    };
+    let had = obj.get("extension").and_then(Value::as_array).is_some_and(|a| {
+        a.iter()
+            .any(|e| e.get("url").and_then(Value::as_str) == Some(DECISION_EXTENSION))
+    });
+    if m.decision.is_none() && !had {
+        // nothing to say and nothing stale: the resource stays exactly as built or received
+        return;
+    }
+    let mut ext: Vec<Value> = obj
+        .get("extension")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter(|e| e.get("url").and_then(Value::as_str) != Some(DECISION_EXTENSION))
+        .cloned()
+        .collect();
+    if let Some(code) = m.decision.as_deref() {
+        let mut parts = vec![json!({"url": "code", "valueCode": code})];
+        if let Some(r) = m.decision_reason.as_deref().filter(|r| !r.is_empty()) {
+            parts.push(json!({"url": "reason", "valueString": r}));
+        }
+        if let Some(d) = m.decision_on.as_ref() {
+            parts.push(json!({"url": "date", "valueDate": d.format("%Y-%m-%d").to_string()}));
+        }
+        ext.push(json!({"url": DECISION_EXTENSION, "extension": parts}));
+    }
+    if ext.is_empty() {
+        obj.shift_remove("extension");
+    } else {
+        obj.insert("extension".into(), Value::Array(ext));
+    }
+}
+
 pub const ALLERGY_VERIFICATION: [&str; 5] = ["unconfirmed", "presumed", "confirmed", "refuted", "entered-in-error"];
 
 pub fn allergy(a: &AllergyIn) -> Value {

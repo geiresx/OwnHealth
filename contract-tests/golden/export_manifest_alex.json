@@ -13,6 +13,7 @@
     "ownhealth/genome_dataset": "int",
     "ownhealth/genome_event": "int",
     "ownhealth/genome_finding": "int",
+    "ownhealth/medication_label": "int",
     "ownhealth/note": "int",
     "ownhealth/review_item": "int",
     "ownhealth/source_priority": "int",

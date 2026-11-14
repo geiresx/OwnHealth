@@ -138,3 +138,41 @@ export function pgxFor<V>(cache: PgxViews<V> | null, slug: string | undefined, d
 	if (!cache || cache.slug !== slug || kind === 'supplement') return null;
 	return cache.views[drug] ?? null;
 }
+
+/** The decisions a person can record on a supplement: their own choice, never advice. */
+export const DECISIONS = ['keep', 'stop', 'do_not_repurchase'] as const;
+export type Decision = (typeof DECISIONS)[number];
+
+/**
+ * The `status_reason` of a version replaced by a new decision. It is a code, never shown as written:
+ * the screen says it in the reader's language.
+ */
+export const DECISION_RECORDED = 'decision recorded';
+
+/** The decision a version carries, or null when none was recorded (or the value is not one we know). */
+export function decisionOf(detail: Record<string, unknown>): Decision | null {
+	const d = detail.decision;
+	return DECISIONS.includes(d as Decision) ? (d as Decision) : null;
+}
+
+/** The reason the person gave for their decision. Reads mark it as untrusted text; an older plain string still reads. */
+export function decisionReasonOf(detail: Record<string, unknown>): string | null {
+	const r = detail.decision_reason;
+	const text = typeof r === 'string' ? r : r && typeof r === 'object' && typeof (r as { text?: unknown }).text === 'string' ? (r as { text: string }).text : null;
+	return text?.trim() ? text : null;
+}
+
+/** How a supplement row reads today: taken, starting later, on hold or stopped. */
+export function supplementState(r: MedRecord, today: string): 'active' | 'later' | 'on_hold' | 'stopped' {
+	if (isCurrent(r, today)) return 'active';
+	// the same reading as the History card's group label
+	const state = notTaken([r], today);
+	return state === 'on_hold' || state === 'later' ? state : 'stopped';
+}
+
+/** Every supplement's live version, taken or not: the ones taken today first, then by name. */
+export function supplementRows<T extends MedRecord>(records: T[], today: string): T[] {
+	return records
+		.filter((r) => (r.status === 'current' || r.status === 'provisional') && r.detail.kind === 'supplement')
+		.sort((a, b) => Number(isCurrent(b, today)) - Number(isCurrent(a, today)) || a.title.localeCompare(b.title));
+}

@@ -1250,6 +1250,130 @@ pub async fn seed_family(conn: &mut PgConnection, ctx: &mut DemoContext) -> Resu
     Ok(())
 }
 
+/// 5x7 glyphs for the demo label, one row per byte (the low five bits, left to right).
+const GLYPHS: [(char, [u8; 7]); 18] = [
+    ('A', [0x0E, 0x11, 0x11, 0x1F, 0x11, 0x11, 0x11]),
+    ('D', [0x1E, 0x11, 0x11, 0x11, 0x11, 0x11, 0x1E]),
+    ('E', [0x1F, 0x10, 0x10, 0x1E, 0x10, 0x10, 0x1F]),
+    ('I', [0x0E, 0x04, 0x04, 0x04, 0x04, 0x04, 0x0E]),
+    ('L', [0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x1F]),
+    ('M', [0x11, 0x1B, 0x15, 0x15, 0x11, 0x11, 0x11]),
+    ('N', [0x11, 0x19, 0x15, 0x13, 0x11, 0x11, 0x11]),
+    ('O', [0x0E, 0x11, 0x11, 0x11, 0x11, 0x11, 0x0E]),
+    ('P', [0x1E, 0x11, 0x11, 0x1E, 0x10, 0x10, 0x10]),
+    ('R', [0x1E, 0x11, 0x11, 0x1E, 0x14, 0x12, 0x11]),
+    ('S', [0x0F, 0x10, 0x10, 0x0E, 0x01, 0x01, 0x1E]),
+    ('T', [0x1F, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04]),
+    ('U', [0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x0E]),
+    ('V', [0x11, 0x11, 0x11, 0x11, 0x11, 0x0A, 0x04]),
+    ('0', [0x0E, 0x11, 0x13, 0x15, 0x19, 0x11, 0x0E]),
+    ('2', [0x0E, 0x11, 0x01, 0x02, 0x04, 0x08, 0x1F]),
+    ('3', [0x1E, 0x01, 0x01, 0x0E, 0x01, 0x01, 0x1E]),
+    ('6', [0x06, 0x08, 0x10, 0x1E, 0x11, 0x11, 0x0E]),
+];
+
+/// A synthetic supplement label with no brand, drawn pixel by pixel (300x400 PNG): a band, the
+/// product, the strength, the count and "DEMO".
+pub fn demo_label_png() -> Result<Vec<u8>> {
+    const W: u32 = 300;
+    const H: u32 = 400;
+    let mut img = image::RgbImage::from_pixel(W, H, image::Rgb([0xF3, 0xEC, 0xDC]));
+    let mut fill = |x0: u32, y0: u32, w: u32, h: u32, c: [u8; 3]| {
+        for y in y0..(y0 + h).min(H) {
+            for x in x0..(x0 + w).min(W) {
+                img.put_pixel(x, y, image::Rgb(c));
+            }
+        }
+    };
+    fill(0, 0, W, 70, [0xE0, 0xA1, 0x3A]);
+    fill(0, H - 40, W, 40, [0xE0, 0xA1, 0x3A]);
+    let lines: [(&str, u32, u32, [u8; 3]); 4] = [
+        ("VITAMINA D3", 4, 110, [0x2A, 0x2A, 0x2A]),
+        ("2000 UI", 6, 190, [0xB5, 0x5A, 0x12]),
+        ("60 PERLAS", 3, 280, [0x2A, 0x2A, 0x2A]),
+        ("DEMO", 2, 330, [0x80, 0x80, 0x80]),
+    ];
+    for (text, scale, top, color) in lines {
+        let width = text.chars().count() as u32 * 6 * scale - scale;
+        let mut x = (W - width) / 2;
+        for ch in text.chars() {
+            if let Some((_, rows)) = GLYPHS.iter().find(|(c, _)| *c == ch) {
+                for (r, bits) in rows.iter().enumerate() {
+                    for col in 0..5u32 {
+                        if bits & (0x10 >> col) != 0 {
+                            fill(x + col * scale, top + r as u32 * scale, scale, scale, color);
+                        }
+                    }
+                }
+            }
+            x += 6 * scale;
+        }
+    }
+    let mut out = std::io::Cursor::new(Vec::new());
+    img.write_to(&mut out, image::ImageFormat::Png)
+        .map_err(|e| Error::Invalid(format!("demo label: {e}")))?;
+    Ok(out.into_inner())
+}
+
+/// v0.3 supplements (migration 1101): Alex's vitamin D3, with a photo of its label and the decision to
+/// take it again next winter, and Carmen's iron, which she decided not to buy again. Both courses
+/// ended before the demo day, so no state_hash moves. Its own demo hook (`supplements`).
+pub async fn seed_supplements(conn: &mut PgConnection, ctx: &mut DemoContext) -> Result<()> {
+    use ownhealth_core::records::{add_label, supersede_record};
+    let user = ctx.family.user("alex");
+    let alex = ctx.family.profile("alex");
+    let first = json!({
+        "profile_id": alex, "kind": "supplement", "name": "Vitamina D3", "ingredient": "colecalciferol",
+        "strength": "2000 UI", "dose_text": "1 perla", "schedule_text": "con el desayuno",
+        "started": "2025-11-01", "stopped": "2026-03-31", "med_status": "stopped",
+    });
+    let src = manual(conn, user, None, "manual").await?;
+    let made = add_record(
+        conn,
+        &RecordIn::from_json("medication", first.clone())?,
+        &src,
+        RecordOptions::new("person"),
+    )
+    .await?;
+    let png = demo_label_png()?;
+    let sha = ctx.blobs.put_bytes(&png)?;
+    let doc = create_document(
+        conn,
+        &NewDocument {
+            filename: Some("etiqueta_vitamina_d3.png"),
+            channel: "demo",
+            doc_type: Some("other"),
+            ..NewDocument::upload(ctx.family.household_id, Some(alex), &sha, "image/png", png.len() as i64)
+        },
+    )
+    .await?;
+    add_label(conn, made.id, doc.id).await?;
+    let mut decided = first;
+    decided["decision"] = json!("keep");
+    decided["decision_reason"] = json!("Solo en invierno; la vuelvo a tomar en noviembre");
+    decided["decision_on"] = json!("2026-04-02");
+    let src = manual(conn, user, None, "manual").await?;
+    supersede_record(
+        conn,
+        made.id,
+        &RecordIn::from_json("medication", decided)?,
+        &src,
+        "person",
+        ownhealth_core::records::DECISION_RECORDED,
+    )
+    .await?;
+    let src = manual(conn, user, None, "manual").await?;
+    let iron = json!({
+        "profile_id": ctx.family.profile("carmen"), "kind": "supplement", "name": "Hierro bisglicinato",
+        "ingredient": "hierro", "strength": "25 mg", "dose_text": "1 comprimido",
+        "started": "2025-09-01", "stopped": "2025-12-15", "med_status": "stopped",
+        "decision": "do_not_repurchase", "decision_reason": "Me sentaba mal al estómago",
+        "decision_on": "2025-12-15",
+    });
+    record(conn, "medication", iron, src).await?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use sha2::{Digest, Sha256};

@@ -6,10 +6,37 @@
         "code": "null",
         "code_system": "null",
         "codes": "null",
+        "decision": {
+          "|": [
+            "null",
+            "string"
+          ]
+        },
+        "decision_on": {
+          "|": [
+            "date",
+            "null"
+          ]
+        },
+        "decision_reason": {
+          "|": [
+            "null",
+            {
+              "origin": "=person_note",
+              "text": "string",
+              "trust": "=untrusted_text"
+            }
+          ]
+        },
         "dose_text": "string",
         "effective_at": "null",
         "ingredient": "string",
-        "kind": "=medication",
+        "kind": {
+          "|": [
+            "=medication",
+            "=supplement"
+          ]
+        },
         "med_status": "string",
         "name": "string",
         "prescriber": "null",
@@ -19,7 +46,12 @@
             "string"
           ]
         },
-        "schedule_text": "null",
+        "schedule_text": {
+          "|": [
+            "null",
+            "string"
+          ]
+        },
         "sensitivity": {
           "[]": "empty"
         },
@@ -34,11 +66,19 @@
       },
       "id": "uuid",
       "kind": "=medication",
+      "labels": {
+        "[]": "uuid"
+      },
       "recorded_at": "datetime_Z",
       "src": "src_id",
       "status": "=current",
       "status_reason": "null",
-      "supersedes": "null",
+      "supersedes": {
+        "|": [
+          "null",
+          "uuid"
+        ]
+      },
       "title": "string"
     }
   }

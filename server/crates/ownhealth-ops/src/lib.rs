@@ -14,13 +14,14 @@ pub mod export;
 pub mod summary_pdf;
 
 pub use backup::{MANIFEST_SCHEMA, backup, restore, verify_restore};
-pub use demo_base::{seed_base, seed_family};
+pub use demo_base::{demo_label_png, seed_base, seed_family, seed_supplements};
 
 use ownhealth_core::demo;
 
-/// Register lane H's demo hooks: `base` (order 0, the port of `demo/base.py`) and `family` (v0.3,
-/// after every other hook).
+/// Register lane H's demo hooks: `base` (order 0, the port of `demo/base.py`), then `family` and
+/// `supplements` (v0.3, after every other hook).
 pub fn register() {
     demo::register_demo_hook("base", 0, |conn, ctx| Box::pin(seed_base(conn, ctx)));
     demo::register_demo_hook("family", 1100, |conn, ctx| Box::pin(seed_family(conn, ctx)));
+    demo::register_demo_hook("supplements", 1101, |conn, ctx| Box::pin(seed_supplements(conn, ctx)));
 }

@@ -1256,6 +1256,10 @@ pub async fn accept_proposal(
                 "schedule_text",
                 "prescriber",
                 "codes",
+                // the person's own decision carries on; an agent never sets one
+                "decision",
+                "decision_reason",
+                "decision_on",
                 "sensitivity",
                 "effective_at",
             ] {

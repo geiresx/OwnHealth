@@ -1,7 +1,7 @@
 // The Medications screen: which medicines are current, the history grouped per medicine, and the code chips.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { codeChips, historyGroups, isCurrent, pgxFor, replacedReason, type MedRecord } from '../src/lib/logic/meds.ts';
+import { codeChips, decisionOf, decisionReasonOf, supplementState, historyGroups, isCurrent, pgxFor, replacedReason, supplementRows, type MedRecord } from '../src/lib/logic/meds.ts';
 
 const rec = (id: string, detail: Record<string, unknown>, extra: Partial<MedRecord> = {}): MedRecord => ({
 	id,
@@ -94,4 +94,33 @@ test('an agent proposal reason splits into a translatable action and the reason 
 	assert.deepEqual(replacedReason('agent proposal change: moved to the morning'), { action: 'change', text: 'moved to the morning' });
 	assert.deepEqual(replacedReason('dosis mal copiada'), { action: null, text: 'dosis mal copiada' });
 	assert.deepEqual(replacedReason(null), { action: null, text: null });
+});
+
+test('the supplements card lists every live supplement, taken ones first, and reads only known decisions', () => {
+	const rows = supplementRows(
+		[
+			rec('iron', { name: 'Iron', kind: 'supplement', started: '2025-09-01', stopped: '2025-12-15', med_status: 'stopped', decision: 'do_not_repurchase' }),
+			rec('d3', { name: 'Vitamin D3', kind: 'supplement', started: '2026-01-01', med_status: 'active' }),
+			rec('d3old', { name: 'Vitamin D3', kind: 'supplement', started: '2025-01-01' }, { status: 'superseded' }),
+			rec('mag', { name: 'Magnesium', kind: 'supplement', med_status: 'active' }, { status: 'retracted' }),
+			rec('statin', { name: 'Atorvastatin', kind: 'medication', med_status: 'active' })
+		],
+		'2026-11-10'
+	);
+	assert.deepEqual(
+		rows.map((r) => r.id),
+		['d3', 'iron']
+	);
+	assert.equal(decisionOf(rows[1].detail), 'do_not_repurchase');
+	assert.equal(decisionOf(rows[0].detail), null);
+	assert.equal(decisionOf({ decision: 'buy_more' }), null, 'a value we do not know shows no decision');
+	assert.equal(decisionReasonOf({ decision_reason: { trust: 'untrusted_text', origin: 'person_note', text: 'Upset stomach' } }), 'Upset stomach', 'a read marks the reason');
+	assert.equal(decisionReasonOf({ decision_reason: 'Upset stomach' }), 'Upset stomach');
+	assert.equal(decisionReasonOf({ decision_reason: null }), null);
+	const sup = (detail: Record<string, unknown>) => ({ id: 'x', status: 'current', title: 'X', detail: { kind: 'supplement', ...detail } }) as MedRecord;
+	assert.equal(supplementState(sup({ med_status: 'active', started: '2026-12-01' }), '2026-11-10'), 'later', 'a future start is not stopped');
+	assert.equal(supplementState(sup({ med_status: 'active', started: '2026-01-01' }), '2026-11-10'), 'active');
+	assert.equal(supplementState(sup({ med_status: 'on_hold' }), '2026-11-10'), 'on_hold');
+	assert.equal(supplementState(sup({ med_status: 'active', started: '2025-11-01', stopped: '2026-03-31' }), '2026-11-10'), 'stopped');
+	assert.equal(decisionReasonOf({ decision_reason: { trust: 'untrusted_text', origin: 'person_note', text: ' ' } }), null);
 });

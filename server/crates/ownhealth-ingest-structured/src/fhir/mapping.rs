@@ -817,6 +817,7 @@ pub fn medication<'a>(r: &'a Value, profile_id: Uuid, resolve: impl Fn(Option<&s
         .iter()
         .find_map(|c| concept_text(Some(c)).filter(|t| !t.is_empty()));
     let checks = code_check(&code);
+    let (decision, decision_reason, decision_on) = recorded_decision(r);
     record(
         RecordIn::Medication(MedicationIn {
             common: common(profile_id, effective_at, r),
@@ -834,9 +835,38 @@ pub fn medication<'a>(r: &'a Value, profile_id: Uuid, resolve: impl Fn(Option<&s
             schedule_text,
             prescriber,
             codes,
+            decision,
+            decision_reason,
+            decision_on,
         }),
         checks,
     )
+}
+
+/// The person's decision as our own export wrote it (`urn:ownhealth:decision`), so a re-imported
+/// export keeps it. A code outside the three is left out with its reason and day.
+fn recorded_decision(r: &Value) -> (Option<String>, Option<String>, Option<NaiveDate>) {
+    let Some(parts) = list(Some(r), "extension")
+        .iter()
+        .find(|e| e.get("url").and_then(Value::as_str) == Some(ownhealth_core::fhir::DECISION_EXTENSION))
+        .map(|e| list(Some(e), "extension"))
+    else {
+        return (None, None, None);
+    };
+    let part = |url: &str, key: &str| {
+        parts
+            .iter()
+            .find(|p| p.get("url").and_then(Value::as_str) == Some(url))
+            .and_then(|p| p.get(key))
+            .and_then(Value::as_str)
+            .map(str::to_string)
+    };
+    let Some(code) = part("code", "valueCode").filter(|c| ownhealth_core::records::DECISIONS.contains(&c.as_str()))
+    else {
+        return (None, None, None);
+    };
+    let on = part("date", "valueDate").and_then(|d| NaiveDate::parse_from_str(&d, "%Y-%m-%d").ok());
+    (Some(code), part("reason", "valueString").filter(|t| !t.is_empty()), on)
 }
 
 // ------------------------------------------------------------- family (v0.3) ----
@@ -966,6 +996,45 @@ mod tests {
     use serde_json::json;
 
     use super::*;
+
+    #[test]
+    fn a_re_imported_export_keeps_the_recorded_decision() {
+        let ext = json!([{"url": ownhealth_core::fhir::DECISION_EXTENSION, "extension": [
+            {"url": "code", "valueCode": "do_not_repurchase"},
+            {"url": "reason", "valueString": "Upset stomach"},
+            {"url": "date", "valueDate": "2026-04-02"}
+        ]}]);
+        let r = json!({
+            "resourceType": "MedicationStatement",
+            "status": "active",
+            "medicationCodeableConcept": {"text": "Iron bisglycinate"},
+            "extension": ext
+        });
+        let Mapped::Record { record, .. } = medication(&r, Uuid::nil(), |_| None) else {
+            panic!("not mapped");
+        };
+        let RecordIn::Medication(m) = *record else {
+            panic!("not a medicine");
+        };
+        assert_eq!(
+            (m.decision.as_deref(), m.decision_reason.as_deref(), m.decision_on),
+            (
+                Some("do_not_repurchase"),
+                Some("Upset stomach"),
+                NaiveDate::from_ymd_opt(2026, 4, 2)
+            )
+        );
+        // a code we do not know is no decision
+        let mut odd = r.clone();
+        odd["extension"][0]["extension"][0]["valueCode"] = json!("buy_more");
+        let Mapped::Record { record, .. } = medication(&odd, Uuid::nil(), |_| None) else {
+            panic!("not mapped");
+        };
+        let RecordIn::Medication(m) = *record else {
+            panic!("not a medicine");
+        };
+        assert_eq!((m.decision, m.decision_reason), (None, None));
+    }
 
     #[test]
     fn a_death_age_in_months_still_marks_the_relative_deceased() {

@@ -9,13 +9,14 @@
 	import ManualEntry from '#lib/components/ManualEntry.svelte';
 	import PhaseChip from '#lib/components/PhaseChip.svelte';
 	import SourceChip from '#lib/components/SourceChip.svelte';
+	import SupplementsCard from '#lib/components/SupplementsCard.svelte';
 	import NotReady from '#lib/components/pages1/NotReady.svelte';
 	import SourcePanel from '#lib/components/pages1/SourcePanel.svelte';
 	import { openSource } from '#lib/components/pages1/source.svelte';
 	import { Loader, tf } from '#lib/components/pages1/util.svelte';
 	import { i18n, t } from '#lib/i18n/index.svelte';
 	import { isActionable } from '#lib/logic/health';
-	import { codeChips, historyGroups, isCurrent, pgxFor, replacedReason, type PgxViews } from '#lib/logic/meds';
+	import { DECISION_RECORDED, codeChips, decisionOf, decisionReasonOf, historyGroups, isCurrent, pgxFor, replacedReason, type PgxViews } from '#lib/logic/meds';
 	import { currentProfile } from '#lib/state/app.svelte';
 
 	const prof = $derived(currentProfile());
@@ -76,6 +77,7 @@
 					: t('med_st_' + s(r, 'med_status'));
 	// Why a version was replaced, in the reader's language when an agent proposal replaced it.
 	const replaced = (r: RecordOut) => {
+		if (r.status_reason === DECISION_RECORDED) return t('med_sup_corr_reason');
 		const { action, text } = replacedReason(r.status_reason);
 		return [action ? t('med_by_agent_' + action) : null, text].filter(Boolean).join(': ') || null;
 	};
@@ -168,6 +170,9 @@
 								{#if stateWord(e)}<span class="muted">· {stateWord(e)}</span>{/if}
 								{#if s(e, 'strength') || s(e, 'dose_text') || s(e, 'schedule_text')}<span class="muted">· {[s(e, 'strength'), s(e, 'dose_text'), s(e, 'schedule_text')].filter(Boolean).join(' · ')}</span>{/if}
 								{#if s(e, 'reason_text')}<span class="muted">· {t('med_reason')}: {s(e, 'reason_text')}</span>{/if}
+								{#if decisionOf(e.detail)}<span class="muted"
+										>· {t('med_sup_decision')}: {t('med_sup_dec_' + decisionOf(e.detail))}{#if s(e, 'decision_on')}{' '}{tf('med_sup_on', { date: s(e, 'decision_on') ?? '' })}{/if}{#if decisionReasonOf(e.detail)}{' '}· {t('med_reason')}: {decisionReasonOf(e.detail)}{/if}</span
+									>{/if}
 								{#if replaced(e)}<span class="dim">· {replaced(e)}</span>{/if}
 								<SourceChip label="" name={e.title} src={e.src} onopen={openSource} />
 							</li>
@@ -180,6 +185,8 @@
 		{/if}
 	</section>
 </div>
+
+{#if prof && meds.data}<SupplementsCard profile={prof.slug} records={meds.data} {canWrite} {today} onsaved={load} />{/if}
 
 <DrugCheckCard />
 

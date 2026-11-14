@@ -38,6 +38,7 @@ All routes are under `/api`, JSON, and resolve `{p}` as a profile slug, `me` or 
 | B | documents.rs | `POST /documents/{id}/assign` `{profile}` ; `POST /documents/{id}/retract` `{reason}` | |
 | C | records.rs | `GET`/`POST /profiles/{p}/records/{kind}` ; `POST .../{kind}/{id}/correct` ; `.../{id}/retract` | |
 | C | records.rs | `POST /profiles/{p}/manual-observations` | |
+| C | records.rs | `POST /profiles/{p}/records/medication/{id}/label` multipart `file` | a label photo (PNG, JPEG or WebP, at most 15 MiB) stored as a document (doc_type `other`, no job) and linked to the current version; write role; medication reads list `labels` |
 | C | wearables.rs | `GET /profiles/{p}/wearables/summary` ; `GET /profiles/{p}/wearables/{metric}?window=` | |
 | D | genome.rs | `GET /profiles/{p}/genome` ; `GET /profiles/{p}/genome/variant?rsid=` ; `POST /profiles/{p}/genome/consent` | consent needs step-up |
 | D | genome/events.rs | `GET /profiles/{p}/genome/events` | read:genome; the ClinVar diff's events, each named or withheld by the reader's gate |

@@ -6,8 +6,9 @@
 //! browser session: a personal access token never reaches these routes (`Caller` refuses it; agents
 //! write only through MCP `propose`, into the review queue).
 
+use axum::extract::multipart::MultipartRejection;
 use axum::extract::rejection::JsonRejection;
-use axum::extract::{Path, Query, State};
+use axum::extract::{DefaultBodyLimit, Multipart, Path, Query, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
@@ -36,6 +37,10 @@ pub fn router() -> Router<Runtime> {
         .route("/profiles/{p}/records/{kind}/{record_id}/correct", post(correct))
         .route("/profiles/{p}/records/{kind}/{record_id}/retract", post(retract))
         .route("/profiles/{p}/manual-observations", post(manual_observation))
+        .route(
+            "/profiles/{p}/records/medication/{record_id}/label",
+            post(add_label).layer(DefaultBodyLimit::max(LABEL_MAX_BYTES + 64 * 1024)),
+        )
 }
 
 const KINDS: [&str; 6] = [
@@ -218,6 +223,15 @@ fn model(kind: &str, profile_id: Uuid, body: &Map<String, Value>) -> Result<Reco
         .map(|(k, v)| (k.clone(), v.clone()))
         .collect();
     data.insert("profile_id".into(), json!(profile_id.to_string()));
+    // a medicine read and sent back as it came keeps its reason: the marked text is unwrapped
+    if let Some(text) = data
+        .get("decision_reason")
+        .filter(|v| ownhealth_core::text::is_untrusted(v))
+        .and_then(|v| v.get("text"))
+        .cloned()
+    {
+        data.insert("decision_reason".into(), text);
+    }
     let refused = |errors: Vec<Value>| Failure::Api(bad_input("Invalid record.").with("errors", json!(errors)));
     lax_record(kind, &mut data).map_err(refused)?;
     RecordIn::from_json(kind, Value::Object(data)).map_err(|e| refused(vec![json!({"msg": e.to_string()})]))
@@ -283,6 +297,9 @@ fn record_fields(kind: &str) -> &'static [(&'static str, Field, bool)] {
             ("schedule_text", OptStr, false),
             ("prescriber", OptStr, false),
             ("codes", OptCodes, false),
+            ("decision", OptLiteral(&rec::DECISIONS), false),
+            ("decision_reason", OptStr, false),
+            ("decision_on", OptDate, false),
         ],
         "allergy" => &[
             ("substance", Str, true),
@@ -439,6 +456,39 @@ async fn fetch(conn: &mut PgConnection, kind: &str, id: Uuid) -> Result<Map<Stri
         .ok_or_else(|| unknown("No such record."))
 }
 
+/// Records as the routes answer them. A medicine or supplement also lists its label photos
+/// (`labels`: document ids, newest first).
+async fn records_out(conn: &mut PgConnection, kind: &str, rows: &[Map<String, Value>]) -> Result<Vec<Value>, ApiError> {
+    let mut out: Vec<Value> = rows.iter().map(|r| record_out(kind, r)).collect();
+    if kind == "medication" {
+        let ids: Vec<Uuid> = rows.iter().filter_map(|r| Uuid::parse_str(&id_of(r)).ok()).collect();
+        let labels = rec::labels_of(conn, &ids).await?;
+        for (row, o) in rows.iter().zip(out.iter_mut()) {
+            // the person's reason is free text: a reader (an agent over the API too) gets it marked
+            if let Some(r) = row
+                .get("decision_reason")
+                .and_then(Value::as_str)
+                .filter(|r| !r.is_empty())
+            {
+                o["detail"]["decision_reason"] = json!({"trust": "untrusted_text", "origin": "person_note", "text": r});
+            }
+            let mine = labels
+                .iter()
+                .find(|(m, _)| m.to_string() == id_of(row))
+                .map(|(_, d)| d.iter().map(Uuid::to_string).collect::<Vec<_>>())
+                .unwrap_or_default();
+            o["labels"] = json!(mine);
+        }
+    }
+    Ok(out)
+}
+
+async fn one_out(conn: &mut PgConnection, kind: &str, id: Uuid) -> Result<Value, ApiError> {
+    let row = fetch(conn, kind, id).await?;
+    let mut out = records_out(conn, kind, std::slice::from_ref(&row)).await?;
+    Ok(out.pop().unwrap_or(Value::Null))
+}
+
 fn param<'a>(q: &'a [(String, String)], key: &str) -> Option<&'a str> {
     q.iter().rev().find(|(k, _)| k == key).map(|(_, v)| v.as_str())
 }
@@ -487,8 +537,8 @@ async fn list(
     }
     let ids: Vec<String> = rows.iter().map(id_of).collect();
     audit(&mut tx, &caller.0, &perm, "read", kind, &ids).await?;
+    let items = records_out(&mut tx, kind, &rows).await?;
     tx.commit().await?;
-    let items: Vec<Value> = rows.iter().map(|r| record_out(kind, r)).collect();
     Ok((StatusCode::OK, Json(json!({ "items": items }))))
 }
 
@@ -511,9 +561,9 @@ async fn add(
     )
     .await?;
     audit(&mut tx, &caller.0, &perm, "write", kind, &[committed.id.to_string()]).await?;
-    let row = fetch(&mut tx, kind, committed.id).await?;
+    let row = one_out(&mut tx, kind, committed.id).await?;
     tx.commit().await?;
-    Ok((StatusCode::CREATED, Json(record_out(kind, &row))))
+    Ok((StatusCode::CREATED, Json(row)))
 }
 
 /// Body: the full new version plus `reason`. The old version becomes superseded.
@@ -548,9 +598,9 @@ async fn correct(
     .await?;
     let ids = [record_id.to_string(), committed.id.to_string()];
     audit(&mut tx, &caller.0, &perm, "correct", kind, &ids).await?;
-    let row = fetch(&mut tx, kind, committed.id).await?;
+    let row = one_out(&mut tx, kind, committed.id).await?;
     tx.commit().await?;
-    Ok((StatusCode::CREATED, Json(record_out(kind, &row))))
+    Ok((StatusCode::CREATED, Json(row)))
 }
 
 /// `RetractIn.reason`: a string of 1 to 500 characters.
@@ -598,9 +648,123 @@ async fn retract(
     owned(&mut tx, kind, record_id, &perm).await?;
     rec::retract_record(&mut tx, kind, record_id, reason.trim()).await?;
     audit(&mut tx, &caller.0, &perm, "retract", kind, &[record_id.to_string()]).await?;
-    let row = fetch(&mut tx, kind, record_id).await?;
+    let row = one_out(&mut tx, kind, record_id).await?;
     tx.commit().await?;
-    Ok((StatusCode::OK, Json(record_out(kind, &row))))
+    Ok((StatusCode::OK, Json(row)))
+}
+
+// ------------------------------------------------------------ label photos ----
+
+/// A label photo is at most 15 MiB (a phone photo is 2 to 6).
+const LABEL_MAX_BYTES: usize = 15 * 1024 * 1024;
+
+/// The image type of a label photo from its first bytes: PNG, JPEG or WebP, which every browser shows.
+fn label_mime(head: &[u8]) -> Option<&'static str> {
+    if head.starts_with(b"\x89PNG\r\n\x1a\n") {
+        Some("image/png")
+    } else if head.starts_with(b"\xff\xd8\xff") {
+        Some("image/jpeg")
+    } else if head.len() >= 12 && &head[..4] == b"RIFF" && &head[8..12] == b"WEBP" {
+        Some("image/webp")
+    } else {
+        None
+    }
+}
+
+/// `POST /profiles/{p}/records/medication/{id}/label`, multipart with one `file`: store a photo of the
+/// label as a document (doc_type `other`, no extraction job, no review item) and link it to the
+/// current version of the record. A later version gets the link too.
+async fn add_label(
+    State(rt): State<Runtime>,
+    caller: Caller,
+    Path((p, record_id)): Path<(String, String)>,
+    form: Result<Multipart, MultipartRejection>,
+) -> Answer {
+    let record_id = uuid_param(&["path", "record_id"], &record_id)?;
+    let too_large = || {
+        ApiError::new(
+            StatusCode::PAYLOAD_TOO_LARGE,
+            "too_large",
+            "A label photo is at most 15 MiB.",
+        )
+    };
+    // a body past the route's limit fails while it is read: that is the size answer, not a parse error
+    let bad_body = |e: axum::extract::multipart::MultipartError| {
+        if e.status() == StatusCode::PAYLOAD_TOO_LARGE {
+            too_large()
+        } else {
+            ApiError::new(
+                StatusCode::BAD_REQUEST,
+                "bad_request",
+                "There was an error parsing the body",
+            )
+        }
+    };
+    let mut file: Option<(String, Vec<u8>)> = None;
+    if let Ok(mut form) = form {
+        while let Some(field) = form.next_field().await.map_err(bad_body)? {
+            if field.name() != Some("file") || file.is_some() {
+                continue;
+            }
+            let name = field
+                .file_name()
+                .filter(|f| !f.is_empty())
+                .unwrap_or("label")
+                .to_string();
+            let bytes = field.bytes().await.map_err(bad_body)?;
+            if bytes.len() > LABEL_MAX_BYTES {
+                return Err(too_large().into());
+            }
+            file = Some((name, bytes.to_vec()));
+        }
+    }
+    let Some((filename, bytes)) = file else {
+        return Err(invalid("missing", &["body", "file"], "Field required", Value::Null));
+    };
+    let Some(mime) = label_mime(&bytes) else {
+        return Err(ownhealth_core::Error::Upload("A label photo is a PNG, JPEG or WebP image.".into()).into());
+    };
+    let mut tx = rt.pool.begin().await?;
+    let perm = writer(&mut tx, &caller, &p).await?;
+    owned(&mut tx, "medication", record_id, &perm).await?;
+    // only the current version takes a new photo; older versions keep the ones they had
+    ownhealth_core::lifecycle::lock_current(&mut tx, "medication_statement", record_id).await?;
+    let blobs = rt.blobs.clone();
+    let size = i64::try_from(bytes.len()).unwrap_or(i64::MAX);
+    let sha = tokio::task::spawn_blocking(move || blobs.put_bytes(&bytes))
+        .await
+        .map_err(|e| ownhealth_core::Error::Other(e.into()))?
+        .map_err(|e| ownhealth_core::Error::Other(e.into()))?;
+    let doc = ownhealth_core::documents::create_document(
+        &mut tx,
+        &ownhealth_core::documents::NewDocument {
+            filename: Some(&filename),
+            doc_type: Some("other"),
+            ..ownhealth_core::documents::NewDocument::upload(
+                perm.profile.household_id,
+                Some(perm.profile.id),
+                &sha,
+                mime,
+                size,
+            )
+        },
+    )
+    .await?;
+    rec::add_label(&mut tx, record_id, doc.id).await?;
+    audit(
+        &mut tx,
+        &caller.0,
+        &perm,
+        "write",
+        "medication_label",
+        &[record_id.to_string(), doc.id.to_string()],
+    )
+    .await?;
+    tx.commit().await?;
+    Ok((
+        StatusCode::CREATED,
+        Json(json!({"medication_id": record_id, "document_id": doc.id})),
+    ))
 }
 
 // ------------------------------------------------------ manual observations ----

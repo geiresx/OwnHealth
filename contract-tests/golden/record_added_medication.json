@@ -4,6 +4,9 @@
     "code": "null",
     "code_system": "null",
     "codes": "null",
+    "decision": "null",
+    "decision_on": "null",
+    "decision_reason": "null",
     "dose_text": "string",
     "effective_at": "null",
     "ingredient": "null",
@@ -22,6 +25,9 @@
   },
   "id": "uuid",
   "kind": "=medication",
+  "labels": {
+    "[]": "empty"
+  },
   "recorded_at": "datetime_Z",
   "src": "src_id",
   "status": "=current",
