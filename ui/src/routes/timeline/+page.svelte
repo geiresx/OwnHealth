@@ -8,7 +8,7 @@
 	import SourcePanel from '#lib/components/pages1/SourcePanel.svelte';
 	import { openSource } from '#lib/components/pages1/source.svelte';
 	import { Loader, tf } from '#lib/components/pages1/util.svelte';
-	import PhaseChip from '#lib/components/PhaseChip.svelte';
+	import GapsCard from '#lib/components/GapsCard.svelte';
 	import SourceChip from '#lib/components/SourceChip.svelte';
 	import RecordsCard from '#lib/components/RecordsCard.svelte';
 	import { i18n, t } from '#lib/i18n/index.svelte';
@@ -241,10 +241,9 @@
 			{#if profile}
 				{#key profile.slug}<RecordsCard profile={profile.slug} canWrite={profile.role !== 'viewer'} onchange={load} />{/key}
 			{/if}
-			<div class="card">
-				<h3>{t('h1_gaps')} <span class="r"><PhaseChip phase="v0.3" /></span></h3>
-				<div class="dim" style="font-size:12px">{t('h1_gaps_d')}</div>
-			</div>
+			{#if profile}
+				{#key profile.slug}<GapsCard profile={profile.slug} stamp={tl.data} />{/key}
+			{/if}
 		</div>
 	</div>
 {/if}

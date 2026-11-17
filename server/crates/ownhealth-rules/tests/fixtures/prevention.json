@@ -61,6 +61,22 @@
         "labs": true
       },
       {
+        "key": "gap:hole:2016-05-10:2021-11-09",
+        "rule": "records_hole",
+        "area": "document",
+        "kind": "document_request",
+        "status": "due",
+        "from": "2016-05-10",
+        "to": "2021-11-09",
+        "days": 2009,
+        "source": "GDPR Art. 15",
+        "cite": "https://eur-lex.europa.eu/eli/reg/2016/679/oj#art_15",
+        "src": [
+          "src_k65m8uwj",
+          "src_c02"
+        ]
+      },
+      {
         "key": "infect.hcv.once_adult",
         "rule": "infect.hcv.once_adult",
         "area": "lab",
@@ -107,7 +123,7 @@
       }
     ],
     "unmatched": [],
-    "prevention_hash": "sha256:f1ab2c2e764b7010e70185913df1b962034a82c003dbc18ef83eec7cc8fbd128"
+    "prevention_hash": "sha256:c70577970ae8635b0542ab93456848858dbee1c077fd84a5f6b2bf01e26fd5dd"
   },
   "sam": {
     "schema": "ownhealth.prevention/v1",
@@ -237,6 +253,40 @@
         "src": []
       },
       {
+        "key": "gap:hole:2024-02-01:2025-07-15",
+        "rule": "records_hole",
+        "area": "document",
+        "kind": "document_request",
+        "status": "due",
+        "from": "2024-02-01",
+        "to": "2025-07-15",
+        "days": 530,
+        "source": "GDPR Art. 15",
+        "cite": "https://eur-lex.europa.eu/eli/reg/2016/679/oj#art_15",
+        "src": [
+          "src_eb4zyrxf",
+          "src_ekbjraa2"
+        ],
+        "labs": true
+      },
+      {
+        "key": "gap:hole:2025-07-15:2026-07-22",
+        "rule": "records_hole",
+        "area": "document",
+        "kind": "document_request",
+        "status": "due",
+        "from": "2025-07-15",
+        "to": "2026-07-22",
+        "days": 372,
+        "source": "GDPR Art. 15",
+        "cite": "https://eur-lex.europa.eu/eli/reg/2016/679/oj#art_15",
+        "src": [
+          "src_ekbjraa2",
+          "src_hypcqway"
+        ],
+        "labs": true
+      },
+      {
         "key": "infect.hcv.once_adult",
         "rule": "infect.hcv.once_adult",
         "area": "lab",
@@ -260,7 +310,7 @@
       }
     ],
     "unmatched": [],
-    "prevention_hash": "sha256:d428c13a6a0721a5528dc437c38dcaaab8e0923fccf9a085e3632d44ccf81a5a"
+    "prevention_hash": "sha256:36e1a4063a99f27432737e9fdf8b9cc37dab44b9ca3d2f9ec13384795eded4ec"
   },
   "jordan": {
     "schema": "ownhealth.prevention/v1",
@@ -329,6 +379,38 @@
         "source": "CDC adult schedule",
         "cite": "https://www.cdc.gov/vaccines/hcp/imz-schedules/adult-age.html",
         "src": []
+      },
+      {
+        "key": "gap:hole:2014-09-02:2019-04-01",
+        "rule": "records_hole",
+        "area": "document",
+        "kind": "document_request",
+        "status": "due",
+        "from": "2014-09-02",
+        "to": "2019-04-01",
+        "days": 1672,
+        "source": "GDPR Art. 15",
+        "cite": "https://eur-lex.europa.eu/eli/reg/2016/679/oj#art_15",
+        "src": [
+          "src_x",
+          "src_x"
+        ]
+      },
+      {
+        "key": "gap:hole:2019-04-01:2025-01-15",
+        "rule": "records_hole",
+        "area": "document",
+        "kind": "document_request",
+        "status": "due",
+        "from": "2019-04-01",
+        "to": "2025-01-15",
+        "days": 2116,
+        "source": "GDPR Art. 15",
+        "cite": "https://eur-lex.europa.eu/eli/reg/2016/679/oj#art_15",
+        "src": [
+          "src_x",
+          "src_x"
+        ]
       },
       {
         "key": "infect.hcv.once_adult",

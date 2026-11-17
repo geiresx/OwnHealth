@@ -556,8 +556,12 @@ function timeline(){
   <div class="grid" style="align-content:start">
    <div class="card"><h3>Sources</h3>
     <table class="t"><tbody>${[["LabNorte (PDF)","ES",9],["Centro de Salud Centro (visit notes)","ES",6],["Eurofins Megalab (PDF)","ES",2],["Labor Berlin (PDF)","DE",3],["Praxis Berlin-Mitte (DICOM)","DE",1],["IPS bundle (FHIR)","DE",1],["Quest (Blue Button FHIR)","US",4],["Bay Clinic (C-CDA)","US",2],["OwnGenome","—",1]].map(s=>`<tr><td>${s[0]}</td><td><span class="flag">${s[1]}</span></td><td class="num" style="text-align:right">${s[2]}</td></tr>`).join("")}</tbody></table></div>
-   <div class="card"><h3>Gaps</h3><div class="due"><div class="ic" style="background:var(--watch-bg)">!</div><div class="w"><div>Visit 2025-11-10 (traumatology) has no report on file</div><div>Request a copy · ES</div></div></div>
-    <div class="due"><div class="ic" style="background:var(--watch-bg)">!</div><div class="w"><div>No records between 2021-02 and 2021-10</div><div>Move US → ES</div></div></div></div>
+   <div class="card"><h3>Gaps<span class="r num">3</span></h3>
+    <!-- live in 0.4.0: GET /profiles/{p}/gaps (gaps.yaml: a visit with no document from its provider in 30 days; 365 days or more with nothing dated). Also on the Due list as gap:<key> -->
+    <div class="due" style="align-items:flex-start"><div class="ic" style="background:var(--watch-bg);color:var(--watch);font-weight:700">!</div><div class="w"><div>Visit 2025-11-10 (Traumatología · Hospital Norte) has no report on file</div><div>No document from the visit's provider is on file in the 30 days after it. The provider keeps a copy that can be requested. · Letter to request a copy: <a class="chip" href="#">Español</a> <a class="chip" href="#">English</a> ${src("2025-11-10")} <span class="chip">GDPR Art. 15</span></div></div></div>
+    <div class="due" style="align-items:flex-start"><div class="ic" style="background:var(--watch-bg);color:var(--watch);font-weight:700">!</div><div class="w"><div>No records between 2024-05-22 and 2025-11-05</div><div>532 days with nothing dated in the record. Reports from that time may be held elsewhere. ${src("2024-05-22")} ${src("2025-11-05")} <span class="chip">GDPR Art. 15</span></div></div></div>
+    <div class="due" style="align-items:flex-start"><div class="ic" style="background:var(--watch-bg);color:var(--watch);font-weight:700">!</div><div class="w"><div>No records between 2019-08-14 and 2021-01-26</div><div>531 days with nothing dated in the record. Reports from that time may be held elsewhere. ${src("2019-08-14")} ${src("2021-01-26")} <span class="chip">GDPR Art. 15</span></div></div></div>
+    <div class="dim" style="font-size:11.5px;margin-top:6px"><a href="#due">These gaps are also on the Due list, where each one can be snoozed or marked done.</a></div></div>
   </div></div>`;
 }
 /* ---------- 4. genome ---------- */

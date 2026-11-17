@@ -17,6 +17,7 @@ pub mod cited;
 pub mod drugs;
 pub mod engine;
 pub mod family;
+pub mod gaps;
 pub mod genome;
 pub mod glance;
 pub mod num;

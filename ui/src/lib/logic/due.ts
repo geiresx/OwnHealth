@@ -8,7 +8,8 @@ export type DueStatus = 'overdue' | 'due' | 'upcoming' | 'up_to_date' | 'not_ass
 export interface DueItem {
 	key: string;
 	rule: string;
-	area: 'screening' | 'vaccine' | 'lab';
+	/** `document`: a document gap of the record (key `gap:<key>`, kind `document_request`). */
+	area: 'screening' | 'vaccine' | 'lab' | 'document';
 	kind: string;
 	status: DueStatus;
 	due?: string;
@@ -26,6 +27,11 @@ export interface DueItem {
 	record?: { kind: 'immunization' | 'procedure'; text: string | null };
 	/** not_assessed `no_answer`: the answer key the row depends on. */
 	answer?: string;
+	/** A document gap: the visit day and the letter of the profile's country, or the stretch with no records. */
+	date?: string;
+	letter?: string;
+	from?: string;
+	to?: string;
 	/** What the person decided about this item (POST /profiles/{p}/due/{key}/decision). */
 	decision?: DueDecision;
 }

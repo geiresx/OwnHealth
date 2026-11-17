@@ -65,7 +65,8 @@
 	const DUE_ICON: Record<string, string> = {
 		lab: '<path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-9V3"/>',
 		vaccine: '<path d="m18 2 4 4M17 7l-9 9M14 4l6 6M5 19l-3 3M7 13l4 4"/>',
-		screening: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>'
+		screening: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+		document: '<path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4"/>'
 	};
 	// A number the server sent as text ('5.6') in the reader's language; other text stays as it is.
 	const numText = (v: string | number) => (typeof v === 'number' || /^-?\d+(\.\d+)?$/.test(v) ? fmtNum(Number(v)) : v);

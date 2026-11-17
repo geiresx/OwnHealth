@@ -764,3 +764,38 @@ export interface Calculators {
 	items: CalcItem[];
 	calculators_hash: string;
 }
+
+// v0.3 document gaps (GET /profiles/{p}/gaps): ownhealth.gaps/v1 in one language, trimmed to the caller's scopes.
+export interface GapItem {
+	key: string;
+	rule: 'visit_without_report' | 'records_hole';
+	source: string;
+	cite: string;
+	src: string[];
+	documents?: Uuid[];
+	labs?: boolean;
+	/** visit_without_report: the visit day, its provider and the letter of the profile's country, if any */
+	date?: IsoDate;
+	provider?: string;
+	letter?: string;
+	/** records_hole: the dated facts on each side and the days between */
+	from?: IsoDate;
+	to?: IsoDate;
+	days?: number;
+	title: string;
+	why: string;
+}
+
+export interface Gaps {
+	schema: string;
+	profile: string;
+	as_of: IsoDate;
+	rules: string;
+	country?: string;
+	lang: string;
+	items: GapItem[];
+	withheld: number;
+	withheld_scopes: string[];
+	/** Absent for a caller without read:records. */
+	gaps_hash?: string;
+}

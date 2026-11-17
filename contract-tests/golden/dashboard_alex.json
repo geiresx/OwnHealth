@@ -65,7 +65,25 @@
     "[]": {
       "area": "string",
       "cite": "string",
+      "date": {
+        "|": [
+          "absent",
+          "date"
+        ]
+      },
+      "days": {
+        "|": [
+          "absent",
+          "int"
+        ]
+      },
       "due": {
+        "|": [
+          "absent",
+          "date"
+        ]
+      },
+      "from": {
         "|": [
           "absent",
           "date"
@@ -80,6 +98,7 @@
       "key": "string",
       "kind": {
         "|": [
+          "=document_request",
           "=never_measured",
           "=once",
           "=recency",
@@ -99,6 +118,12 @@
             "date": "date",
             "src": "src_id"
           }
+        ]
+      },
+      "letter": {
+        "|": [
+          "absent",
+          "string"
         ]
       },
       "record": {
@@ -128,6 +153,12 @@
         ]
       },
       "title": "string",
+      "to": {
+        "|": [
+          "absent",
+          "date"
+        ]
+      },
       "why": "string"
     }
   },

@@ -5,7 +5,7 @@
 	// A person with write access acts on an item: snooze it to a date, mark it done by pointing at the
 	// record or document that shows it, or dismiss it with a reason (POST /profiles/{p}/due/{key}/decision).
 	import '#lib/components/pages2/pages2.css';
-	import { createRecord, decideDue, getDue, listDocuments, listRecords, undoDue } from '#lib/api';
+	import { createRecord, decideDue, gapLetterUrl, getDue, listDocuments, listRecords, undoDue } from '#lib/api';
 	import { ApiError } from '#lib/api/core';
 	import DueAnswers from '#lib/components/DueAnswers.svelte';
 	import { focusOnOpen } from '#lib/actions/focusOnOpen';
@@ -45,7 +45,8 @@
 	const ICON: Record<string, string> = {
 		lab: '<path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-9V3"/>',
 		vaccine: '<path d="m18 2 4 4M17 7l-9 9M14 4l6 6M5 19l-3 3M7 13l4 4"/>',
-		screening: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>'
+		screening: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+		document: '<path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4"/>'
 	};
 	// The date beside the status: when it opens, when it is next listed, or since when it is open
 	// again after a record (a row never recorded says so instead of a date from decades ago).
@@ -264,7 +265,11 @@
 			<div><b>{i.title ?? i.key}</b></div>
 			<div>{i.reason ?? i.why}</div>
 			<div class="meta">
-				{#if i.last}
+				{#if i.area === 'document'}
+					<!-- a document gap: the letter that asks for the copy, and the gap on the timeline -->
+					{#if i.letter && prof}<a href={gapLetterUrl(prof.slug, i.key.slice(4), i18n.lang)} target="_blank" rel="noopener" title={t('gap_letter_t')}>{t('gap_letter')}</a>{/if}
+					<a href="/timeline">{t('gap_tl_link')}</a>
+				{:else if i.last}
 					<span>{tf('due_last', { d: i.last.date })}</span>
 					{#if i.last.src}<SourceChip label="" name={i.title ?? i.key} src={i.last.src} onopen={openSource} />{/if}
 				{:else if i.status !== 'not_assessed'}

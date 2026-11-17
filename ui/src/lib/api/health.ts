@@ -2,7 +2,7 @@
 // Backends: lane E (status.py, drug_check.py), lane A (observations.py), lane H (timeline.py), lane D (genome.py).
 import { del, get, p, post, request } from './core';
 import type { DueAnswer, DueDecisionIn, DueDoc } from '../logic/due';
-import type { Calculators, Dashboard, ObservationOut, Status, Timeline, Trend, TrendPoint } from './types';
+import type { Calculators, Dashboard, Gaps, ObservationOut, Status, Timeline, Trend, TrendPoint } from './types';
 
 export type Units = 'si' | 'conventional' | 'as_reported';
 
@@ -36,3 +36,9 @@ export const undoDue = (profile: string, key: string) => del<{ item_key: string;
 export const getDueAnswers = (profile: string, lang: string) => get<{ items: DueAnswer[] }>(`${p(profile)}/prevention-answers`, { lang });
 export const putDueAnswers = (profile: string, answers: Record<string, 'yes' | 'no' | null>, lang: string) =>
 	request<{ items: DueAnswer[] }>('PUT', `${p(profile)}/prevention-answers`, { query: { lang }, body: answers });
+
+// v0.3 document gaps: visits with no report on file and long stretches with no records, and the
+// printable letter that asks the provider for a copy (a plain link: the browser opens the PDF).
+export const getGaps = (profile: string, lang: string, asOf?: string) => get<Gaps>(`${p(profile)}/gaps`, { lang, as_of: asOf });
+export const gapLetterUrl = (profile: string, key: string, lang: string) =>
+	`/api${p(profile)}/gaps/${encodeURIComponent(key)}/letter.pdf?lang=${encodeURIComponent(lang)}`;

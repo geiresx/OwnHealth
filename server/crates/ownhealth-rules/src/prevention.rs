@@ -13,11 +13,12 @@
 //! (`prevention_decision`) move an item to `hidden` or mark it. `hidden` is absent when empty, so a
 //! profile without decisions keeps the hash it had before they existed.
 //!
-//! Items come from two places, each with one stable key:
+//! Items come from three places, each with one stable key:
 //! - a row of the country file (`es.yaml`, `us.yaml`): key = the row id;
 //! - the rule pack's lab gaps already in the state body: a never-measured analyte keeps its rule id,
 //!   a stale series is `stale:<rule>:<group>`. The pack stays their only home: the loader refuses a
-//!   country row whose evidence the pack already checks.
+//!   country row whose evidence the pack already checks;
+//! - the record's document gaps (`crate::gaps`): key = `gap:<gap key>`, kind `document_request`.
 //!
 //! The document holds codes, dates and ids only: language and the caller are not inputs, so the
 //! hash is the same for every token. `render` adds the words in one language and drops what the
@@ -1177,6 +1178,9 @@ pub async fn document(
         }
         items.push(it);
     }
+    // the record's document gaps are reminders too (`gap:<key>`)
+    let gaps = crate::gaps::document(&mut *conn, profile, as_of).await?;
+    items.extend(crate::gaps::due_items(&gaps));
     let rank = |v: &Value| {
         let s = v.get("status").and_then(Value::as_str).unwrap_or_default();
         STATUSES.iter().position(|x| *x == s).unwrap_or(STATUSES.len())
@@ -1326,6 +1330,9 @@ pub fn render(doc: &Value, pack: &Pack, lang: &str, scopes: &Scopes) -> Result<V
                     );
                 }
                 (pick(Some(&row.name), lang), why)
+            } else if it.get("kind").and_then(Value::as_str) == Some("document_request") {
+                let (title, why) = crate::gaps::due_text(it, lang)?;
+                (Some(title), Some(why))
             } else {
                 let group = it.get("group").map(text).unwrap_or_default();
                 let why = if it.get("kind").and_then(Value::as_str) == Some("never_measured") {
@@ -1395,7 +1402,8 @@ const OPEN: [&str; 3] = ["overdue", "due", "upcoming"];
 /// `{key, status, due, rule}` (rule only when it is not the key), their count `due_total` and the
 /// document's hash. An item due or overdue that was never recorded has no `due`: its date is where
 /// the age window opened, not a deadline. Rule ids, no URLs: the cites stay in the document. The lab gaps are left out, because the
-/// status lists them already under never_measured and stale; an item a lab value shows needs
+/// status lists them already under never_measured and stale, and so are the document gaps, which the
+/// 2 KB page has no room for (the Due screen and the dashboard show them); an item a lab value shows needs
 /// read:labs. Open items the person's decisions hide are left out and counted in `due_hidden`. None
 /// when nothing is open or hidden (the status page has 2 KB and spends none of it on an empty list)
 /// or the profile is not in the store.
@@ -1416,7 +1424,7 @@ pub async fn status_section(
             .as_array()
             .into_iter()
             .flatten()
-            .filter(|i| i["area"] != "lab" && visible(i, scopes))
+            .filter(|i| i["area"] != "lab" && i["area"] != "document" && visible(i, scopes))
             .filter(|i| i["status"].as_str().is_some_and(|s| OPEN.contains(&s)))
             .cloned()
             .collect()

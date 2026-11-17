@@ -45,7 +45,19 @@
     "[]": {
       "area": "string",
       "cite": "string",
+      "days": {
+        "|": [
+          "absent",
+          "int"
+        ]
+      },
       "due": {
+        "|": [
+          "absent",
+          "date"
+        ]
+      },
+      "from": {
         "|": [
           "absent",
           "date"
@@ -60,6 +72,7 @@
       "key": "string",
       "kind": {
         "|": [
+          "=document_request",
           "=every_n_months",
           "=never_measured",
           "=once",
@@ -108,6 +121,12 @@
       },
       "status": "=due",
       "title": "string",
+      "to": {
+        "|": [
+          "absent",
+          "date"
+        ]
+      },
       "why": "string"
     }
   },
