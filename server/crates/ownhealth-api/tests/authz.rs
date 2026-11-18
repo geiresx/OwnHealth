@@ -16,8 +16,9 @@ use support::Env;
 
 type R = anyhow::Result<()>;
 
-/// Routes reachable without a login: they are the login itself.
-const PUBLIC: [&str; 15] = [
+/// Routes reachable without a login: the login itself, and the calendar feed, whose secret is in its
+/// path (ics_feed.rs checks that a wrong one gets 404).
+const PUBLIC: [&str; 16] = [
     "/auth/state",
     "/auth/setup/begin",
     "/auth/setup/finish",
@@ -33,6 +34,7 @@ const PUBLIC: [&str; 15] = [
     "/auth/enroll/password",
     "/auth/oidc/login",
     "/auth/oidc/callback",
+    "/ics/{file}",
 ];
 
 const METHODS: [Method; 5] = [Method::GET, Method::POST, Method::PUT, Method::PATCH, Method::DELETE];

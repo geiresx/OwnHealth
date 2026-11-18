@@ -39,6 +39,9 @@ const SOURCES: &[(&str, Source)] = &[
     ("calculators", |s| Box::pin(calculators(s))),
     ("couple_carrier", |_| Box::pin(couple_carrier())),
     ("family_patterns", |_| Box::pin(family_patterns())),
+    ("calendar_feed", |_| {
+        Box::pin(async { Ok(vec![ownhealth_api::routes::ics::phrases()]) })
+    }),
 ];
 
 async fn status(s: &Seeded) -> anyhow::Result<Vec<Value>> {

@@ -2357,6 +2357,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "icalendar"
+version = "0.17.17"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2fe2f2ca4a82ec12ebd129ca664030add9b80d17a2b79ce885884fefb1c650e6"
+dependencies = [
+ "chrono",
+ "iso8601",
+ "nom 8.0.0",
+ "nom-language",
+ "uuid",
+]
+
+[[package]]
 name = "icu_collections"
 version = "2.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2602,6 +2615,15 @@ name = "is_terminal_polyfill"
 version = "1.70.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a6cb138bb79a146c1bd460005623e142ef0181e3d0219cb493e02f7d08a35695"
+
+[[package]]
+name = "iso8601"
+version = "0.6.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4ffd3254cf2b0fc53e38414bdba99719f3e269db8a6519731b68a3a90040c41b"
+dependencies = [
+ "nom 8.0.0",
+]
 
 [[package]]
 name = "itertools"
@@ -3303,6 +3325,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "nom-language"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2de2bc5b451bfedaef92c90b8939a8fff5770bdcc1fafd6239d086aab8fa6b29"
+dependencies = [
+ "nom 8.0.0",
+]
+
+[[package]]
 name = "noodles"
 version = "0.119.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3792,6 +3823,7 @@ dependencies = [
  "axum-extra",
  "chrono",
  "http",
+ "icalendar",
  "ownhealth-auth",
  "ownhealth-core",
  "ownhealth-devices",
@@ -3807,6 +3839,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sqlx",
+ "subtle",
  "tempfile",
  "tokio",
  "tokio-util",

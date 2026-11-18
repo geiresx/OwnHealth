@@ -100,6 +100,8 @@ webpki-roots = "1"
 # tests
 proptest = { version = "1.8", default-features = false, features = ["std"] }
 tempfile = "3"
+# an independent RFC 5545 parser for the calendar feed tests (ownhealth-api ics_feed.rs)
+icalendar = { version = "0.17", default-features = false, features = ["parser"] }
 
 # errors, cli, logs
 thiserror = "2"
