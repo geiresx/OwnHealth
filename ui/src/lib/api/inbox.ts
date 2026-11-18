@@ -9,7 +9,7 @@ type List<T> = T[] | { items: T[] };
 const items = <T>(r: List<T>): { items: T[] } => ({ items: Array.isArray(r) ? r : (r?.items ?? []) });
 const list = <T>(path: string, query?: Record<string, string | number>) => get<List<T>>(path, query).then(items);
 
-export type SourceKind = 'email' | 'folder' | 'paperless' | 'share' | 'shortcut' | 'health_auto_export' | 'gadgetbridge' | 'nightscout';
+export type SourceKind = 'email' | 'folder' | 'paperless' | 'share' | 'shortcut' | 'health_auto_export' | 'gadgetbridge' | 'nightscout' | 'clinvar';
 
 /** A configured inbox with its health. Secrets are write-only: `has_secret` says one is stored. */
 export interface InboxSource {
@@ -61,6 +61,8 @@ export interface SourceIn {
 	/** IMAP password, Paperless API token or Nightscout token; sealed on the server, never returned. */
 	secret?: string;
 	poll_seconds?: number | null;
+	/** Saved switched off when false (the ClinVar check can be configured before it is turned on). */
+	enabled?: boolean;
 }
 
 export type QuarantineReason = 'sender_not_allowed' | 'auth_failed' | 'too_large' | 'unsupported_type' | 'no_profile';

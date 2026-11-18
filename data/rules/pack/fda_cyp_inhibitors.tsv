@@ -1,0 +1,72 @@
+# The FDA table of clinical CYP inhibitors, strong and moderate, for the genes the drug check reads.
+# The rows are GeiserX/OwnGenome assets/pgx_inhibitors.tsv, unchanged, at commit
+# d5334f6491d2ef847db767f7b0b74ee7d89b2dce (that file's sha256 with its own comments:
+# 4c0801000c057585a58faa56f8cd5992915998cfbdd6119c2d7aee246d32d7cf); these comment lines replace its comments.
+# FDA table content current as of 2026-05-29, read 2026-11-03:
+# https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems
+# The FDA lists no strong CYP2C9 inhibitor, so CYP2C9 has moderate rows only. Activity_score_factor is
+# CPIC's CYP2D6 rule (0 strong, 0.5 moderate); '-' means CPIC gives no conversion for that gene.
+# pgx_phenoconversion.yaml is generated from these rows; a test in ownhealth-rules drugs.rs fails when they differ.
+Drug	Gene	Strength	Activity_score_factor	Class_source	Rule_source
+bupropion	CYP2D6	strong	0	https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems	https://cpicpgx.org/guidelines/guideline-for-codeine-and-cyp2d6/
+fluoxetine	CYP2D6	strong	0	https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems	https://cpicpgx.org/guidelines/guideline-for-codeine-and-cyp2d6/
+paroxetine	CYP2D6	strong	0	https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems	https://cpicpgx.org/guidelines/guideline-for-codeine-and-cyp2d6/
+quinidine	CYP2D6	strong	0	https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems	https://cpicpgx.org/guidelines/guideline-for-codeine-and-cyp2d6/
+terbinafine	CYP2D6	strong	0	https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems	https://cpicpgx.org/guidelines/guideline-for-codeine-and-cyp2d6/
+abiraterone	CYP2D6	moderate	0.5	https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems	https://cpicpgx.org/guidelines/guideline-for-codeine-and-cyp2d6/
+cinacalcet	CYP2D6	moderate	0.5	https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems	https://cpicpgx.org/guidelines/guideline-for-codeine-and-cyp2d6/
+duloxetine	CYP2D6	moderate	0.5	https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems	https://cpicpgx.org/guidelines/guideline-for-codeine-and-cyp2d6/
+lorcaserin	CYP2D6	moderate	0.5	https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems	https://cpicpgx.org/guidelines/guideline-for-codeine-and-cyp2d6/
+mirabegron	CYP2D6	moderate	0.5	https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems	https://cpicpgx.org/guidelines/guideline-for-codeine-and-cyp2d6/
+rolapitant	CYP2D6	moderate	0.5	https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems	https://cpicpgx.org/guidelines/guideline-for-codeine-and-cyp2d6/
+fluconazole	CYP2C19	strong	-	https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems	-
+fluoxetine	CYP2C19	strong	-	https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems	-
+fluvoxamine	CYP2C19	strong	-	https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems	-
+ticlopidine	CYP2C19	strong	-	https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems	-
+cenobamate	CYP2C19	moderate	-	https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems	-
+felbamate	CYP2C19	moderate	-	https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems	-
+voriconazole	CYP2C19	moderate	-	https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems	-
+amiodarone	CYP2C9	moderate	-	https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems	-
+fluconazole	CYP2C9	moderate	-	https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems	-
+miconazole	CYP2C9	moderate	-	https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems	-
+piperine	CYP2C9	moderate	-	https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems	-
+adagrasib	CYP3A4	strong	-	https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems	-
+ceritinib	CYP3A4	strong	-	https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems	-
+clarithromycin	CYP3A4	strong	-	https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems	-
+cobicistat	CYP3A4	strong	-	https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems	-
+elvitegravir	CYP3A4	strong	-	https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems	-
+idelalisib	CYP3A4	strong	-	https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems	-
+indinavir	CYP3A4	strong	-	https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems	-
+itraconazole	CYP3A4	strong	-	https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems	-
+ketoconazole	CYP3A4	strong	-	https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems	-
+lopinavir	CYP3A4	strong	-	https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems	-
+nefazodone	CYP3A4	strong	-	https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems	-
+nelfinavir	CYP3A4	strong	-	https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems	-
+paritaprevir	CYP3A4	strong	-	https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems	-
+posaconazole	CYP3A4	strong	-	https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems	-
+ritonavir	CYP3A4	strong	-	https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems	-
+saquinavir	CYP3A4	strong	-	https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems	-
+telithromycin	CYP3A4	strong	-	https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems	-
+tipranavir	CYP3A4	strong	-	https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems	-
+tucatinib	CYP3A4	strong	-	https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems	-
+voriconazole	CYP3A4	strong	-	https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems	-
+adagrasib	CYP3A5	strong	-	https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems	-
+ceritinib	CYP3A5	strong	-	https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems	-
+clarithromycin	CYP3A5	strong	-	https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems	-
+cobicistat	CYP3A5	strong	-	https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems	-
+elvitegravir	CYP3A5	strong	-	https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems	-
+idelalisib	CYP3A5	strong	-	https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems	-
+indinavir	CYP3A5	strong	-	https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems	-
+itraconazole	CYP3A5	strong	-	https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems	-
+ketoconazole	CYP3A5	strong	-	https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems	-
+lopinavir	CYP3A5	strong	-	https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems	-
+nefazodone	CYP3A5	strong	-	https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems	-
+nelfinavir	CYP3A5	strong	-	https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems	-
+paritaprevir	CYP3A5	strong	-	https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems	-
+posaconazole	CYP3A5	strong	-	https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems	-
+ritonavir	CYP3A5	strong	-	https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems	-
+saquinavir	CYP3A5	strong	-	https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems	-
+telithromycin	CYP3A5	strong	-	https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems	-
+tipranavir	CYP3A5	strong	-	https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems	-
+tucatinib	CYP3A5	strong	-	https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems	-
+voriconazole	CYP3A5	strong	-	https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems	-

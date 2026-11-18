@@ -1,9 +1,16 @@
 //! Lane G: `api/export.py`. Full export, from the UI only (never MCP): FHIR R4 NDJSON plus the
 //! original files in one zip.
 //!
-//! Needs step-up and the right to manage the profile (owner, or guardian of an unclaimed profile).
-//! The zip is built in a temporary file under the data directory and streamed; the file is unlinked
-//! once it is open for sending, so no copy of the export stays on the server.
+//! ```text
+//! POST /api/profiles/{p}/export  {fmt: "zip"}               the full export (manage right)
+//! POST /api/profiles/{p}/export  {fmt: "ips", lang?: es|en} the International Patient Summary
+//! ```
+//!
+//! Both need step-up and write one audit row. The zip needs the right to manage the profile (owner,
+//! or guardian of an unclaimed profile); it is built in a temporary file under the data directory and
+//! streamed, and the file is unlinked once it is open for sending, so no copy stays on the server.
+//! The IPS (`ownhealth_ops::ips`, a FHIR document Bundle as JSON) is the printed doctor summary's
+//! twin, so it needs what printing does: `read:summary`, each part following the caller's scopes.
 
 use std::fs::{File, OpenOptions};
 use std::path::PathBuf;
@@ -16,10 +23,12 @@ use axum::response::IntoResponse;
 use axum::routing::post;
 use ownhealth_auth::household::require_manage;
 use ownhealth_core::Runtime;
+use ownhealth_core::access::today_utc;
 use ownhealth_core::audit::{AuditEvent, write_audit};
 use ownhealth_ops::export::{blocking, export_profile};
+use ownhealth_rules::summary::LANGS;
 use serde::Deserialize;
-use serde_json::Value;
+use serde_json::{Value, json};
 use uuid::Uuid;
 
 use super::auth::{Body, Check, Fail, Meta, R, StepUpCaller};
@@ -30,6 +39,8 @@ use crate::extract::Caller;
 struct ExportIn {
     #[serde(default = "zip")]
     fmt: String,
+    /// The IPS narratives' language; the caller's own by default.
+    lang: Option<String>,
 }
 
 fn zip() -> String {
@@ -61,7 +72,10 @@ async fn export(
     Path(profile): Path<String>,
     Body(body): Body<ExportIn>,
 ) -> R {
-    Check::body().literal("fmt", Some(&body.fmt), &["zip"]).done()?;
+    Check::body().literal("fmt", Some(&body.fmt), &["zip", "ips"]).done()?;
+    if body.fmt == "ips" {
+        return ips(rt, p, meta, profile, body.lang).await;
+    }
     let mut tx = rt.pool.begin().await?;
     // one snapshot for every query of the export (it must be set before the first query)
     sqlx::query("set transaction isolation level repeatable read")
@@ -115,6 +129,58 @@ async fn export(
     let h = res.headers_mut();
     h.insert(header::CONTENT_TYPE, HeaderValue::from_static("application/zip"));
     h.insert(header::CONTENT_LENGTH, HeaderValue::from(size));
+    h.insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
+    if let Ok(v) = HeaderValue::from_str(&format!("attachment; filename=\"{filename}\"")) {
+        h.insert(header::CONTENT_DISPOSITION, v);
+    }
+    Ok(res)
+}
+
+/// The IPS Bundle of one profile, as the caller may read it today.
+async fn ips(
+    rt: Runtime,
+    p: ownhealth_core::access::Principal,
+    meta: Meta,
+    profile: String,
+    lang: Option<String>,
+) -> R {
+    let lang = lang.unwrap_or_else(|| p.lang.clone());
+    Check::body().literal("lang", Some(&lang), &LANGS).done()?;
+    let mut tx = rt.pool.begin().await?;
+    let perm = Caller(p.clone())
+        .require(&mut tx, &profile, Some("read:summary"), None)
+        .await?;
+    let today = today_utc();
+    let out = ownhealth_ops::ips::build(&mut tx, perm.profile.id, &perm.scopes, &lang, today).await?;
+    let bytes = out.to_bytes()?;
+    let entries = out.bundle["entry"].as_array().map_or(0, Vec::len);
+    write_audit(
+        &mut tx,
+        &AuditEvent {
+            actor_id: p.user_id,
+            tool: Some("POST /api/profiles/export".into()),
+            profile_id: Some(perm.profile.id),
+            resource_type: Some("ips".into()),
+            resource_ids: Some(vec![out.state_hash.clone()]),
+            rows_out: Some(i32::try_from(out.srcs.len()).unwrap_or(i32::MAX)),
+            src_ids: Some(out.srcs.clone()),
+            bytes_out: Some(i32::try_from(bytes.len()).unwrap_or(i32::MAX)),
+            args_summary: Some(format!("fmt=ips;lang={lang};entries={entries}")),
+            withheld: Some(json!({"by_scope": out.withheld})),
+            ip: meta.ip.clone(),
+            ..AuditEvent::new("user", "export", "export")
+        },
+    )
+    .await?;
+    tx.commit().await?;
+    let filename = format!(
+        "ownhealth-ips-{}-{lang}-{}.json",
+        perm.profile.slug,
+        today.format("%Y-%m-%d")
+    );
+    let mut res = bytes.into_response();
+    let h = res.headers_mut();
+    h.insert(header::CONTENT_TYPE, HeaderValue::from_static("application/fhir+json"));
     h.insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
     if let Ok(v) = HeaderValue::from_str(&format!("attachment; filename=\"{filename}\"")) {
         h.insert(header::CONTENT_DISPOSITION, v);

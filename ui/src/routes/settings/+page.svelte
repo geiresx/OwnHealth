@@ -27,6 +27,7 @@
 	import StepUpDialog from '#lib/components/pages2/StepUpDialog.svelte';
 	import Switch from '#lib/components/pages2/Switch.svelte';
 	import ConnectedApps from '#lib/components/inbox/ConnectedApps.svelte';
+	import ClinvarSwitch from '#lib/components/ClinvarSwitch.svelte';
 	import DueAnswers from '#lib/components/DueAnswers.svelte';
 	import { ago, day } from '#lib/components/pages2/fmt';
 	import { withStepUp } from '#lib/components/pages2/stepup.svelte';
@@ -217,6 +218,7 @@
 			{@render fail('rc')}
 		</section>
 		<ConnectedApps profiles={app.me?.profiles ?? []} />
+		<ClinvarSwitch canManage={managed.length > 0} />
 		<section class="card" style="padding:8px 6px 2px">
 			<h3 style="padding:0 8px">{t('i2_grants')}<span class="r">{t('i2_grants_d')}</span></h3>
 			{#if hh.error}

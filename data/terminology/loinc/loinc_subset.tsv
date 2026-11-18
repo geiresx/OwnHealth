@@ -115,6 +115,8 @@ loinc	alias_group	method	long_name	component	property	time	system	scale	example_
 43396-1	non_hdl_c		Cholesterol non HDL [Mass/volume] in Serum or Plasma	Cholesterol.non HDL	MCnc	Pt	Ser/Plas	Qn	mg/dL	ACTIVE
 9830-1	chol_hdl_ratio		Cholesterol.total/Cholesterol in HDL [Mass Ratio] in Serum or Plasma	Cholesterol.total/Cholesterol.in HDL	MRto	Pt	Ser/Plas	Qn	{ratio}	ACTIVE
 13458-5	vldl_c	calculated	Cholesterol in VLDL [Mass/volume] in Serum or Plasma by calculation	Cholesterol.in VLDL	MCnc	Pt	Ser/Plas	Qn	mg/dL	ACTIVE
+8480-6	bp_systolic		Systolic blood pressure	Intravascular systolic	Pres	Pt	Arterial system	Qn	mm[Hg]	ACTIVE
+72166-2	smoking_status		Tobacco smoking status	Tobacco smoking status	Find	Pt	^Patient	Nom		ACTIVE
 43583-4	lpa		Lipoprotein a [Moles/volume] in Serum or Plasma	Lipoprotein (little a)	SCnc	Pt	Ser/Plas	Qn	nmol/L	ACTIVE
 10835-7	lpa		Lipoprotein a [Mass/volume] in Serum or Plasma	Lipoprotein (little a)	MCnc	Pt	Ser/Plas	Qn	mg/dL	ACTIVE
 1884-6	apob		Apolipoprotein B [Mass/volume] in Serum or Plasma	Apolipoprotein B	MCnc	Pt	Ser/Plas	Qn	mg/dL	ACTIVE

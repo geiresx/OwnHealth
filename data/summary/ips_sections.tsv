@@ -1,0 +1,12 @@
+# The LOINC codes of the International Patient Summary document and its sections, as the IPS export
+# (server/crates/ownhealth-ops/src/ips.rs) writes them. Long names from LOINC 2.83, looked up on
+# tx.fhir.org. LOINC content: see data/terminology/loinc/NOTICE.md (LOINC License). It lives here,
+# not in data/terminology, because every table there feeds the normalizer's hash.
+loinc	section	long_name
+60591-5	document	Patient summary Document
+11450-4	problems	Problem list - Reported
+48765-2	allergies	Allergies and adverse reactions Document
+10160-0	medications	History of Medication use Narrative
+11369-6	immunizations	History of Immunization note
+30954-2	results	Relevant diagnostic tests/laboratory data note
+47519-4	procedures	History of Procedures Document

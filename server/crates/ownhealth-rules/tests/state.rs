@@ -147,7 +147,7 @@ async fn alex_matches_the_fixture_and_the_mockup() -> R {
         meds,
         [
             (json!("Atorvastatin"), json!("2026-03-10"), json!("src_m02")),
-            (json!("Omeprazole"), json!("2026-04-01"), json!("src_m05"))
+            (json!("Cenobamate"), json!("2026-04-01"), json!("src_m05"))
         ]
     );
     assert_eq!(

@@ -8,7 +8,8 @@ export type DueStatus = 'overdue' | 'due' | 'upcoming' | 'up_to_date' | 'not_ass
 export interface DueItem {
 	key: string;
 	rule: string;
-	area: 'screening' | 'vaccine' | 'lab';
+	/** `document`: a document gap of the record (key `gap:<key>`, kind `document_request`). */
+	area: 'screening' | 'vaccine' | 'lab' | 'document';
 	kind: string;
 	status: DueStatus;
 	due?: string;
@@ -26,6 +27,11 @@ export interface DueItem {
 	record?: { kind: 'immunization' | 'procedure'; text: string | null };
 	/** not_assessed `no_answer`: the answer key the row depends on. */
 	answer?: string;
+	/** A document gap: the visit day and the letter of the profile's country, or the stretch with no records. */
+	date?: string;
+	letter?: string;
+	from?: string;
+	to?: string;
 	/** What the person decided about this item (POST /profiles/{p}/due/{key}/decision). */
 	decision?: DueDecision;
 }
@@ -176,6 +182,12 @@ export function dueColor(s: string): 'out' | 'watch' | 'ok' | 'nodata' | 'stale'
 			return 'nodata';
 	}
 }
+
+/** A title split around its ISO dates (the odd indexes), so the card keeps each date on one line. */
+export const dateParts = (s: string): string[] => s.split(/(\d{4}-\d{2}-\d{2})/);
+
+/** The dict key of a document gap's one-line note on the dashboard card (its full why is on Due). */
+export const gapShortKey = (key: string): 'gap_short_visit' | 'gap_short_hole' => (key.startsWith('gap:visit:') ? 'gap_short_visit' : 'gap_short_hole');
 
 /** A row of the Due card; `color` is a key of colors.ts C and `word` the dict key of its status. */
 export type CardRow = { key: string; title: string; why: string; color: string; word: string; area: string; phase: string | null };

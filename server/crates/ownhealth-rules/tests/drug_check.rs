@@ -73,11 +73,11 @@ async fn alex_clopidogrel() -> R {
     );
     assert!(acs["url"].as_str().is_some_and(|u| u.starts_with("https://")) && acs["based_on"] == json!(["src_g07"]));
     assert_eq!(find(&out, "population", "NVI")["strength"], "Moderate");
-    // omeprazole is a moderate CYP2C19 inhibitor; CPIC has no conversion rule for CYP2C19
+    // cenobamate is a moderate CYP2C19 inhibitor in the FDA table; CPIC has no conversion rule for CYP2C19
     let pc = &out["phenoconversion"][0];
     assert_eq!(
         out["phenoconversion"],
-        json!([{"gene": "CYP2C19", "by": "Omeprazole 20 mg", "inhibitor_strength": "moderate", "computed": false,
+        json!([{"gene": "CYP2C19", "by": "Cenobamate 50 mg", "inhibitor_strength": "moderate", "computed": false,
                 "functional_phenotype": null, "activity_score": null, "activity_score_functional": null, "rule": null,
                 "basis": pc["basis"], "src": "src_m05", "text": pc["text"]}])
     );
@@ -99,7 +99,7 @@ async fn alex_clopidogrel() -> R {
         rel,
         [
             ("Atorvastatin 20 mg", "not_assessed"),
-            ("Omeprazole 20 mg", "inhibitor:CYP2C19:moderate")
+            ("Cenobamate 50 mg", "inhibitor:CYP2C19:moderate")
         ]
     );
     let labs = out["relevant_labs"].as_array().cloned().unwrap_or_default();
@@ -484,7 +484,7 @@ async fn a_supplement_joins_the_medication_list_with_its_kind() -> R {
         rows,
         [
             row("Atorvastatin 20 mg", "medication", "not_assessed"),
-            row("Omeprazole 20 mg", "medication", "inhibitor:CYP2C19:moderate"),
+            row("Cenobamate 50 mg", "medication", "inhibitor:CYP2C19:moderate"),
             row("Vitamin D3 1000 IU", "supplement", "not_assessed"),
         ]
     );

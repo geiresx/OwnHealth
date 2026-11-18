@@ -34,7 +34,7 @@ export const listRecords = (profile: string, kind: RecordOut['kind'], history = 
 	get<{ items: RecordOut[] }>(`${p(profile)}/records/${kind}`, history ? { history: true } : undefined);
 
 // Manual entry and corrections (backend api/records.py). A correction is a new version; the old one stays.
-export type ManualObservationIn = { name: string; value: string; unit?: string | null; effective_at: string; note?: string | null; loinc?: string | null; category?: string | null };
+export type ManualObservationIn = { name: string; value: string; unit?: string | null; effective_at: string; note?: string | null; loinc?: string | null; category?: string | null; value_code?: string | null };
 export const addManualObservation = (profile: string, body: ManualObservationIn) =>
 	post<{ id: Uuid; src: string; status: string }>(`${p(profile)}/manual-observations`, body);
 export const createRecord = (profile: string, kind: RecordOut['kind'], body: Record<string, unknown>) => post<RecordOut>(`${p(profile)}/records/${kind}`, body);
@@ -84,12 +84,14 @@ export const deleteProfile = (slug: string) =>
 	request<{ deleted: string; rows: number; blobs: number }>('DELETE', p(slug), { query: { confirm: slug } });
 /** Full export: FHIR R4 NDJSON plus the original files in one zip. Needs a fresh step-up. */
 export const exportProfile = (slug: string) => requestBlob('POST', `${p(slug)}/export`, { fmt: 'zip' }, `ownhealth-${slug}.zip`);
-/** The four views of the printed doctor summary (data/summary/specialties.yaml), in their order. */
-export const SUMMARY_SPECIALTIES = ['gp', 'cardiology', 'endocrinology', 'hematology'] as const;
+/** The views of the printed doctor summary (data/summary/specialties.yaml), in their order; `ips` is the IPS export's printed twin. */
+export const SUMMARY_SPECIALTIES = ['gp', 'cardiology', 'endocrinology', 'hematology', 'ips'] as const;
 export type SummarySpecialty = (typeof SUMMARY_SPECIALTIES)[number];
 /** The printed doctor summary (two A4 pages, a PDF). Needs a fresh step-up. */
 export const printSummary = (slug: string, body: { lang: 'es' | 'en'; specialty: SummarySpecialty; include_sensitive: boolean }) =>
 	requestBlob('POST', `${p(slug)}/summary.pdf`, body, `ownhealth-summary-${slug}.pdf`);
+/** The International Patient Summary as a FHIR document Bundle (JSON), in the sheet's language. Needs a fresh step-up. */
+export const exportIps = (slug: string, lang: 'es' | 'en') => requestBlob('POST', `${p(slug)}/export`, { fmt: 'ips', lang }, `ownhealth-ips-${slug}.json`);
 export const setLocks = (profile: string, locks: Scope[]) => put<{ ok: true }>(`${p(profile)}/locks`, { locks });
 
 // ---- lane I-ui-2: genome, drug check, documents, review helpers, auth, settings ----

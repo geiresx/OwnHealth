@@ -438,6 +438,11 @@ pub async fn claim_profile(
     .fetch_all(&mut *conn)
     .await?;
     set_genome_switches(&mut *conn, profile_id, Some(false), Some(false)).await?;
+    // her results feed no relative's hints until she shares them herself (migration 1111)
+    sqlx::query("delete from family_share where source_profile_id = $1")
+        .bind(profile_id)
+        .execute(&mut *conn)
+        .await?;
     let event = |action: &str, args: String| AuditEvent {
         actor_id: Some(user_id),
         tool: Some("claim_profile".into()),

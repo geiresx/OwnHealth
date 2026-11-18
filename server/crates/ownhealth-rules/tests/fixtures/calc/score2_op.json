@@ -1,0 +1,217 @@
+{
+ "calculator": "score2_op",
+ "source": "SCORE2-OP working group, Eur Heart J 2021 (paper and supplement), with the published examples as RiskScorescvd 0.3.1 checks them against HeartScore; the mg/dL case is the same equations after our unit conversion. Numbers only; no code was copied.",
+ "paper": "https://pubmed.ncbi.nlm.nih.gov/34120185/",
+ "precision": 1,
+ "cases": [
+  {
+   "from": "SCORE2-OP supplementary methods, Table 3 (via RiskScorescvd 0.3.1 (CRAN), tests/testthat/test-SCORE2_func.R)",
+   "region": "low",
+   "age": 75,
+   "sex": "male",
+   "smoker": true,
+   "sbp": "140",
+   "inputs": {
+    "total_cholesterol": {
+     "value": "5.5",
+     "unit": "mmol/L"
+    },
+    "hdl_c": {
+     "value": "1.3",
+     "unit": "mmol/L"
+    }
+   },
+   "expected": "18.6"
+  },
+  {
+   "from": "SCORE2-OP supplementary methods, Table 3 (via RiskScorescvd 0.3.1 (CRAN), tests/testthat/test-SCORE2_func.R)",
+   "region": "low",
+   "age": 75,
+   "sex": "female",
+   "smoker": true,
+   "sbp": "140",
+   "inputs": {
+    "total_cholesterol": {
+     "value": "5.5",
+     "unit": "mmol/L"
+    },
+    "hdl_c": {
+     "value": "1.3",
+     "unit": "mmol/L"
+    }
+   },
+   "expected": "15.2"
+  },
+  {
+   "from": "HeartScore (via RiskScorescvd 0.3.1 (CRAN), tests/testthat/test-SCORE2_func.R)",
+   "region": "low",
+   "age": 75,
+   "sex": "male",
+   "smoker": false,
+   "sbp": "140",
+   "inputs": {
+    "total_cholesterol": {
+     "value": "5.5",
+     "unit": "mmol/L"
+    },
+    "hdl_c": {
+     "value": "1.3",
+     "unit": "mmol/L"
+    }
+   },
+   "expected": "13.3"
+  },
+  {
+   "from": "HeartScore (via RiskScorescvd 0.3.1 (CRAN), tests/testthat/test-SCORE2_func.R)",
+   "region": "low",
+   "age": 75,
+   "sex": "female",
+   "smoker": false,
+   "sbp": "110",
+   "inputs": {
+    "total_cholesterol": {
+     "value": "5",
+     "unit": "mmol/L"
+    },
+    "hdl_c": {
+     "value": "2",
+     "unit": "mmol/L"
+    }
+   },
+   "expected": "6.1"
+  },
+  {
+   "from": "HeartScore (via RiskScorescvd 0.3.1 (CRAN), tests/testthat/test-SCORE2_func.R)",
+   "region": "moderate",
+   "age": 75,
+   "sex": "male",
+   "smoker": true,
+   "sbp": "140",
+   "inputs": {
+    "total_cholesterol": {
+     "value": "5.5",
+     "unit": "mmol/L"
+    },
+    "hdl_c": {
+     "value": "1.3",
+     "unit": "mmol/L"
+    }
+   },
+   "expected": "23.9"
+  },
+  {
+   "from": "HeartScore (via RiskScorescvd 0.3.1 (CRAN), tests/testthat/test-SCORE2_func.R)",
+   "region": "moderate",
+   "age": 75,
+   "sex": "female",
+   "smoker": true,
+   "sbp": "140",
+   "inputs": {
+    "total_cholesterol": {
+     "value": "5.5",
+     "unit": "mmol/L"
+    },
+    "hdl_c": {
+     "value": "1.3",
+     "unit": "mmol/L"
+    }
+   },
+   "expected": "20.0"
+  },
+  {
+   "from": "HeartScore (via RiskScorescvd 0.3.1 (CRAN), tests/testthat/test-SCORE2_func.R)",
+   "region": "high",
+   "age": 75,
+   "sex": "male",
+   "smoker": true,
+   "sbp": "140",
+   "inputs": {
+    "total_cholesterol": {
+     "value": "6",
+     "unit": "mmol/L"
+    },
+    "hdl_c": {
+     "value": "1.3",
+     "unit": "mmol/L"
+    }
+   },
+   "expected": "29.2"
+  },
+  {
+   "from": "HeartScore (via RiskScorescvd 0.3.1 (CRAN), tests/testthat/test-SCORE2_func.R)",
+   "region": "high",
+   "age": 75,
+   "sex": "female",
+   "smoker": true,
+   "sbp": "110",
+   "inputs": {
+    "total_cholesterol": {
+     "value": "5",
+     "unit": "mmol/L"
+    },
+    "hdl_c": {
+     "value": "2",
+     "unit": "mmol/L"
+    }
+   },
+   "expected": "19.0"
+  },
+  {
+   "from": "HeartScore (via RiskScorescvd 0.3.1 (CRAN), tests/testthat/test-SCORE2_func.R)",
+   "region": "very_high",
+   "age": 75,
+   "sex": "male",
+   "smoker": true,
+   "sbp": "140",
+   "inputs": {
+    "total_cholesterol": {
+     "value": "6",
+     "unit": "mmol/L"
+    },
+    "hdl_c": {
+     "value": "1.3",
+     "unit": "mmol/L"
+    }
+   },
+   "expected": "40.8"
+  },
+  {
+   "from": "HeartScore (via RiskScorescvd 0.3.1 (CRAN), tests/testthat/test-SCORE2_func.R)",
+   "region": "very_high",
+   "age": 75,
+   "sex": "female",
+   "smoker": true,
+   "sbp": "140",
+   "inputs": {
+    "total_cholesterol": {
+     "value": "6",
+     "unit": "mmol/L"
+    },
+    "hdl_c": {
+     "value": "1.3",
+     "unit": "mmol/L"
+    }
+   },
+   "expected": "46.2"
+  },
+  {
+   "from": "the SCORE2-OP equations after the units.yaml conversion (mg/dL / 38.67), evaluated with Python floats",
+   "region": "low",
+   "age": 71,
+   "sex": "female",
+   "smoker": false,
+   "sbp": "134",
+   "inputs": {
+    "total_cholesterol": {
+     "value": "232",
+     "unit": "mg/dL"
+    },
+    "hdl_c": {
+     "value": "58",
+     "unit": "mg/dL"
+    }
+   },
+   "expected": "6.6"
+  }
+ ]
+}

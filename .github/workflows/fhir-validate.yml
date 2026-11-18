@@ -5,6 +5,12 @@ name: FHIR validate
 # export back with nothing left unmapped, and with OWNHEALTH_FHIR_OUT writes each exported resource as
 # its own file. The validator then checks every file against FHIR R4 (4.0.1), codes included through
 # the public terminology server, and fails the job on any error.
+#
+# The IPS export (server/crates/ownhealth-api/tests/ips_export.rs) writes Alex's and Carmen's
+# International Patient Summary Bundles, and the validator checks both against the IPS 1.1.0 Bundle
+# profile (the IG package is cached). A coding's display is the words the source or the lab sheet
+# used, kept as received, so a display that differs from the code system's is a warning there; the
+# codes themselves are checked. A copy of Alex's Bundle with its Composition removed must fail.
 
 on:
   push:
@@ -13,6 +19,8 @@ on:
     paths:
       - ".github/workflows/fhir-validate.yml"
       - "data/family/**"
+      - "data/summary/**"
+      - "data/terminology/**"
       - "migrations/**"
       - "server/**"
   workflow_dispatch:
@@ -29,6 +37,8 @@ env:
   CARGO_TERM_COLOR: always
   VALIDATOR_VERSION: "7.0.5"
   VALIDATOR_SHA256: "9dfe9f305b0f9389eceade2a4a1c9a2740d7b0e614066fdf07a78b571c76d92f"
+  IPS_IG: "hl7.fhir.uv.ips#1.1.0"
+  IPS_PROFILE: "http://hl7.org/fhir/uv/ips/StructureDefinition/Bundle-uv-ips"
 
 jobs:
   validate:
@@ -77,3 +87,27 @@ jobs:
       - name: Validate against FHIR R4
         working-directory: .
         run: '"$JAVA_HOME_21_X64/bin/java" -Xmx3g -jar /tmp/validator_cli.jar "$OWNHEALTH_FHIR_OUT" -version 4.0.1'
+      - name: Export Alex's and Carmen's IPS Bundles
+        env:
+          OWNHEALTH_FHIR_OUT: ${{ github.workspace }}/ips-out
+        run: cargo test -p ownhealth-api --test ips_export --locked alex_exports
+      - name: Both IPS Bundles were written
+        working-directory: .
+        run: test -s ips-out/ips-alex-en.json && test -s ips-out/ips-carmen-es.json
+      - name: Cache the FHIR packages (IPS IG and its dependencies)
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.fhir/packages
+          key: fhir-packages-${{ env.IPS_IG }}-${{ env.VALIDATOR_VERSION }}
+      - name: Validate the IPS Bundles against the IPS profile
+        working-directory: .
+        run: '"$JAVA_HOME_21_X64/bin/java" -Xmx3g -jar /tmp/validator_cli.jar ips-out -version 4.0.1 -ig "$IPS_IG" -profile "$IPS_PROFILE" -display-issues-are-warnings'
+      - name: A Bundle without its Composition fails the same check
+        working-directory: .
+        run: |
+          mkdir -p "$RUNNER_TEMP/ips-broken"
+          jq '.entry |= .[1:]' ips-out/ips-alex-en.json > "$RUNNER_TEMP/ips-broken/no-composition.json"
+          if "$JAVA_HOME_21_X64/bin/java" -Xmx3g -jar /tmp/validator_cli.jar "$RUNNER_TEMP/ips-broken" -version 4.0.1 -ig "$IPS_IG" -profile "$IPS_PROFILE" -display-issues-are-warnings; then
+            echo "::error::a Bundle with no Composition passed the IPS check"
+            exit 1
+          fi

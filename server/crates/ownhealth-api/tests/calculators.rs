@@ -89,3 +89,74 @@ async fn a_viewer_without_read_labs_is_refused() -> R {
     assert_eq!(res.status(), StatusCode::FORBIDDEN);
     Ok(())
 }
+
+/// SCORE2 and PREVENT read conditions, medicines and vitals: a token with read:labs and read:vitals
+/// but no read:records sees each as not assessed for its scope, and no statin, condition or src of
+/// them anywhere in the body. The same call with read:records shows the statin, so the check can fail.
+#[tokio::test]
+async fn a_token_without_read_records_sees_no_condition_or_medicine_in_a_risk_result() -> R {
+    let (s, _dir, rt, _app) = env().await?;
+    let user = s.user("alex");
+    let household: Uuid = sqlx::query_scalar("select household_id from app_user where id = $1")
+        .bind(user)
+        .fetch_one(s.pool())
+        .await?;
+    let token = |scopes: &[&str]| {
+        let mut p = Principal::session(user, household);
+        p.kind = ownhealth_core::access::PrincipalKind::Token;
+        p.scopes = ownhealth_core::access::scope_set(scopes);
+        p
+    };
+    let read = |p: Principal| {
+        let rt = rt.clone();
+        async move {
+            calculators::calculators(&rt, &p, "alex", None, Some("en"))
+                .await
+                .map_err(|_| anyhow::anyhow!("refused"))
+        }
+    };
+    let all = read(token(&["read:summary", "read:labs", "read:vitals", "read:records"])).await?;
+    assert!(all.to_string().contains("src_m02"), "the control sees the statin");
+    let doc = read(token(&["read:summary", "read:labs", "read:vitals"])).await?;
+    let body = doc.to_string();
+    for hidden in [
+        "src_m02",
+        "\"statin\"",
+        "antihypertensive",
+        "\"diabetes\"",
+        "smoking_status",
+    ] {
+        assert!(!body.contains(hidden), "{hidden} in {body}");
+    }
+    let risk: Vec<&Value> = doc["items"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter(|i| {
+            ["score2", "score2_op", "prevent_cvd", "prevent_ascvd"].contains(&i["id"].as_str().unwrap_or_default())
+        })
+        .collect();
+    assert!(!risk.is_empty());
+    for it in risk {
+        assert_eq!(
+            (it["status"].as_str(), it["reason_code"].as_str()),
+            (Some("not_assessed"), Some("scope_missing")),
+            "{it}"
+        );
+        assert_eq!(it["reason"]["scopes"], serde_json::json!(["read:records"]));
+        assert_eq!(it["inputs"], serde_json::json!([]));
+        assert_eq!(
+            it["text"],
+            "Not computed: this access does not include read:records, and the risk equation reads conditions, medicines and vital signs."
+        );
+    }
+    // the lab calculators are unchanged
+    assert!(
+        doc["items"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .any(|i| i["id"] == "ckd_epi_2021_cr" && i["status"] == "ok")
+    );
+    Ok(())
+}

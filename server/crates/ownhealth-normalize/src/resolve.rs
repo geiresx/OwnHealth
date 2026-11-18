@@ -42,7 +42,7 @@ pub fn property_dims(prop: &str) -> Option<&'static [Dims]> {
         "EntMeanVol" | "Vol" => &[u::D_VOL],
         "ArVRat" | "VRat" => &[u::D_VOL_RATE],
         "Osmol" => &[u::D_OSMOL],
-        "PPres" => &[u::D_PRESSURE],
+        "PPres" | "Pres" => &[u::D_PRESSURE],
         "LsCnc" => &[u::D_PH],
         "Time" => &[u::D_TIME],
         "Sedimentation Rate" => &[u::D_SPEED],

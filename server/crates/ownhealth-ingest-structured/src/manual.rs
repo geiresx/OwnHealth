@@ -21,6 +21,9 @@ pub struct ManualObservation<'a> {
     pub note: Option<&'a str>,
     pub category: Option<&'a str>,
     pub loinc: Option<&'a str>,
+    /// A coded answer (SNOMED CT) to the `loinc` question, such as a smoking status; `value` then holds
+    /// the words the person saw, not a number.
+    pub value_code: Option<&'a str>,
     /// The observation this one replaces (with `reason`).
     pub corrects: Option<Uuid>,
     pub reason: Option<&'a str>,
@@ -39,15 +42,22 @@ pub fn refusal(value: &str, effective_at: DateTime<FixedOffset>, now: DateTime<U
     if !v.replace(',', ".").parse::<f64>().is_ok_and(f64::is_finite) {
         return Some("The value is not a number. Type it as it is printed, for example 5,4.");
     }
-    if effective_at.with_timezone(&Utc) > now + TimeDelta::days(1) {
-        return Some("The date is in the future. Use the day the value was measured.");
-    }
-    None
+    future(effective_at, now)
+}
+
+/// The date may not be later than tomorrow.
+pub fn future(effective_at: DateTime<FixedOffset>, now: DateTime<Utc>) -> Option<&'static str> {
+    (effective_at.with_timezone(&Utc) > now + TimeDelta::days(1))
+        .then_some("The date is in the future. Use the day the value was measured.")
 }
 
 /// Commit one typed value. `corrects` names the observation this one replaces (with `reason`).
 pub async fn add_manual_observation(conn: &mut PgConnection, m: &ManualObservation<'_>) -> Result<Committed> {
-    if let Some(why) = refusal(m.value, m.effective_at, Utc::now()) {
+    let why = match m.value_code {
+        Some(_) => future(m.effective_at, Utc::now()),
+        None => refusal(m.value, m.effective_at, Utc::now()),
+    };
+    if let Some(why) = why {
         return Err(Error::Invalid(why.into()));
     }
     let lang: Option<String> = sqlx::query_scalar("select locale from app_user where id = $1")
@@ -85,6 +95,14 @@ pub async fn add_manual_observation(conn: &mut PgConnection, m: &ManualObservati
     }
     if let Some(l) = m.loinc.filter(|l| !l.is_empty()) {
         obs.loinc = Some(l.into());
+    }
+    if let Some(code) = m.value_code {
+        obs.value_code = Some(code.into());
+        obs.value_num = None;
+        obs.value_cmp = None;
+        obs.value_canonical = None;
+        obs.unit_canonical = None;
+        obs.interpretation = None;
     }
     let src = SrcRef::New(SrcIn {
         profile_id: Some(m.profile_id),

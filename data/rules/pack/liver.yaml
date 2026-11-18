@@ -12,7 +12,8 @@ rules:
   - id: rcv.alt
     kind: rcv
     match: [alt]
-    cv_i: "19.4"
-    cv_a: "3.0"
-    cite: https://biologicalvariation.eu/
-    verify: CV values to confirm against the EFLM database
+    cv_i: "9.3"
+    cv_a: "6.7"
+    cite: https://doi.org/10.1515/cclm-2021-0370
+    primary: https://doi.org/10.1373/clinchem.2016.269811
+    note: EuBIVAS, ALT on an ADVIA 2400; CVi 9.3% (8.7-10.0), CVa 6.7%.

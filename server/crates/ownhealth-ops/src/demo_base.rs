@@ -781,8 +781,8 @@ async fn seed_records(conn: &mut PgConnection, ctx: &DemoContext, assigned: &mut
     assigned.insert("src_m02", record(conn, "medication", body, src).await?);
     let src = manual(conn, alex_user, Some("src_m05"), "Rx · 2026-04-01").await?;
     let body = json!({
-        "profile_id": p("alex"), "name": "Omeprazole", "ingredient": "omeprazole", "strength": "20 mg",
-        "dose_text": "1 capsule before breakfast", "started": "2026-04-01",
+        "profile_id": p("alex"), "name": "Cenobamate", "ingredient": "cenobamate", "strength": "50 mg",
+        "dose_text": "1 tablet at night", "started": "2026-04-01",
     });
     assigned.insert("src_m05", record(conn, "medication", body, src).await?);
     let src = manual(conn, alex_user, None, "Rx · 2024-02-01").await?;
@@ -1184,7 +1184,7 @@ pub async fn seed_base(conn: &mut PgConnection, ctx: &mut DemoContext) -> Result
         ("alex_lpa", "src_a07"),
         ("alex_tsh", "src_a05"),
         ("alex_atorvastatin", "src_m02"),
-        ("alex_omeprazole", "src_m05"),
+        ("alex_cenobamate", "src_m05"),
         ("alex_note", "src_n41"),
     ] {
         ctx.src_ids.insert(k.into(), id(v)?);

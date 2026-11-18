@@ -33,6 +33,7 @@
           "=direct"
         ]
       },
+      "method_change": "bool",
       "printed": "string",
       "range": "string",
       "ref_high": "float",
@@ -50,9 +51,22 @@
     }
   },
   "stats": {
+    "baseline": {
+      "cite": "string",
+      "high": "float",
+      "low": "float",
+      "n": "int",
+      "outside": "bool",
+      "rule": "string",
+      "set_point": "float"
+    },
+    "cv_a": "string",
+    "cv_i": "string",
     "exceeds_rcv": "bool",
     "last_vs_previous_pct": "float",
+    "method_change": "bool",
     "n": "int",
+    "rcv_cite": "string",
     "rcv_pct": "float"
   },
   "unit": "string",

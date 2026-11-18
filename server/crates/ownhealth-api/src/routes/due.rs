@@ -16,7 +16,7 @@
 //!
 //! A decision is `snooze` (until a date, shown again the day after), `dismiss` (a reason is required)
 //! or `done` (evidence: a current record or an active document of the same profile, dated today or
-//! earlier). A lab gap needs read:labs to act on, as to see it. A new decision
+//! earlier; for a document gap `gap:<key>`, an undated document counts from its upload day). A lab gap needs read:labs to act on, as to see it. A new decision
 //! supersedes the current one; undo retracts it. Answers are "yes" or "no" to the closed list of
 //! `data/prevention/pack.yaml`; null retracts one. The audit rows carry ids and codes only: never a
 //! reason or an answer value.
@@ -271,8 +271,9 @@ async fn decide(
                 "The evidence is not a current, non-sensitive record or an active document of this profile.",
             ));
         };
-        // an undated record proves nothing on any day, and a later one not yet
-        if found.day.is_none_or(|d| d > today) {
+        // an undated record proves nothing on any day, and a later one not yet (a document gap takes
+        // an undated document from its upload day: it is the copy that was asked for)
+        if found.day_for(&key).is_none_or(|d| d > today) {
             return Err(bad_input(
                 "evidence_undated",
                 "The evidence needs the day it was done, today or earlier.",

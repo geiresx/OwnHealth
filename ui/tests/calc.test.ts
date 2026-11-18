@@ -52,6 +52,8 @@ test('the eGFR unit reads as people write it', () => {
 	assert.equal(calcUnit('umol/L'), 'µmol/L');
 	assert.equal(calcUnit('ug/L'), 'µg/L');
 	assert.equal(calcUnit('u[IU]/mL'), 'µU/mL');
+	assert.equal(calcUnit('mm[Hg]'), 'mmHg');
+	assert.equal(calcUnit('%'), '%');
 });
 
 test('a refused newest draw keeps the last computed result in sight', () => {

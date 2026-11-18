@@ -6,8 +6,11 @@
 //! model = build(conn, profile, scopes, &Options { lang, specialty, sensitive_open, as_of })
 //! ```
 //!
-//! - every value carries the `src` id it came from; a marker also carries its lab range, date and
-//!   the value before it; a series of the specialty with no result reads "not measured";
+//! - every value carries the `src` id it came from, and every row the id of the row it shows (the
+//!   IPS export, `ownhealth_ops::ips`, puts those rows' FHIR in its Bundle); a marker also carries its
+//!   lab range, date and the value before it; a series of the specialty with no result reads "not
+//!   measured";
+//! - procedures done on or before the date are listed newest first, as vaccines are;
 //! - flags come ranked from the status renderer, so the order and the wording are the status page's;
 //! - genome rows are the actionable PGx findings, plus the sensitive findings only when the owner
 //!   ticked them for this print and the caller may see them (`sensitive_open`), never for a minor;
@@ -35,7 +38,7 @@ use crate::pack::{Pack, load_pack, text, truthy};
 use crate::rendering::render_with;
 
 pub const SCHEMA: &str = "ownhealth.summary/v1";
-pub const SPECIALTIES: [&str; 4] = ["gp", "cardiology", "endocrinology", "hematology"];
+pub const SPECIALTIES: [&str; 5] = ["gp", "cardiology", "endocrinology", "hematology", "ips"];
 pub const LANGS: [&str; 2] = ["en", "es"];
 
 /// The shipped files, compiled in.
@@ -134,7 +137,7 @@ fn data() -> Result<&'static Data> {
         .map_err(|e| Error::Invalid(e.clone()))
 }
 
-/// `summary-templates 0.1.0, summary-specialties 0.1.0`.
+/// `summary-templates 0.2.0, summary-specialties 0.2.0`.
 pub fn version() -> Result<String> {
     Ok(data()?.version.clone())
 }
@@ -177,6 +180,7 @@ fn s(m: &Map<String, Value>, k: &str) -> Value {
 
 fn point(p: &Point, lang: &str) -> Value {
     json!({
+        "id": p.id,
         "value": num::localized(&p.shown(), lang),
         "unit": p.unit,
         "date": iso(p.date),
@@ -493,11 +497,12 @@ pub async fn build(conn: &mut PgConnection, profile_id: Uuid, scopes: &Scopes, o
     let mut allergies = Vec::new();
     let mut medications = Vec::new();
     let mut vaccines = Vec::new();
+    let mut procedures = Vec::new();
     if records_ok {
         conditions = ev
             .conditions
             .iter()
-            .map(|c| json!({"name": s(c, "text"), "since": s(c, "onset"), "src": s(c, "src_id")}))
+            .map(|c| json!({"id": c.get("id"), "name": s(c, "text"), "since": s(c, "onset"), "src": s(c, "src_id")}))
             .collect();
         for a in list_records(&mut *conn, "allergy", profile_id, None, false).await? {
             // the sheet's date: an allergy recorded as starting later is not on it yet
@@ -508,6 +513,7 @@ pub async fn build(conn: &mut PgConnection, profile_id: Uuid, scopes: &Scopes, o
             if active {
                 let crit = str_of(&a, "criticality").map(|c| label(&l, &format!("criticality.{c}")));
                 allergies.push(json!({
+                    "id": a.get("id"),
                     "substance": s(&a, "substance"),
                     "criticality": crit,
                     "reaction": s(&a, "reaction_text"),
@@ -519,6 +525,7 @@ pub async fn build(conn: &mut PgConnection, profile_id: Uuid, scopes: &Scopes, o
         for m in ev.medications.iter().chain(&ev.supplements) {
             let supplement = str_of(m, "kind") == Some("supplement");
             medications.push(json!({
+                "id": m.get("id"),
                 "name": s(m, "name"),
                 "strength": s(m, "strength"),
                 "kind": if supplement { json!(label(&l, "supplement")) } else { Value::Null },
@@ -535,12 +542,20 @@ pub async fn build(conn: &mut PgConnection, profile_id: Uuid, scopes: &Scopes, o
             .iter()
             .map(|v| {
                 json!({
+                    "id": v.get("id"),
                     "vaccine": s(v, "vaccine"),
                     "date": s(v, "occurred"),
                     "dose": v.get("dose_number").filter(|x| truthy(x)),
                     "src": s(v, "src_id"),
                 })
             })
+            .collect();
+        let mut done = list_records(&mut *conn, "procedure", profile_id, None, false).await?;
+        done.retain(|p| date_of(p, "performed").is_none_or(|d| d <= opts.as_of));
+        done.sort_by_key(|p| std::cmp::Reverse(date_of(p, "performed")));
+        procedures = done
+            .iter()
+            .map(|p| json!({"id": p.get("id"), "procedure": s(p, "text"), "date": s(p, "performed"), "src": s(p, "src_id")}))
             .collect();
     }
 
@@ -594,6 +609,7 @@ pub async fn build(conn: &mut PgConnection, profile_id: Uuid, scopes: &Scopes, o
         "flags": flags,
         "markers": markers,
         "vaccines": vaccines,
+        "procedures": procedures,
         "slots": {"calculators": [], "due": [], "family": []},
         "withheld": {"by_scope": by_scope, "sensitive": w_sensitive, "minor_rule": w_minor},
     });
@@ -664,6 +680,7 @@ mod tests {
             flag: None,
             loinc: None,
             method: None,
+            lab: None,
             src: "src_x".into(),
             src_label: None,
             src_kind: "lab".into(),
@@ -702,6 +719,7 @@ mod tests {
             flag: None,
             loinc: None,
             method: None,
+            lab: None,
             src: "src_x".into(),
             src_label: None,
             src_kind: "lab".into(),

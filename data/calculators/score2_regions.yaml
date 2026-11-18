@@ -1,0 +1,36 @@
+# SCORE2 and SCORE2-OP risk regions: the ESC member countries grouped by their WHO cardiovascular
+# mortality, and the two numbers that recalibrate each model to a region (docs/calculators/score2.md).
+#
+# region     low | moderate | high | very_high
+# countries  ISO 3166-1 alpha-2, as profile.country stores them; a country is in one region only
+# score2     {sex: [scale1, scale2]} of SCORE2, from the SCORE2 paper (https://pubmed.ncbi.nlm.nih.gov/34120177/)
+# score2_op  {sex: [scale1, scale2]} of SCORE2-OP, from the SCORE2-OP paper (https://pubmed.ncbi.nlm.nih.gov/34120185/)
+# cite       the guideline that lists the countries of the region
+#
+# A profile with no country, or a country in no row, is refused; no region is guessed.
+version: 0.1.0
+rows:
+  - id: score2.region.low
+    region: low
+    countries: [BE, CH, DK, ES, FR, GB, IL, LU, NL, NO]
+    score2: {male: ["-0.5699", "0.7476"], female: ["-0.7380", "0.7019"]}
+    score2_op: {male: ["-0.34", "1.19"], female: ["-0.52", "1.01"]}
+    cite: https://academic.oup.com/eurheartj/article/42/34/3227/6358713
+  - id: score2.region.moderate
+    region: moderate
+    countries: [AT, CY, DE, FI, GR, IE, IS, IT, MT, PT, SE, SI, SM]
+    score2: {male: ["-0.1565", "0.8009"], female: ["-0.3143", "0.7701"]}
+    score2_op: {male: ["0.01", "1.25"], female: ["-0.10", "1.10"]}
+    cite: https://academic.oup.com/eurheartj/article/42/34/3227/6358713
+  - id: score2.region.high
+    region: high
+    countries: [AL, BA, CZ, EE, HR, HU, KZ, PL, SK, TR]
+    score2: {male: ["0.3207", "0.9360"], female: ["0.5710", "0.9369"]}
+    score2_op: {male: ["0.08", "1.15"], female: ["0.38", "1.09"]}
+    cite: https://academic.oup.com/eurheartj/article/42/34/3227/6358713
+  - id: score2.region.very_high
+    region: very_high
+    countries: [AM, AZ, BG, BY, DZ, EG, GE, KG, LB, LT, LV, LY, MA, MD, ME, MK, RO, RS, RU, SY, TN, UA, UZ]
+    score2: {male: ["0.5836", "0.8294"], female: ["0.9412", "0.8329"]}
+    score2_op: {male: ["0.05", "0.70"], female: ["0.38", "0.69"]}
+    cite: https://academic.oup.com/eurheartj/article/42/34/3227/6358713

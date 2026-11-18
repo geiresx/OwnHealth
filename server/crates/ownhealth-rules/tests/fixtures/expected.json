@@ -10,12 +10,12 @@
   "sam": "ea389ec0-d487-479f-b9b8-1a385fbbeea0"
  },
  "pack": {
-  "version": "ownhealth-rules 0.1.0",
-  "sha256": "60d573f0229d02de93abd86e87fefbf9c453869a7c23ea29b77c4bcae9bf0f31"
+  "version": "ownhealth-rules 0.2.0",
+  "sha256": "d334dce6c63b6e0ee3ed0f66dcef52692cc7e6560b5e832cbb4949f976940b57"
  },
  "rules": {
-  "version": "ownhealth-rules 0.1.0",
-  "sha256": "60d573f0229d02de93abd86e87fefbf9c453869a7c23ea29b77c4bcae9bf0f31",
+  "version": "ownhealth-rules 0.2.0",
+  "sha256": "d334dce6c63b6e0ee3ed0f66dcef52692cc7e6560b5e832cbb4949f976940b57",
   "systems": [
    {
     "key": "cardiometabolic",
@@ -108,6 +108,20 @@
     "basis": "lab_printed_range"
    },
    {
+    "id": "baseline.personal",
+    "kind": "baseline",
+    "file": "pack.yaml",
+    "match": [
+     "ldl_c",
+     "creatinine",
+     "alt",
+     "tsh",
+     "crp_hs"
+    ],
+    "cite": "https://doi.org/10.1093/clinchem/hvaa233",
+    "note": "Coskun A et al. Personalized reference intervals in laboratory medicine, Clin Chem 2021;67:374-84; 3 or more earlier results give a robust set point."
+   },
+   {
     "id": "recency.blood_count",
     "kind": "recency",
     "file": "blood_count.yaml",
@@ -167,19 +181,8 @@
     "match": [
      "ldl_c"
     ],
-    "cite": "https://biologicalvariation.eu/",
-    "verify": "CV values to confirm against the EFLM database"
-   },
-   {
-    "id": "rcv.hba1c",
-    "kind": "rcv",
-    "file": "cardiometabolic.yaml",
-    "system": "cardiometabolic",
-    "match": [
-     "hba1c"
-    ],
-    "cite": "https://biologicalvariation.eu/",
-    "verify": "CV values to confirm against the EFLM database"
+    "cite": "https://doi.org/10.1515/cclm-2021-0370",
+    "note": "EuBIVAS, 91 healthy adults, 10 weekly samples, LDL cholesterol on an ADVIA 2400; CVi 8.46% (8.05-8.94), CVa 1.77%."
    },
    {
     "id": "trend.hba1c.rise",
@@ -237,8 +240,8 @@
     "match": [
      "crp_hs"
     ],
-    "cite": "https://biologicalvariation.eu/",
-    "verify": "CV values to confirm against the EFLM database"
+    "cite": "https://doi.org/10.1515/cclm-2021-0370",
+    "note": "EuBIVAS, CRP on a Roche Cobas c702 (mean 0.72 mg/L); CVi 29.4% (27.6-31.1), CVa 11.1%."
    },
    {
     "id": "recency.kidney",
@@ -262,8 +265,8 @@
     "match": [
      "creatinine"
     ],
-    "cite": "https://biologicalvariation.eu/",
-    "verify": "CV values to confirm against the EFLM database"
+    "cite": "https://doi.org/10.1515/cclm-2021-0370",
+    "note": "EuBIVAS, enzymatic creatinine; CVi 4.4% (4.2-4.7), CVa 1.1%. The alkaline picrate (Jaffe) method gave CVi 4.7%, CVa 4.4%."
    },
    {
     "id": "trend.egfr.decline",
@@ -298,8 +301,8 @@
     "match": [
      "alt"
     ],
-    "cite": "https://biologicalvariation.eu/",
-    "verify": "CV values to confirm against the EFLM database"
+    "cite": "https://doi.org/10.1515/cclm-2021-0370",
+    "note": "EuBIVAS, ALT on an ADVIA 2400; CVi 9.3% (8.7-10.0), CVa 6.7%."
    },
    {
     "id": "pgx.slco1b1.statin",
@@ -441,8 +444,8 @@
     "match": [
      "tsh"
     ],
-    "cite": "https://biologicalvariation.eu/",
-    "verify": "CV values to confirm against the EFLM database"
+    "cite": "https://doi.org/10.1515/cclm-2021-0370",
+    "note": "EuBIVAS, TSH on a Roche Cobas e801; CVi 18.9% (17.5-20.5), CVa 1.46% in the summary table (the primary paper's abstract gives CVi 17.7%)."
    },
    {
     "id": "recency.vitamins",
@@ -458,17 +461,6 @@
     "window_days": 365,
     "cite": "https://github.com/GeiserX/OwnHealth/blob/main/docs/design/architecture.md#11-current-state-the-deterministic-rule-pack",
     "basis": "pack_default"
-   },
-   {
-    "id": "rcv.ferritin",
-    "kind": "rcv",
-    "file": "vitamins.yaml",
-    "system": "vitamins",
-    "match": [
-     "ferritin"
-    ],
-    "cite": "https://biologicalvariation.eu/",
-    "verify": "CV values to confirm against the EFLM database"
    }
   ],
   "cpic": {
@@ -482,7 +474,7 @@
    "schema": "ownhealth.state/v1",
    "profile": "alex",
    "as_of": "2026-11-07",
-   "rules": "ownhealth-rules 0.1.0",
+   "rules": "ownhealth-rules 0.2.0",
    "derivation": "demo-seed",
    "flags": [
     {
@@ -593,8 +585,8 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole",
-     "strength": "20 mg",
+     "name": "Cenobamate",
+     "strength": "50 mg",
      "since": "2026-04-01",
      "src": "src_m05"
     }
@@ -622,13 +614,13 @@
     "labs": "2026-09-14",
     "wearables": "2026-11-07"
    },
-   "state_hash": "sha256:768c2af0b6a47129d39d6bff7b15db562e9d0722840a701354d5da81121e28e6"
+   "state_hash": "sha256:8aa5616a4d3a3aef2535f1628a1c7e904ee62f8a382b09051e6f7c657b90d0c0"
   },
   "sam": {
    "schema": "ownhealth.state/v1",
    "profile": "sam",
    "as_of": "2026-11-07",
-   "rules": "ownhealth-rules 0.1.0",
+   "rules": "ownhealth-rules 0.2.0",
    "derivation": "demo-seed",
    "flags": [],
    "stale": [],
@@ -662,13 +654,13 @@
    "freshness": {
     "labs": "2026-06-10"
    },
-   "state_hash": "sha256:cc4ccac9cddd054f7f104e57c81dbf391ff74d751e1180276885fdc094d74ff7"
+   "state_hash": "sha256:8d38886baf4d5572863f48247ef3a6461aca2528391db0e4e57665878ada9af3"
   },
   "lucia": {
    "schema": "ownhealth.state/v1",
    "profile": "lucia",
    "as_of": "2026-11-07",
-   "rules": "ownhealth-rules 0.1.0",
+   "rules": "ownhealth-rules 0.2.0",
    "derivation": "demo-seed",
    "flags": [],
    "stale": [],
@@ -693,13 +685,13 @@
    "freshness": {
     "labs": "2026-02-18"
    },
-   "state_hash": "sha256:6ce1873832933ae5d554306c818fb6b35befa1006f35df3412bb07c5c125d9f7"
+   "state_hash": "sha256:6c368ec541be7ba518ff46df23f6c73a23639e33c7c1c7e5fde5d2c2ba8917ab"
   },
   "carmen": {
    "schema": "ownhealth.state/v1",
    "profile": "carmen",
    "as_of": "2026-11-07",
-   "rules": "ownhealth-rules 0.1.0",
+   "rules": "ownhealth-rules 0.2.0",
    "derivation": "demo-seed",
    "flags": [
     {
@@ -770,13 +762,13 @@
    "freshness": {
     "labs": "2026-07-22"
    },
-   "state_hash": "sha256:76684b61674b98c4e95edec86bb7ef06932eb4a2c92ed169ff960c36685c81ad"
+   "state_hash": "sha256:060aa47e438e19aa8b5254a55ef38e754655f45565f10c2b8629686ff46029f7"
   },
   "alex@2025-02-01": {
    "schema": "ownhealth.state/v1",
    "profile": "alex",
    "as_of": "2025-02-01",
-   "rules": "ownhealth-rules 0.1.0",
+   "rules": "ownhealth-rules 0.2.0",
    "derivation": "demo-seed",
    "flags": [
     {
@@ -811,6 +803,23 @@
       "src_g31",
       "src_m01"
      ]
+    },
+    {
+     "reason": "BASELINE_OUT",
+     "rule": "baseline.personal",
+     "value": "79",
+     "unit": "mg/dL",
+     "set_point": "115.67",
+     "low": "93.04",
+     "high": "138.29",
+     "date": "2025-01-20",
+     "src": [
+      "src_1a0",
+      "src_2b4",
+      "src_2c1",
+      "src_xkkcj5c5"
+     ],
+     "group": "ldl_c"
     }
    ],
    "stale": [],
@@ -854,7 +863,7 @@
    "freshness": {
     "labs": "2025-01-20"
    },
-   "state_hash": "sha256:0a000988ffb0cde0631f6e87095cc440590ee885fa64518f3e8d207b86633c6d"
+   "state_hash": "sha256:391fe8299fa66701c147f1f6941426ebdc9299f5d775fe4ca74c20c6b363b785"
   }
  },
  "renders": {
@@ -863,8 +872,8 @@
    "as_of": "2026-11-07",
    "lang": "en",
    "identity_mode": "full",
-   "rules_version": "ownhealth-rules 0.1.0",
-   "state_hash": "sha256:768c2af0b6a47129d39d6bff7b15db562e9d0722840a701354d5da81121e28e6",
+   "rules_version": "ownhealth-rules 0.2.0",
+   "state_hash": "sha256:8aa5616a4d3a3aef2535f1628a1c7e904ee62f8a382b09051e6f7c657b90d0c0",
    "data": {
     "flags": [
      {
@@ -920,8 +929,8 @@
       "date": "2026-09-14",
       "previous": "1.1",
       "change_pct": "118.2",
-      "rcv_pct": "117.8",
-      "text": "hs-CRP went from 1.1 to 2.4 mg/L (118.2%) since 2026-03-02, more than the reference change value of 117.8%.",
+      "rcv_pct": "87.1",
+      "text": "hs-CRP went from 1.1 to 2.4 mg/L (118.2%) since 2026-03-02, more than the reference change value of 87.1%.",
       "src": [
        "src_3siyrh28",
        "src_5dtd55ek"
@@ -953,7 +962,7 @@
       "src": "src_m02"
      },
      {
-      "name": "Omeprazole 20 mg",
+      "name": "Cenobamate 50 mg",
       "since": "2026-04-01",
       "src": "src_m05"
      }
@@ -1035,8 +1044,8 @@
    "as_of": "2026-11-07",
    "lang": "en",
    "identity_mode": "pseudonymous",
-   "rules_version": "ownhealth-rules 0.1.0",
-   "state_hash": "sha256:768c2af0b6a47129d39d6bff7b15db562e9d0722840a701354d5da81121e28e6",
+   "rules_version": "ownhealth-rules 0.2.0",
+   "state_hash": "sha256:8aa5616a4d3a3aef2535f1628a1c7e904ee62f8a382b09051e6f7c657b90d0c0",
    "data": {
     "flags": [
      {
@@ -1092,8 +1101,8 @@
       "date": "2026-09-14",
       "previous": "1.1",
       "change_pct": "118.2",
-      "rcv_pct": "117.8",
-      "text": "hs-CRP went from 1.1 to 2.4 mg/L (118.2%) since 2026-03-02, more than the reference change value of 117.8%.",
+      "rcv_pct": "87.1",
+      "text": "hs-CRP went from 1.1 to 2.4 mg/L (118.2%) since 2026-03-02, more than the reference change value of 87.1%.",
       "src": [
        "src_3siyrh28",
        "src_5dtd55ek"
@@ -1125,7 +1134,7 @@
       "src": "src_m02"
      },
      {
-      "name": "Omeprazole 20 mg",
+      "name": "Cenobamate 50 mg",
       "since": "2026-04-01",
       "src": "src_m05"
      }
@@ -1207,8 +1216,8 @@
    "as_of": "2026-11-07",
    "lang": "en",
    "identity_mode": "minimal",
-   "rules_version": "ownhealth-rules 0.1.0",
-   "state_hash": "sha256:768c2af0b6a47129d39d6bff7b15db562e9d0722840a701354d5da81121e28e6",
+   "rules_version": "ownhealth-rules 0.2.0",
+   "state_hash": "sha256:8aa5616a4d3a3aef2535f1628a1c7e904ee62f8a382b09051e6f7c657b90d0c0",
    "data": {
     "flags": [
      {
@@ -1264,8 +1273,8 @@
       "date": "54 days ago",
       "previous": "1.1",
       "change_pct": "118.2",
-      "rcv_pct": "117.8",
-      "text": "hs-CRP went from 1.1 to 2.4 mg/L (118.2%) since 250 days ago, more than the reference change value of 117.8%.",
+      "rcv_pct": "87.1",
+      "text": "hs-CRP went from 1.1 to 2.4 mg/L (118.2%) since 250 days ago, more than the reference change value of 87.1%.",
       "src": [
        "src_3siyrh28",
        "src_5dtd55ek"
@@ -1297,7 +1306,7 @@
       "src": "src_m02"
      },
      {
-      "name": "Omeprazole 20 mg",
+      "name": "Cenobamate 50 mg",
       "since": "220 days ago",
       "src": "src_m05"
      }
@@ -1368,8 +1377,8 @@
    "as_of": "2026-11-07",
    "lang": "en",
    "identity_mode": "pseudonymous",
-   "rules_version": "ownhealth-rules 0.1.0",
-   "state_hash": "sha256:768c2af0b6a47129d39d6bff7b15db562e9d0722840a701354d5da81121e28e6",
+   "rules_version": "ownhealth-rules 0.2.0",
+   "state_hash": "sha256:8aa5616a4d3a3aef2535f1628a1c7e904ee62f8a382b09051e6f7c657b90d0c0",
    "data": {
     "flags": [
      {
@@ -1429,8 +1438,8 @@
       "date": "2026-09-14",
       "previous": "1.1",
       "change_pct": "118.2",
-      "rcv_pct": "117.8",
-      "text": "hs-CRP went from 1.1 to 2.4 mg/L (118.2%) since 2026-03-02, more than the reference change value of 117.8%.",
+      "rcv_pct": "87.1",
+      "text": "hs-CRP went from 1.1 to 2.4 mg/L (118.2%) since 2026-03-02, more than the reference change value of 87.1%.",
       "src": [
        "src_3siyrh28",
        "src_5dtd55ek"
@@ -1466,7 +1475,7 @@
       "src": "src_m02"
      },
      {
-      "name": "Omeprazole 20 mg",
+      "name": "Cenobamate 50 mg",
       "since": "2026-04-01",
       "src": "src_m05"
      }
@@ -1548,8 +1557,8 @@
    "as_of": "2026-11-07",
    "lang": "en",
    "identity_mode": "pseudonymous",
-   "rules_version": "ownhealth-rules 0.1.0",
-   "state_hash": "sha256:768c2af0b6a47129d39d6bff7b15db562e9d0722840a701354d5da81121e28e6",
+   "rules_version": "ownhealth-rules 0.2.0",
+   "state_hash": "sha256:8aa5616a4d3a3aef2535f1628a1c7e904ee62f8a382b09051e6f7c657b90d0c0",
    "data": {
     "flags": [
      {
@@ -1605,8 +1614,8 @@
       "date": "2026-09-14",
       "previous": "1.1",
       "change_pct": "118.2",
-      "rcv_pct": "117.8",
-      "text": "hs-CRP went from 1.1 to 2.4 mg/L (118.2%) since 2026-03-02, more than the reference change value of 117.8%.",
+      "rcv_pct": "87.1",
+      "text": "hs-CRP went from 1.1 to 2.4 mg/L (118.2%) since 2026-03-02, more than the reference change value of 87.1%.",
       "src": [
        "src_3siyrh28",
        "src_5dtd55ek"
@@ -1638,7 +1647,7 @@
       "src": "src_m02"
      },
      {
-      "name": "Omeprazole 20 mg",
+      "name": "Cenobamate 50 mg",
       "since": "2026-04-01",
       "src": "src_m05"
      }
@@ -1720,8 +1729,8 @@
    "as_of": "2026-11-07",
    "lang": "es",
    "identity_mode": "full",
-   "rules_version": "ownhealth-rules 0.1.0",
-   "state_hash": "sha256:768c2af0b6a47129d39d6bff7b15db562e9d0722840a701354d5da81121e28e6",
+   "rules_version": "ownhealth-rules 0.2.0",
+   "state_hash": "sha256:8aa5616a4d3a3aef2535f1628a1c7e904ee62f8a382b09051e6f7c657b90d0c0",
    "data": {
     "flags": [
      {
@@ -1777,8 +1786,8 @@
       "date": "2026-09-14",
       "previous": "1.1",
       "change_pct": "118.2",
-      "rcv_pct": "117.8",
-      "text": "PCR ultrasensible pasó de 1,1 a 2,4 mg/L (118,2 %) desde el 2026-03-02, más que el valor de referencia del cambio (117,8 %).",
+      "rcv_pct": "87.1",
+      "text": "PCR ultrasensible pasó de 1,1 a 2,4 mg/L (118,2 %) desde el 2026-03-02, más que el valor de referencia del cambio (87,1 %).",
       "src": [
        "src_3siyrh28",
        "src_5dtd55ek"
@@ -1810,7 +1819,7 @@
       "src": "src_m02"
      },
      {
-      "name": "Omeprazole 20 mg",
+      "name": "Cenobamate 50 mg",
       "since": "2026-04-01",
       "src": "src_m05"
      }
@@ -1892,8 +1901,8 @@
    "as_of": "2026-11-07",
    "lang": "es",
    "identity_mode": "pseudonymous",
-   "rules_version": "ownhealth-rules 0.1.0",
-   "state_hash": "sha256:768c2af0b6a47129d39d6bff7b15db562e9d0722840a701354d5da81121e28e6",
+   "rules_version": "ownhealth-rules 0.2.0",
+   "state_hash": "sha256:8aa5616a4d3a3aef2535f1628a1c7e904ee62f8a382b09051e6f7c657b90d0c0",
    "data": {
     "flags": [
      {
@@ -1949,8 +1958,8 @@
       "date": "2026-09-14",
       "previous": "1.1",
       "change_pct": "118.2",
-      "rcv_pct": "117.8",
-      "text": "PCR ultrasensible pasó de 1,1 a 2,4 mg/L (118,2 %) desde el 2026-03-02, más que el valor de referencia del cambio (117,8 %).",
+      "rcv_pct": "87.1",
+      "text": "PCR ultrasensible pasó de 1,1 a 2,4 mg/L (118,2 %) desde el 2026-03-02, más que el valor de referencia del cambio (87,1 %).",
       "src": [
        "src_3siyrh28",
        "src_5dtd55ek"
@@ -1982,7 +1991,7 @@
       "src": "src_m02"
      },
      {
-      "name": "Omeprazole 20 mg",
+      "name": "Cenobamate 50 mg",
       "since": "2026-04-01",
       "src": "src_m05"
      }
@@ -2064,8 +2073,8 @@
    "as_of": "2026-11-07",
    "lang": "es",
    "identity_mode": "minimal",
-   "rules_version": "ownhealth-rules 0.1.0",
-   "state_hash": "sha256:768c2af0b6a47129d39d6bff7b15db562e9d0722840a701354d5da81121e28e6",
+   "rules_version": "ownhealth-rules 0.2.0",
+   "state_hash": "sha256:8aa5616a4d3a3aef2535f1628a1c7e904ee62f8a382b09051e6f7c657b90d0c0",
    "data": {
     "flags": [
      {
@@ -2121,8 +2130,8 @@
       "date": "hace 54 días",
       "previous": "1.1",
       "change_pct": "118.2",
-      "rcv_pct": "117.8",
-      "text": "PCR ultrasensible pasó de 1,1 a 2,4 mg/L (118,2 %) desde el hace 250 días, más que el valor de referencia del cambio (117,8 %).",
+      "rcv_pct": "87.1",
+      "text": "PCR ultrasensible pasó de 1,1 a 2,4 mg/L (118,2 %) desde el hace 250 días, más que el valor de referencia del cambio (87,1 %).",
       "src": [
        "src_3siyrh28",
        "src_5dtd55ek"
@@ -2154,7 +2163,7 @@
       "src": "src_m02"
      },
      {
-      "name": "Omeprazole 20 mg",
+      "name": "Cenobamate 50 mg",
       "since": "hace 220 días",
       "src": "src_m05"
      }
@@ -2225,8 +2234,8 @@
    "as_of": "2026-11-07",
    "lang": "es",
    "identity_mode": "pseudonymous",
-   "rules_version": "ownhealth-rules 0.1.0",
-   "state_hash": "sha256:768c2af0b6a47129d39d6bff7b15db562e9d0722840a701354d5da81121e28e6",
+   "rules_version": "ownhealth-rules 0.2.0",
+   "state_hash": "sha256:8aa5616a4d3a3aef2535f1628a1c7e904ee62f8a382b09051e6f7c657b90d0c0",
    "data": {
     "flags": [
      {
@@ -2286,8 +2295,8 @@
       "date": "2026-09-14",
       "previous": "1.1",
       "change_pct": "118.2",
-      "rcv_pct": "117.8",
-      "text": "PCR ultrasensible pasó de 1,1 a 2,4 mg/L (118,2 %) desde el 2026-03-02, más que el valor de referencia del cambio (117,8 %).",
+      "rcv_pct": "87.1",
+      "text": "PCR ultrasensible pasó de 1,1 a 2,4 mg/L (118,2 %) desde el 2026-03-02, más que el valor de referencia del cambio (87,1 %).",
       "src": [
        "src_3siyrh28",
        "src_5dtd55ek"
@@ -2323,7 +2332,7 @@
       "src": "src_m02"
      },
      {
-      "name": "Omeprazole 20 mg",
+      "name": "Cenobamate 50 mg",
       "since": "2026-04-01",
       "src": "src_m05"
      }
@@ -2405,8 +2414,8 @@
    "as_of": "2026-11-07",
    "lang": "es",
    "identity_mode": "pseudonymous",
-   "rules_version": "ownhealth-rules 0.1.0",
-   "state_hash": "sha256:768c2af0b6a47129d39d6bff7b15db562e9d0722840a701354d5da81121e28e6",
+   "rules_version": "ownhealth-rules 0.2.0",
+   "state_hash": "sha256:8aa5616a4d3a3aef2535f1628a1c7e904ee62f8a382b09051e6f7c657b90d0c0",
    "data": {
     "flags": [
      {
@@ -2462,8 +2471,8 @@
       "date": "2026-09-14",
       "previous": "1.1",
       "change_pct": "118.2",
-      "rcv_pct": "117.8",
-      "text": "PCR ultrasensible pasó de 1,1 a 2,4 mg/L (118,2 %) desde el 2026-03-02, más que el valor de referencia del cambio (117,8 %).",
+      "rcv_pct": "87.1",
+      "text": "PCR ultrasensible pasó de 1,1 a 2,4 mg/L (118,2 %) desde el 2026-03-02, más que el valor de referencia del cambio (87,1 %).",
       "src": [
        "src_3siyrh28",
        "src_5dtd55ek"
@@ -2495,7 +2504,7 @@
       "src": "src_m02"
      },
      {
-      "name": "Omeprazole 20 mg",
+      "name": "Cenobamate 50 mg",
       "since": "2026-04-01",
       "src": "src_m05"
      }
@@ -2577,8 +2586,8 @@
    "as_of": "2026-11-07",
    "lang": "en",
    "identity_mode": "full",
-   "rules_version": "ownhealth-rules 0.1.0",
-   "state_hash": "sha256:cc4ccac9cddd054f7f104e57c81dbf391ff74d751e1180276885fdc094d74ff7",
+   "rules_version": "ownhealth-rules 0.2.0",
+   "state_hash": "sha256:8d38886baf4d5572863f48247ef3a6461aca2528391db0e4e57665878ada9af3",
    "data": {
     "flags": [],
     "medications": [],
@@ -2620,8 +2629,8 @@
    "as_of": "2026-11-07",
    "lang": "en",
    "identity_mode": "pseudonymous",
-   "rules_version": "ownhealth-rules 0.1.0",
-   "state_hash": "sha256:cc4ccac9cddd054f7f104e57c81dbf391ff74d751e1180276885fdc094d74ff7",
+   "rules_version": "ownhealth-rules 0.2.0",
+   "state_hash": "sha256:8d38886baf4d5572863f48247ef3a6461aca2528391db0e4e57665878ada9af3",
    "data": {
     "flags": [],
     "medications": [],
@@ -2663,8 +2672,8 @@
    "as_of": "2026-11-07",
    "lang": "en",
    "identity_mode": "minimal",
-   "rules_version": "ownhealth-rules 0.1.0",
-   "state_hash": "sha256:cc4ccac9cddd054f7f104e57c81dbf391ff74d751e1180276885fdc094d74ff7",
+   "rules_version": "ownhealth-rules 0.2.0",
+   "state_hash": "sha256:8d38886baf4d5572863f48247ef3a6461aca2528391db0e4e57665878ada9af3",
    "data": {
     "flags": [],
     "medications": [],
@@ -2706,8 +2715,8 @@
    "as_of": "2026-11-07",
    "lang": "en",
    "identity_mode": "pseudonymous",
-   "rules_version": "ownhealth-rules 0.1.0",
-   "state_hash": "sha256:cc4ccac9cddd054f7f104e57c81dbf391ff74d751e1180276885fdc094d74ff7",
+   "rules_version": "ownhealth-rules 0.2.0",
+   "state_hash": "sha256:8d38886baf4d5572863f48247ef3a6461aca2528391db0e4e57665878ada9af3",
    "data": {
     "flags": [],
     "medications": [],
@@ -2749,8 +2758,8 @@
    "as_of": "2026-11-07",
    "lang": "en",
    "identity_mode": "pseudonymous",
-   "rules_version": "ownhealth-rules 0.1.0",
-   "state_hash": "sha256:cc4ccac9cddd054f7f104e57c81dbf391ff74d751e1180276885fdc094d74ff7",
+   "rules_version": "ownhealth-rules 0.2.0",
+   "state_hash": "sha256:8d38886baf4d5572863f48247ef3a6461aca2528391db0e4e57665878ada9af3",
    "data": {
     "flags": [],
     "medications": [],
@@ -2792,8 +2801,8 @@
    "as_of": "2026-11-07",
    "lang": "es",
    "identity_mode": "full",
-   "rules_version": "ownhealth-rules 0.1.0",
-   "state_hash": "sha256:cc4ccac9cddd054f7f104e57c81dbf391ff74d751e1180276885fdc094d74ff7",
+   "rules_version": "ownhealth-rules 0.2.0",
+   "state_hash": "sha256:8d38886baf4d5572863f48247ef3a6461aca2528391db0e4e57665878ada9af3",
    "data": {
     "flags": [],
     "medications": [],
@@ -2835,8 +2844,8 @@
    "as_of": "2026-11-07",
    "lang": "es",
    "identity_mode": "pseudonymous",
-   "rules_version": "ownhealth-rules 0.1.0",
-   "state_hash": "sha256:cc4ccac9cddd054f7f104e57c81dbf391ff74d751e1180276885fdc094d74ff7",
+   "rules_version": "ownhealth-rules 0.2.0",
+   "state_hash": "sha256:8d38886baf4d5572863f48247ef3a6461aca2528391db0e4e57665878ada9af3",
    "data": {
     "flags": [],
     "medications": [],
@@ -2878,8 +2887,8 @@
    "as_of": "2026-11-07",
    "lang": "es",
    "identity_mode": "minimal",
-   "rules_version": "ownhealth-rules 0.1.0",
-   "state_hash": "sha256:cc4ccac9cddd054f7f104e57c81dbf391ff74d751e1180276885fdc094d74ff7",
+   "rules_version": "ownhealth-rules 0.2.0",
+   "state_hash": "sha256:8d38886baf4d5572863f48247ef3a6461aca2528391db0e4e57665878ada9af3",
    "data": {
     "flags": [],
     "medications": [],
@@ -2921,8 +2930,8 @@
    "as_of": "2026-11-07",
    "lang": "es",
    "identity_mode": "pseudonymous",
-   "rules_version": "ownhealth-rules 0.1.0",
-   "state_hash": "sha256:cc4ccac9cddd054f7f104e57c81dbf391ff74d751e1180276885fdc094d74ff7",
+   "rules_version": "ownhealth-rules 0.2.0",
+   "state_hash": "sha256:8d38886baf4d5572863f48247ef3a6461aca2528391db0e4e57665878ada9af3",
    "data": {
     "flags": [],
     "medications": [],
@@ -2964,8 +2973,8 @@
    "as_of": "2026-11-07",
    "lang": "es",
    "identity_mode": "pseudonymous",
-   "rules_version": "ownhealth-rules 0.1.0",
-   "state_hash": "sha256:cc4ccac9cddd054f7f104e57c81dbf391ff74d751e1180276885fdc094d74ff7",
+   "rules_version": "ownhealth-rules 0.2.0",
+   "state_hash": "sha256:8d38886baf4d5572863f48247ef3a6461aca2528391db0e4e57665878ada9af3",
    "data": {
     "flags": [],
     "medications": [],
@@ -3007,8 +3016,8 @@
    "as_of": "2026-11-07",
    "lang": "en",
    "identity_mode": "full",
-   "rules_version": "ownhealth-rules 0.1.0",
-   "state_hash": "sha256:6ce1873832933ae5d554306c818fb6b35befa1006f35df3412bb07c5c125d9f7",
+   "rules_version": "ownhealth-rules 0.2.0",
+   "state_hash": "sha256:6c368ec541be7ba518ff46df23f6c73a23639e33c7c1c7e5fde5d2c2ba8917ab",
    "data": {
     "flags": [],
     "medications": [],
@@ -3039,8 +3048,8 @@
    "as_of": "2026-11-07",
    "lang": "en",
    "identity_mode": "pseudonymous",
-   "rules_version": "ownhealth-rules 0.1.0",
-   "state_hash": "sha256:6ce1873832933ae5d554306c818fb6b35befa1006f35df3412bb07c5c125d9f7",
+   "rules_version": "ownhealth-rules 0.2.0",
+   "state_hash": "sha256:6c368ec541be7ba518ff46df23f6c73a23639e33c7c1c7e5fde5d2c2ba8917ab",
    "data": {
     "flags": [],
     "medications": [],
@@ -3071,8 +3080,8 @@
    "as_of": "2026-11-07",
    "lang": "en",
    "identity_mode": "minimal",
-   "rules_version": "ownhealth-rules 0.1.0",
-   "state_hash": "sha256:6ce1873832933ae5d554306c818fb6b35befa1006f35df3412bb07c5c125d9f7",
+   "rules_version": "ownhealth-rules 0.2.0",
+   "state_hash": "sha256:6c368ec541be7ba518ff46df23f6c73a23639e33c7c1c7e5fde5d2c2ba8917ab",
    "data": {
     "flags": [],
     "medications": [],
@@ -3103,8 +3112,8 @@
    "as_of": "2026-11-07",
    "lang": "en",
    "identity_mode": "pseudonymous",
-   "rules_version": "ownhealth-rules 0.1.0",
-   "state_hash": "sha256:6ce1873832933ae5d554306c818fb6b35befa1006f35df3412bb07c5c125d9f7",
+   "rules_version": "ownhealth-rules 0.2.0",
+   "state_hash": "sha256:6c368ec541be7ba518ff46df23f6c73a23639e33c7c1c7e5fde5d2c2ba8917ab",
    "data": {
     "flags": [],
     "medications": [],
@@ -3135,8 +3144,8 @@
    "as_of": "2026-11-07",
    "lang": "en",
    "identity_mode": "pseudonymous",
-   "rules_version": "ownhealth-rules 0.1.0",
-   "state_hash": "sha256:6ce1873832933ae5d554306c818fb6b35befa1006f35df3412bb07c5c125d9f7",
+   "rules_version": "ownhealth-rules 0.2.0",
+   "state_hash": "sha256:6c368ec541be7ba518ff46df23f6c73a23639e33c7c1c7e5fde5d2c2ba8917ab",
    "data": {
     "flags": [],
     "medications": [],
@@ -3167,8 +3176,8 @@
    "as_of": "2026-11-07",
    "lang": "es",
    "identity_mode": "full",
-   "rules_version": "ownhealth-rules 0.1.0",
-   "state_hash": "sha256:6ce1873832933ae5d554306c818fb6b35befa1006f35df3412bb07c5c125d9f7",
+   "rules_version": "ownhealth-rules 0.2.0",
+   "state_hash": "sha256:6c368ec541be7ba518ff46df23f6c73a23639e33c7c1c7e5fde5d2c2ba8917ab",
    "data": {
     "flags": [],
     "medications": [],
@@ -3199,8 +3208,8 @@
    "as_of": "2026-11-07",
    "lang": "es",
    "identity_mode": "pseudonymous",
-   "rules_version": "ownhealth-rules 0.1.0",
-   "state_hash": "sha256:6ce1873832933ae5d554306c818fb6b35befa1006f35df3412bb07c5c125d9f7",
+   "rules_version": "ownhealth-rules 0.2.0",
+   "state_hash": "sha256:6c368ec541be7ba518ff46df23f6c73a23639e33c7c1c7e5fde5d2c2ba8917ab",
    "data": {
     "flags": [],
     "medications": [],
@@ -3231,8 +3240,8 @@
    "as_of": "2026-11-07",
    "lang": "es",
    "identity_mode": "minimal",
-   "rules_version": "ownhealth-rules 0.1.0",
-   "state_hash": "sha256:6ce1873832933ae5d554306c818fb6b35befa1006f35df3412bb07c5c125d9f7",
+   "rules_version": "ownhealth-rules 0.2.0",
+   "state_hash": "sha256:6c368ec541be7ba518ff46df23f6c73a23639e33c7c1c7e5fde5d2c2ba8917ab",
    "data": {
     "flags": [],
     "medications": [],
@@ -3263,8 +3272,8 @@
    "as_of": "2026-11-07",
    "lang": "es",
    "identity_mode": "pseudonymous",
-   "rules_version": "ownhealth-rules 0.1.0",
-   "state_hash": "sha256:6ce1873832933ae5d554306c818fb6b35befa1006f35df3412bb07c5c125d9f7",
+   "rules_version": "ownhealth-rules 0.2.0",
+   "state_hash": "sha256:6c368ec541be7ba518ff46df23f6c73a23639e33c7c1c7e5fde5d2c2ba8917ab",
    "data": {
     "flags": [],
     "medications": [],
@@ -3295,8 +3304,8 @@
    "as_of": "2026-11-07",
    "lang": "es",
    "identity_mode": "pseudonymous",
-   "rules_version": "ownhealth-rules 0.1.0",
-   "state_hash": "sha256:6ce1873832933ae5d554306c818fb6b35befa1006f35df3412bb07c5c125d9f7",
+   "rules_version": "ownhealth-rules 0.2.0",
+   "state_hash": "sha256:6c368ec541be7ba518ff46df23f6c73a23639e33c7c1c7e5fde5d2c2ba8917ab",
    "data": {
     "flags": [],
     "medications": [],
@@ -3327,8 +3336,8 @@
    "as_of": "2026-11-07",
    "lang": "en",
    "identity_mode": "full",
-   "rules_version": "ownhealth-rules 0.1.0",
-   "state_hash": "sha256:76684b61674b98c4e95edec86bb7ef06932eb4a2c92ed169ff960c36685c81ad",
+   "rules_version": "ownhealth-rules 0.2.0",
+   "state_hash": "sha256:060aa47e438e19aa8b5254a55ef38e754655f45565f10c2b8629686ff46029f7",
    "data": {
     "flags": [
      {
@@ -3412,8 +3421,8 @@
    "as_of": "2026-11-07",
    "lang": "en",
    "identity_mode": "pseudonymous",
-   "rules_version": "ownhealth-rules 0.1.0",
-   "state_hash": "sha256:76684b61674b98c4e95edec86bb7ef06932eb4a2c92ed169ff960c36685c81ad",
+   "rules_version": "ownhealth-rules 0.2.0",
+   "state_hash": "sha256:060aa47e438e19aa8b5254a55ef38e754655f45565f10c2b8629686ff46029f7",
    "data": {
     "flags": [
      {
@@ -3497,8 +3506,8 @@
    "as_of": "2026-11-07",
    "lang": "en",
    "identity_mode": "minimal",
-   "rules_version": "ownhealth-rules 0.1.0",
-   "state_hash": "sha256:76684b61674b98c4e95edec86bb7ef06932eb4a2c92ed169ff960c36685c81ad",
+   "rules_version": "ownhealth-rules 0.2.0",
+   "state_hash": "sha256:060aa47e438e19aa8b5254a55ef38e754655f45565f10c2b8629686ff46029f7",
    "data": {
     "flags": [
      {
@@ -3582,8 +3591,8 @@
    "as_of": "2026-11-07",
    "lang": "en",
    "identity_mode": "pseudonymous",
-   "rules_version": "ownhealth-rules 0.1.0",
-   "state_hash": "sha256:76684b61674b98c4e95edec86bb7ef06932eb4a2c92ed169ff960c36685c81ad",
+   "rules_version": "ownhealth-rules 0.2.0",
+   "state_hash": "sha256:060aa47e438e19aa8b5254a55ef38e754655f45565f10c2b8629686ff46029f7",
    "data": {
     "flags": [
      {
@@ -3671,8 +3680,8 @@
    "as_of": "2026-11-07",
    "lang": "en",
    "identity_mode": "pseudonymous",
-   "rules_version": "ownhealth-rules 0.1.0",
-   "state_hash": "sha256:76684b61674b98c4e95edec86bb7ef06932eb4a2c92ed169ff960c36685c81ad",
+   "rules_version": "ownhealth-rules 0.2.0",
+   "state_hash": "sha256:060aa47e438e19aa8b5254a55ef38e754655f45565f10c2b8629686ff46029f7",
    "data": {
     "flags": [
      {
@@ -3756,8 +3765,8 @@
    "as_of": "2026-11-07",
    "lang": "es",
    "identity_mode": "full",
-   "rules_version": "ownhealth-rules 0.1.0",
-   "state_hash": "sha256:76684b61674b98c4e95edec86bb7ef06932eb4a2c92ed169ff960c36685c81ad",
+   "rules_version": "ownhealth-rules 0.2.0",
+   "state_hash": "sha256:060aa47e438e19aa8b5254a55ef38e754655f45565f10c2b8629686ff46029f7",
    "data": {
     "flags": [
      {
@@ -3841,8 +3850,8 @@
    "as_of": "2026-11-07",
    "lang": "es",
    "identity_mode": "pseudonymous",
-   "rules_version": "ownhealth-rules 0.1.0",
-   "state_hash": "sha256:76684b61674b98c4e95edec86bb7ef06932eb4a2c92ed169ff960c36685c81ad",
+   "rules_version": "ownhealth-rules 0.2.0",
+   "state_hash": "sha256:060aa47e438e19aa8b5254a55ef38e754655f45565f10c2b8629686ff46029f7",
    "data": {
     "flags": [
      {
@@ -3926,8 +3935,8 @@
    "as_of": "2026-11-07",
    "lang": "es",
    "identity_mode": "minimal",
-   "rules_version": "ownhealth-rules 0.1.0",
-   "state_hash": "sha256:76684b61674b98c4e95edec86bb7ef06932eb4a2c92ed169ff960c36685c81ad",
+   "rules_version": "ownhealth-rules 0.2.0",
+   "state_hash": "sha256:060aa47e438e19aa8b5254a55ef38e754655f45565f10c2b8629686ff46029f7",
    "data": {
     "flags": [
      {
@@ -4011,8 +4020,8 @@
    "as_of": "2026-11-07",
    "lang": "es",
    "identity_mode": "pseudonymous",
-   "rules_version": "ownhealth-rules 0.1.0",
-   "state_hash": "sha256:76684b61674b98c4e95edec86bb7ef06932eb4a2c92ed169ff960c36685c81ad",
+   "rules_version": "ownhealth-rules 0.2.0",
+   "state_hash": "sha256:060aa47e438e19aa8b5254a55ef38e754655f45565f10c2b8629686ff46029f7",
    "data": {
     "flags": [
      {
@@ -4100,8 +4109,8 @@
    "as_of": "2026-11-07",
    "lang": "es",
    "identity_mode": "pseudonymous",
-   "rules_version": "ownhealth-rules 0.1.0",
-   "state_hash": "sha256:76684b61674b98c4e95edec86bb7ef06932eb4a2c92ed169ff960c36685c81ad",
+   "rules_version": "ownhealth-rules 0.2.0",
+   "state_hash": "sha256:060aa47e438e19aa8b5254a55ef38e754655f45565f10c2b8629686ff46029f7",
    "data": {
     "flags": [
      {
@@ -4185,8 +4194,8 @@
    "as_of": "2026-11-07",
    "lang": "en",
    "identity_mode": "pseudonymous",
-   "rules_version": "ownhealth-rules 0.1.0",
-   "state_hash": "sha256:768c2af0b6a47129d39d6bff7b15db562e9d0722840a701354d5da81121e28e6",
+   "rules_version": "ownhealth-rules 0.2.0",
+   "state_hash": "sha256:8aa5616a4d3a3aef2535f1628a1c7e904ee62f8a382b09051e6f7c657b90d0c0",
    "data": {
     "flags": [],
     "medications": [],
@@ -4231,8 +4240,8 @@
    "as_of": "2026-11-07",
    "lang": "en",
    "identity_mode": "pseudonymous",
-   "rules_version": "ownhealth-rules 0.1.0",
-   "state_hash": "sha256:768c2af0b6a47129d39d6bff7b15db562e9d0722840a701354d5da81121e28e6",
+   "rules_version": "ownhealth-rules 0.2.0",
+   "state_hash": "sha256:8aa5616a4d3a3aef2535f1628a1c7e904ee62f8a382b09051e6f7c657b90d0c0",
    "data": {
     "flags": [
      {
@@ -4274,8 +4283,8 @@
       "date": "2026-09-14",
       "previous": "1.1",
       "change_pct": "118.2",
-      "rcv_pct": "117.8",
-      "text": "hs-CRP went from 1.1 to 2.4 mg/L (118.2%) since 2026-03-02, more than the reference change value of 117.8%.",
+      "rcv_pct": "87.1",
+      "text": "hs-CRP went from 1.1 to 2.4 mg/L (118.2%) since 2026-03-02, more than the reference change value of 87.1%.",
       "src": [
        "src_3siyrh28",
        "src_5dtd55ek"
@@ -4307,7 +4316,7 @@
       "src": "src_m02"
      },
      {
-      "name": "Omeprazole 20 mg",
+      "name": "Cenobamate 50 mg",
       "since": "2026-04-01",
       "src": "src_m05"
      }
@@ -4391,8 +4400,8 @@
    "as_of": "2026-11-07",
    "lang": "en",
    "identity_mode": "pseudonymous",
-   "rules_version": "ownhealth-rules 0.1.0",
-   "state_hash": "sha256:768c2af0b6a47129d39d6bff7b15db562e9d0722840a701354d5da81121e28e6",
+   "rules_version": "ownhealth-rules 0.2.0",
+   "state_hash": "sha256:8aa5616a4d3a3aef2535f1628a1c7e904ee62f8a382b09051e6f7c657b90d0c0",
    "data": {
     "flags": [
      {
@@ -4448,8 +4457,8 @@
       "date": "2026-09-14",
       "previous": "1.1",
       "change_pct": "118.2",
-      "rcv_pct": "117.8",
-      "text": "hs-CRP went from 1.1 to 2.4 mg/L (118.2%) since 2026-03-02, more than the reference change value of 117.8%.",
+      "rcv_pct": "87.1",
+      "text": "hs-CRP went from 1.1 to 2.4 mg/L (118.2%) since 2026-03-02, more than the reference change value of 87.1%.",
       "src": [
        "src_3siyrh28",
        "src_5dtd55ek"
@@ -4481,7 +4490,7 @@
       "src": "src_m02"
      },
      {
-      "name": "Omeprazole 20 mg",
+      "name": "Cenobamate 50 mg",
       "since": "2026-04-01",
       "src": "src_m05"
      }
@@ -5174,18 +5183,11 @@
      }
     },
     {
-     "name": "Omeprazole",
-     "strength": "20 mg",
+     "name": "Cenobamate",
+     "strength": "50 mg",
      "since": "2026-04-01",
      "src": "src_m05",
-     "pgx": {
-      "gene": "CYP2C19",
-      "label": "CYP2C19 IM",
-      "phenotype": "Intermediate Metabolizer",
-      "level": "A",
-      "text": "CYP2C19 Intermediate Metabolizer · CPIC A · to discuss with your prescriber",
-      "src": "src_g07"
-     }
+     "pgx": null
     }
    ],
    "changes": [
@@ -5269,8 +5271,8 @@
     "source": null
    },
    "review_open": 7,
-   "state_hash": "sha256:768c2af0b6a47129d39d6bff7b15db562e9d0722840a701354d5da81121e28e6",
-   "rules_version": "ownhealth-rules 0.1.0"
+   "state_hash": "sha256:8aa5616a4d3a3aef2535f1628a1c7e904ee62f8a382b09051e6f7c657b90d0c0",
+   "rules_version": "ownhealth-rules 0.2.0"
   },
   "alex/es": {
    "profile": "alex",
@@ -5886,18 +5888,11 @@
      }
     },
     {
-     "name": "Omeprazole",
-     "strength": "20 mg",
+     "name": "Cenobamate",
+     "strength": "50 mg",
      "since": "2026-04-01",
      "src": "src_m05",
-     "pgx": {
-      "gene": "CYP2C19",
-      "label": "CYP2C19 IM",
-      "phenotype": "Intermediate Metabolizer",
-      "level": "A",
-      "text": "CYP2C19 Intermediate Metabolizer · CPIC A · para comentar con quien lo prescribe",
-      "src": "src_g07"
-     }
+     "pgx": null
     }
    ],
    "changes": [
@@ -5981,8 +5976,8 @@
     "source": null
    },
    "review_open": 7,
-   "state_hash": "sha256:768c2af0b6a47129d39d6bff7b15db562e9d0722840a701354d5da81121e28e6",
-   "rules_version": "ownhealth-rules 0.1.0"
+   "state_hash": "sha256:8aa5616a4d3a3aef2535f1628a1c7e904ee62f8a382b09051e6f7c657b90d0c0",
+   "rules_version": "ownhealth-rules 0.2.0"
   },
   "sam/en": {
    "profile": "sam",
@@ -6238,8 +6233,8 @@
     "source": null
    },
    "review_open": 0,
-   "state_hash": "sha256:cc4ccac9cddd054f7f104e57c81dbf391ff74d751e1180276885fdc094d74ff7",
-   "rules_version": "ownhealth-rules 0.1.0"
+   "state_hash": "sha256:8d38886baf4d5572863f48247ef3a6461aca2528391db0e4e57665878ada9af3",
+   "rules_version": "ownhealth-rules 0.2.0"
   },
   "sam/es": {
    "profile": "sam",
@@ -6495,8 +6490,8 @@
     "source": null
    },
    "review_open": 0,
-   "state_hash": "sha256:cc4ccac9cddd054f7f104e57c81dbf391ff74d751e1180276885fdc094d74ff7",
-   "rules_version": "ownhealth-rules 0.1.0"
+   "state_hash": "sha256:8d38886baf4d5572863f48247ef3a6461aca2528391db0e4e57665878ada9af3",
+   "rules_version": "ownhealth-rules 0.2.0"
   },
   "lucia/en": {
    "profile": "lucia",
@@ -6660,8 +6655,8 @@
    "due": [],
    "genome": null,
    "review_open": 0,
-   "state_hash": "sha256:6ce1873832933ae5d554306c818fb6b35befa1006f35df3412bb07c5c125d9f7",
-   "rules_version": "ownhealth-rules 0.1.0"
+   "state_hash": "sha256:6c368ec541be7ba518ff46df23f6c73a23639e33c7c1c7e5fde5d2c2ba8917ab",
+   "rules_version": "ownhealth-rules 0.2.0"
   },
   "lucia/es": {
    "profile": "lucia",
@@ -6825,8 +6820,8 @@
    "due": [],
    "genome": null,
    "review_open": 0,
-   "state_hash": "sha256:6ce1873832933ae5d554306c818fb6b35befa1006f35df3412bb07c5c125d9f7",
-   "rules_version": "ownhealth-rules 0.1.0"
+   "state_hash": "sha256:6c368ec541be7ba518ff46df23f6c73a23639e33c7c1c7e5fde5d2c2ba8917ab",
+   "rules_version": "ownhealth-rules 0.2.0"
   },
   "carmen/en": {
    "profile": "carmen",
@@ -7075,8 +7070,8 @@
    ],
    "genome": null,
    "review_open": 0,
-   "state_hash": "sha256:76684b61674b98c4e95edec86bb7ef06932eb4a2c92ed169ff960c36685c81ad",
-   "rules_version": "ownhealth-rules 0.1.0"
+   "state_hash": "sha256:060aa47e438e19aa8b5254a55ef38e754655f45565f10c2b8629686ff46029f7",
+   "rules_version": "ownhealth-rules 0.2.0"
   },
   "carmen/es": {
    "profile": "carmen",
@@ -7325,8 +7320,8 @@
    ],
    "genome": null,
    "review_open": 0,
-   "state_hash": "sha256:76684b61674b98c4e95edec86bb7ef06932eb4a2c92ed169ff960c36685c81ad",
-   "rules_version": "ownhealth-rules 0.1.0"
+   "state_hash": "sha256:060aa47e438e19aa8b5254a55ef38e754655f45565f10c2b8629686ff46029f7",
+   "rules_version": "ownhealth-rules 0.2.0"
   },
   "alex/summary": {
    "profile": "alex",
@@ -7440,8 +7435,8 @@
    "due": [],
    "genome": null,
    "review_open": 7,
-   "state_hash": "sha256:768c2af0b6a47129d39d6bff7b15db562e9d0722840a701354d5da81121e28e6",
-   "rules_version": "ownhealth-rules 0.1.0"
+   "state_hash": "sha256:8aa5616a4d3a3aef2535f1628a1c7e904ee62f8a382b09051e6f7c657b90d0c0",
+   "rules_version": "ownhealth-rules 0.2.0"
   }
  },
  "check_drug": {
@@ -7468,7 +7463,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -7516,7 +7511,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -7562,7 +7557,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -7608,7 +7603,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -7656,7 +7651,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -7704,7 +7699,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -7750,7 +7745,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -7796,7 +7791,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -7850,7 +7845,7 @@
    "phenoconversion": [
     {
      "gene": "CYP2C19",
-     "by": "Omeprazole 20 mg",
+     "by": "Cenobamate 50 mg",
      "inhibitor_strength": "moderate",
      "computed": false,
      "functional_phenotype": null,
@@ -7859,7 +7854,7 @@
      "rule": null,
      "basis": "https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems",
      "src": "src_m05",
-     "text": "Omeprazole 20 mg is a moderate CYP2C19 inhibitor. CPIC publishes no conversion rule for CYP2C19, so the effect on the phenotype is not computed; the genotype phenotype stays as called."
+     "text": "Cenobamate 50 mg is a moderate CYP2C19 inhibitor. CPIC publishes no conversion rule for CYP2C19, so the effect on the phenotype is not computed; the genotype phenotype stays as called."
     }
    ],
    "current_medications_relevant": [
@@ -7872,7 +7867,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "inhibitor:CYP2C19:moderate",
@@ -7944,7 +7939,7 @@
    "phenoconversion": [
     {
      "gene": "CYP2C19",
-     "by": "Omeprazole 20 mg",
+     "by": "Cenobamate 50 mg",
      "inhibitor_strength": "moderate",
      "computed": false,
      "functional_phenotype": null,
@@ -7953,7 +7948,7 @@
      "rule": null,
      "basis": "https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems",
      "src": "src_m05",
-     "text": "Omeprazole 20 mg es un inhibidor moderado de CYP2C19. CPIC no publica una regla de conversión para CYP2C19, así que el efecto sobre el fenotipo no se calcula; el fenotipo por genotipo se mantiene."
+     "text": "Cenobamate 50 mg es un inhibidor moderado de CYP2C19. CPIC no publica una regla de conversión para CYP2C19, así que el efecto sobre el fenotipo no se calcula; el fenotipo por genotipo se mantiene."
     }
    ],
    "current_medications_relevant": [
@@ -7966,7 +7961,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "inhibitor:CYP2C19:moderate",
@@ -8032,7 +8027,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -8080,7 +8075,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -8141,7 +8136,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -8255,7 +8250,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -8357,7 +8352,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -8456,7 +8451,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -8552,7 +8547,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -8598,7 +8593,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -8646,7 +8641,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -8731,7 +8726,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -8817,7 +8812,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -8867,7 +8862,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -8916,7 +8911,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -8964,7 +8959,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -9010,7 +9005,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -9056,7 +9051,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -9109,7 +9104,7 @@
    "phenoconversion": [
     {
      "gene": "CYP2C19",
-     "by": "Omeprazole 20 mg",
+     "by": "Cenobamate 50 mg",
      "inhibitor_strength": "moderate",
      "computed": false,
      "functional_phenotype": null,
@@ -9118,7 +9113,7 @@
      "rule": null,
      "basis": "https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems",
      "src": "src_m05",
-     "text": "Omeprazole 20 mg is a moderate CYP2C19 inhibitor. CPIC publishes no conversion rule for CYP2C19, so the effect on the phenotype is not computed; the genotype phenotype stays as called."
+     "text": "Cenobamate 50 mg is a moderate CYP2C19 inhibitor. CPIC publishes no conversion rule for CYP2C19, so the effect on the phenotype is not computed; the genotype phenotype stays as called."
     }
    ],
    "current_medications_relevant": [
@@ -9131,7 +9126,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "inhibitor:CYP2C19:moderate",
@@ -9214,7 +9209,7 @@
    "phenoconversion": [
     {
      "gene": "CYP2C19",
-     "by": "Omeprazole 20 mg",
+     "by": "Cenobamate 50 mg",
      "inhibitor_strength": "moderate",
      "computed": false,
      "functional_phenotype": null,
@@ -9223,7 +9218,7 @@
      "rule": null,
      "basis": "https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems",
      "src": "src_m05",
-     "text": "Omeprazole 20 mg es un inhibidor moderado de CYP2C19. CPIC no publica una regla de conversión para CYP2C19, así que el efecto sobre el fenotipo no se calcula; el fenotipo por genotipo se mantiene."
+     "text": "Cenobamate 50 mg es un inhibidor moderado de CYP2C19. CPIC no publica una regla de conversión para CYP2C19, así que el efecto sobre el fenotipo no se calcula; el fenotipo por genotipo se mantiene."
     }
    ],
    "current_medications_relevant": [
@@ -9236,7 +9231,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "inhibitor:CYP2C19:moderate",
@@ -9319,7 +9314,7 @@
    "phenoconversion": [
     {
      "gene": "CYP2C19",
-     "by": "Omeprazole 20 mg",
+     "by": "Cenobamate 50 mg",
      "inhibitor_strength": "moderate",
      "computed": false,
      "functional_phenotype": null,
@@ -9328,7 +9323,7 @@
      "rule": null,
      "basis": "https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems",
      "src": "src_m05",
-     "text": "Omeprazole 20 mg is a moderate CYP2C19 inhibitor. CPIC publishes no conversion rule for CYP2C19, so the effect on the phenotype is not computed; the genotype phenotype stays as called."
+     "text": "Cenobamate 50 mg is a moderate CYP2C19 inhibitor. CPIC publishes no conversion rule for CYP2C19, so the effect on the phenotype is not computed; the genotype phenotype stays as called."
     }
    ],
    "current_medications_relevant": [
@@ -9341,7 +9336,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "inhibitor:CYP2C19:moderate",
@@ -9476,7 +9471,7 @@
    "phenoconversion": [
     {
      "gene": "CYP2C19",
-     "by": "Omeprazole 20 mg",
+     "by": "Cenobamate 50 mg",
      "inhibitor_strength": "moderate",
      "computed": false,
      "functional_phenotype": null,
@@ -9485,7 +9480,7 @@
      "rule": null,
      "basis": "https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems",
      "src": "src_m05",
-     "text": "Omeprazole 20 mg es un inhibidor moderado de CYP2C19. CPIC no publica una regla de conversión para CYP2C19, así que el efecto sobre el fenotipo no se calcula; el fenotipo por genotipo se mantiene."
+     "text": "Cenobamate 50 mg es un inhibidor moderado de CYP2C19. CPIC no publica una regla de conversión para CYP2C19, así que el efecto sobre el fenotipo no se calcula; el fenotipo por genotipo se mantiene."
     }
    ],
    "current_medications_relevant": [
@@ -9498,7 +9493,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "inhibitor:CYP2C19:moderate",
@@ -9628,7 +9623,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -9701,7 +9696,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -9772,7 +9767,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -9818,7 +9813,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -9866,7 +9861,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -9914,7 +9909,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -9967,7 +9962,7 @@
    "phenoconversion": [
     {
      "gene": "CYP2C19",
-     "by": "Omeprazole 20 mg",
+     "by": "Cenobamate 50 mg",
      "inhibitor_strength": "moderate",
      "computed": false,
      "functional_phenotype": null,
@@ -9976,7 +9971,7 @@
      "rule": null,
      "basis": "https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems",
      "src": "src_m05",
-     "text": "Omeprazole 20 mg is a moderate CYP2C19 inhibitor. CPIC publishes no conversion rule for CYP2C19, so the effect on the phenotype is not computed; the genotype phenotype stays as called."
+     "text": "Cenobamate 50 mg is a moderate CYP2C19 inhibitor. CPIC publishes no conversion rule for CYP2C19, so the effect on the phenotype is not computed; the genotype phenotype stays as called."
     }
    ],
    "current_medications_relevant": [
@@ -9989,7 +9984,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "inhibitor:CYP2C19:moderate",
@@ -10072,7 +10067,7 @@
    "phenoconversion": [
     {
      "gene": "CYP2C19",
-     "by": "Omeprazole 20 mg",
+     "by": "Cenobamate 50 mg",
      "inhibitor_strength": "moderate",
      "computed": false,
      "functional_phenotype": null,
@@ -10081,7 +10076,7 @@
      "rule": null,
      "basis": "https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems",
      "src": "src_m05",
-     "text": "Omeprazole 20 mg es un inhibidor moderado de CYP2C19. CPIC no publica una regla de conversión para CYP2C19, así que el efecto sobre el fenotipo no se calcula; el fenotipo por genotipo se mantiene."
+     "text": "Cenobamate 50 mg es un inhibidor moderado de CYP2C19. CPIC no publica una regla de conversión para CYP2C19, así que el efecto sobre el fenotipo no se calcula; el fenotipo por genotipo se mantiene."
     }
    ],
    "current_medications_relevant": [
@@ -10094,7 +10089,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "inhibitor:CYP2C19:moderate",
@@ -10170,7 +10165,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -10216,7 +10211,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -10262,7 +10257,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -10308,7 +10303,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -10354,7 +10349,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -10400,7 +10395,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -10448,7 +10443,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -10533,7 +10528,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -10616,7 +10611,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -10662,7 +10657,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -10708,7 +10703,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -10754,7 +10749,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -10800,7 +10795,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -10846,7 +10841,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -10892,7 +10887,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -10938,7 +10933,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -10986,7 +10981,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -11034,7 +11029,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -11087,7 +11082,7 @@
    "phenoconversion": [
     {
      "gene": "CYP2C19",
-     "by": "Omeprazole 20 mg",
+     "by": "Cenobamate 50 mg",
      "inhibitor_strength": "moderate",
      "computed": false,
      "functional_phenotype": null,
@@ -11096,7 +11091,7 @@
      "rule": null,
      "basis": "https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems",
      "src": "src_m05",
-     "text": "Omeprazole 20 mg is a moderate CYP2C19 inhibitor. CPIC publishes no conversion rule for CYP2C19, so the effect on the phenotype is not computed; the genotype phenotype stays as called."
+     "text": "Cenobamate 50 mg is a moderate CYP2C19 inhibitor. CPIC publishes no conversion rule for CYP2C19, so the effect on the phenotype is not computed; the genotype phenotype stays as called."
     }
    ],
    "current_medications_relevant": [
@@ -11109,7 +11104,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "inhibitor:CYP2C19:moderate",
@@ -11204,7 +11199,7 @@
    "phenoconversion": [
     {
      "gene": "CYP2C19",
-     "by": "Omeprazole 20 mg",
+     "by": "Cenobamate 50 mg",
      "inhibitor_strength": "moderate",
      "computed": false,
      "functional_phenotype": null,
@@ -11213,7 +11208,7 @@
      "rule": null,
      "basis": "https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems",
      "src": "src_m05",
-     "text": "Omeprazole 20 mg es un inhibidor moderado de CYP2C19. CPIC no publica una regla de conversión para CYP2C19, así que el efecto sobre el fenotipo no se calcula; el fenotipo por genotipo se mantiene."
+     "text": "Cenobamate 50 mg es un inhibidor moderado de CYP2C19. CPIC no publica una regla de conversión para CYP2C19, así que el efecto sobre el fenotipo no se calcula; el fenotipo por genotipo se mantiene."
     }
    ],
    "current_medications_relevant": [
@@ -11226,7 +11221,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "inhibitor:CYP2C19:moderate",
@@ -11314,7 +11309,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -11360,7 +11355,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -11409,7 +11404,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -11508,7 +11503,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -11604,7 +11599,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -11650,7 +11645,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -11696,7 +11691,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -11742,7 +11737,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -11788,7 +11783,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -11834,7 +11829,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -11880,7 +11875,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -11926,7 +11921,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -11972,7 +11967,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -12018,7 +12013,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -12066,7 +12061,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -12114,7 +12109,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -12145,7 +12140,7 @@
     "query": "omeprazole",
     "cpic_drug_id": "RxNorm:7646",
     "codes_as_received": [],
-    "currently_taking": true,
+    "currently_taking": false,
     "genes": [
      "CYP2C19"
     ]
@@ -12167,7 +12162,7 @@
    "phenoconversion": [
     {
      "gene": "CYP2C19",
-     "by": "Omeprazole 20 mg",
+     "by": "Cenobamate 50 mg",
      "inhibitor_strength": "moderate",
      "computed": false,
      "functional_phenotype": null,
@@ -12176,7 +12171,7 @@
      "rule": null,
      "basis": "https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems",
      "src": "src_m05",
-     "text": "Omeprazole 20 mg is a moderate CYP2C19 inhibitor. CPIC publishes no conversion rule for CYP2C19, so the effect on the phenotype is not computed; the genotype phenotype stays as called."
+     "text": "Cenobamate 50 mg is a moderate CYP2C19 inhibitor. CPIC publishes no conversion rule for CYP2C19, so the effect on the phenotype is not computed; the genotype phenotype stays as called."
     }
    ],
    "current_medications_relevant": [
@@ -12189,11 +12184,11 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
-     "relation": "same_drug",
-     "relation_text": "this drug",
+     "relation": "inhibitor:CYP2C19:moderate",
+     "relation_text": "CYP2C19 inhibitor (moderate)",
      "src": "src_m05"
     }
    ],
@@ -12262,7 +12257,7 @@
     "query": "omeprazole",
     "cpic_drug_id": "RxNorm:7646",
     "codes_as_received": [],
-    "currently_taking": true,
+    "currently_taking": false,
     "genes": [
      "CYP2C19"
     ]
@@ -12284,7 +12279,7 @@
    "phenoconversion": [
     {
      "gene": "CYP2C19",
-     "by": "Omeprazole 20 mg",
+     "by": "Cenobamate 50 mg",
      "inhibitor_strength": "moderate",
      "computed": false,
      "functional_phenotype": null,
@@ -12293,7 +12288,7 @@
      "rule": null,
      "basis": "https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems",
      "src": "src_m05",
-     "text": "Omeprazole 20 mg es un inhibidor moderado de CYP2C19. CPIC no publica una regla de conversión para CYP2C19, así que el efecto sobre el fenotipo no se calcula; el fenotipo por genotipo se mantiene."
+     "text": "Cenobamate 50 mg es un inhibidor moderado de CYP2C19. CPIC no publica una regla de conversión para CYP2C19, así que el efecto sobre el fenotipo no se calcula; el fenotipo por genotipo se mantiene."
     }
    ],
    "current_medications_relevant": [
@@ -12306,11 +12301,11 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
-     "relation": "same_drug",
-     "relation_text": "este fármaco",
+     "relation": "inhibitor:CYP2C19:moderate",
+     "relation_text": "inhibidor de CYP2C19 (moderado)",
      "src": "src_m05"
     }
    ],
@@ -12396,7 +12391,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -12444,7 +12439,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -12490,7 +12485,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -12536,7 +12531,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -12589,7 +12584,7 @@
    "phenoconversion": [
     {
      "gene": "CYP2C19",
-     "by": "Omeprazole 20 mg",
+     "by": "Cenobamate 50 mg",
      "inhibitor_strength": "moderate",
      "computed": false,
      "functional_phenotype": null,
@@ -12598,7 +12593,7 @@
      "rule": null,
      "basis": "https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems",
      "src": "src_m05",
-     "text": "Omeprazole 20 mg is a moderate CYP2C19 inhibitor. CPIC publishes no conversion rule for CYP2C19, so the effect on the phenotype is not computed; the genotype phenotype stays as called."
+     "text": "Cenobamate 50 mg is a moderate CYP2C19 inhibitor. CPIC publishes no conversion rule for CYP2C19, so the effect on the phenotype is not computed; the genotype phenotype stays as called."
     }
    ],
    "current_medications_relevant": [
@@ -12611,7 +12606,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "inhibitor:CYP2C19:moderate",
@@ -12706,7 +12701,7 @@
    "phenoconversion": [
     {
      "gene": "CYP2C19",
-     "by": "Omeprazole 20 mg",
+     "by": "Cenobamate 50 mg",
      "inhibitor_strength": "moderate",
      "computed": false,
      "functional_phenotype": null,
@@ -12715,7 +12710,7 @@
      "rule": null,
      "basis": "https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems",
      "src": "src_m05",
-     "text": "Omeprazole 20 mg es un inhibidor moderado de CYP2C19. CPIC no publica una regla de conversión para CYP2C19, así que el efecto sobre el fenotipo no se calcula; el fenotipo por genotipo se mantiene."
+     "text": "Cenobamate 50 mg es un inhibidor moderado de CYP2C19. CPIC no publica una regla de conversión para CYP2C19, así que el efecto sobre el fenotipo no se calcula; el fenotipo por genotipo se mantiene."
     }
    ],
    "current_medications_relevant": [
@@ -12728,7 +12723,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "inhibitor:CYP2C19:moderate",
@@ -12818,7 +12813,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -12879,7 +12874,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -12941,7 +12936,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -12991,7 +12986,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -13038,7 +13033,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -13084,7 +13079,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -13145,7 +13140,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -13259,7 +13254,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -13358,7 +13353,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -13404,7 +13399,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -13466,7 +13461,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -13582,7 +13577,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -13689,7 +13684,7 @@
    "phenoconversion": [
     {
      "gene": "CYP2C19",
-     "by": "Omeprazole 20 mg",
+     "by": "Cenobamate 50 mg",
      "inhibitor_strength": "moderate",
      "computed": false,
      "functional_phenotype": null,
@@ -13698,7 +13693,7 @@
      "rule": null,
      "basis": "https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems",
      "src": "src_m05",
-     "text": "Omeprazole 20 mg is a moderate CYP2C19 inhibitor. CPIC publishes no conversion rule for CYP2C19, so the effect on the phenotype is not computed; the genotype phenotype stays as called."
+     "text": "Cenobamate 50 mg is a moderate CYP2C19 inhibitor. CPIC publishes no conversion rule for CYP2C19, so the effect on the phenotype is not computed; the genotype phenotype stays as called."
     }
    ],
    "current_medications_relevant": [
@@ -13711,7 +13706,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "inhibitor:CYP2C19:moderate",
@@ -13794,7 +13789,7 @@
    "phenoconversion": [
     {
      "gene": "CYP2C19",
-     "by": "Omeprazole 20 mg",
+     "by": "Cenobamate 50 mg",
      "inhibitor_strength": "moderate",
      "computed": false,
      "functional_phenotype": null,
@@ -13803,7 +13798,7 @@
      "rule": null,
      "basis": "https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems",
      "src": "src_m05",
-     "text": "Omeprazole 20 mg es un inhibidor moderado de CYP2C19. CPIC no publica una regla de conversión para CYP2C19, así que el efecto sobre el fenotipo no se calcula; el fenotipo por genotipo se mantiene."
+     "text": "Cenobamate 50 mg es un inhibidor moderado de CYP2C19. CPIC no publica una regla de conversión para CYP2C19, así que el efecto sobre el fenotipo no se calcula; el fenotipo por genotipo se mantiene."
     }
    ],
    "current_medications_relevant": [
@@ -13816,7 +13811,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "inhibitor:CYP2C19:moderate",
@@ -13907,7 +13902,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -14021,7 +14016,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -14122,7 +14117,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -14195,7 +14190,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -14268,7 +14263,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -14316,7 +14311,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -14362,7 +14357,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -14408,7 +14403,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -14457,7 +14452,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -14556,7 +14551,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -14652,7 +14647,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -14698,7 +14693,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -14746,7 +14741,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -14819,7 +14814,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -14897,7 +14892,7 @@
    "phenoconversion": [
     {
      "gene": "CYP2C19",
-     "by": "Omeprazole 20 mg",
+     "by": "Cenobamate 50 mg",
      "inhibitor_strength": "moderate",
      "computed": false,
      "functional_phenotype": null,
@@ -14906,7 +14901,7 @@
      "rule": null,
      "basis": "https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems",
      "src": "src_m05",
-     "text": "Omeprazole 20 mg is a moderate CYP2C19 inhibitor. CPIC publishes no conversion rule for CYP2C19, so the effect on the phenotype is not computed; the genotype phenotype stays as called."
+     "text": "Cenobamate 50 mg is a moderate CYP2C19 inhibitor. CPIC publishes no conversion rule for CYP2C19, so the effect on the phenotype is not computed; the genotype phenotype stays as called."
     }
    ],
    "current_medications_relevant": [
@@ -14919,7 +14914,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "inhibitor:CYP2C19:moderate",
@@ -15005,7 +15000,7 @@
    "phenoconversion": [
     {
      "gene": "CYP2C19",
-     "by": "Omeprazole 20 mg",
+     "by": "Cenobamate 50 mg",
      "inhibitor_strength": "moderate",
      "computed": false,
      "functional_phenotype": null,
@@ -15014,7 +15009,7 @@
      "rule": null,
      "basis": "https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems",
      "src": "src_m05",
-     "text": "Omeprazole 20 mg es un inhibidor moderado de CYP2C19. CPIC no publica una regla de conversión para CYP2C19, así que el efecto sobre el fenotipo no se calcula; el fenotipo por genotipo se mantiene."
+     "text": "Cenobamate 50 mg es un inhibidor moderado de CYP2C19. CPIC no publica una regla de conversión para CYP2C19, así que el efecto sobre el fenotipo no se calcula; el fenotipo por genotipo se mantiene."
     }
    ],
    "current_medications_relevant": [
@@ -15027,7 +15022,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "inhibitor:CYP2C19:moderate",
@@ -15110,7 +15105,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -15199,7 +15194,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "not_assessed",
@@ -20735,7 +20730,7 @@
      "src": "src_m02"
     },
     {
-     "name": "Omeprazole 20 mg",
+     "name": "Cenobamate 50 mg",
      "kind": "medication",
      "since": "2026-04-01",
      "relation": "inhibitor:CYP2C19:moderate",

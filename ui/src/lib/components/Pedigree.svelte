@@ -18,6 +18,7 @@
 	import type { ProfileSummary } from '#lib/api/types';
 	import ConfirmRow from '#lib/components/ConfirmRow.svelte';
 	import FamilyPatterns from '#lib/components/FamilyPatterns.svelte';
+	import FamilyHints from '#lib/components/FamilyHints.svelte';
 	import NotReady from '#lib/components/pages1/NotReady.svelte';
 	import { Loader, cap, errRaw, errText, tf } from '#lib/components/pages1/util.svelte';
 	import { focusOnOpen } from '#lib/actions/focusOnOpen';
@@ -386,6 +387,7 @@
 	{#if ped.data}<div class="mono dim rules">{ped.data.rules}</div>{/if}
 </div>
 {#if patterns && ped.data?.nodes.length}<FamilyPatterns {patterns} {relLabel} {kindLabel} bind:selected={pattern} />{/if}
+{#if patterns?.hints?.length}<FamilyHints hints={patterns.hints} {relLabel} />{/if}
 
 <style>
 	.rules {

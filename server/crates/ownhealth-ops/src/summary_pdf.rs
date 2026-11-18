@@ -4,8 +4,8 @@
 //!
 //! Every table row that prints a value prints its `src` id in the same row; the sources appendix maps
 //! each id to its document, page and date. When the content needs more than two pages, rows are cut
-//! from the bottom of the ranking (unflagged lab rows first, then flags by rank, then vaccines, then
-//! the tail of medicines, allergies, conditions and genome rows) and the cut section ends with
+//! from the bottom of the ranking (unflagged lab rows first, then flags by rank, then vaccines and
+//! procedures, then the tail of medicines, allergies, conditions and genome rows) and the cut section ends with
 //! "n more in the record". The footer carries the rules versions, the
 //! start of the state hash and the page number.
 
@@ -38,6 +38,7 @@ struct Keep {
     markers: usize,
     flags: usize,
     vaccines: usize,
+    procedures: usize,
     medications: usize,
     allergies: usize,
     conditions: usize,
@@ -51,6 +52,7 @@ impl Keep {
             markers: n("markers"),
             flags: n("flags"),
             vaccines: n("vaccines"),
+            procedures: n("procedures"),
             medications: n("medications"),
             allergies: n("allergies"),
             conditions: n("conditions"),
@@ -59,7 +61,14 @@ impl Keep {
     }
 
     fn rows(&self) -> usize {
-        self.markers + self.flags + self.vaccines + self.medications + self.allergies + self.conditions + self.genome
+        self.markers
+            + self.flags
+            + self.vaccines
+            + self.procedures
+            + self.medications
+            + self.allergies
+            + self.conditions
+            + self.genome
     }
 }
 
@@ -72,7 +81,7 @@ fn st<'a>(v: &'a Value, k: &str) -> &'a str {
 }
 
 /// Superscript digits as `^n`: WinAnsi has no ⁹, and folding would print a different number.
-fn plain(s: &str) -> String {
+pub(crate) fn plain(s: &str) -> String {
     const SUP: [(char, char); 11] = [
         ('⁰', '0'),
         ('¹', '1'),
@@ -460,6 +469,24 @@ impl Sheet<'_> {
         self.none_or_more(n, all.len());
     }
 
+    fn procedures(&mut self, keep: usize) {
+        let all = arr(self.model, "procedures");
+        if self.out("records") {
+            return;
+        }
+        self.heading("sec.procedures");
+        let rows: Vec<Vec<String>> = all
+            .iter()
+            .take(keep)
+            .map(|p| vec![st(p, "procedure").into(), st(p, "date").into(), self.cite(&srcs(p))])
+            .collect();
+        let n = rows.len();
+        if n > 0 {
+            self.table(&[330.0, 80.0, 105.0], &["col.procedure", "col.date", "col.src"], rows);
+        }
+        self.none_or_more(n, all.len());
+    }
+
     /// The printed ids grouped by what they point at: `LabNorte · 2026-09-14 · p1: src_a src_b`,
     /// in the model's order (newest first, then provider and page).
     fn appendix(&mut self) {
@@ -542,6 +569,7 @@ fn draw(model: &Value, keep: Keep, total: usize) -> (Rendered, usize, Vec<String
     sheet.flags(keep.flags);
     sheet.markers(keep.markers);
     sheet.vaccines(keep.vaccines);
+    sheet.procedures(keep.procedures);
     sheet.appendix();
     let printed = std::mem::take(&mut sheet.printed);
     let out = sheet.w.finish();
@@ -566,6 +594,8 @@ pub fn render(model: &Value) -> SummaryPdf {
             keep.markers = arr(model, "markers").iter().filter(ranked).count();
         } else if keep.vaccines > 0 {
             keep.vaccines -= 1;
+        } else if keep.procedures > 0 {
+            keep.procedures -= 1;
         } else if keep.markers > 0 {
             keep.markers -= 1;
         } else if keep.medications > 0 {

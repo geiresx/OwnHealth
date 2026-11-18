@@ -438,7 +438,8 @@ async fn read_in(
             // as_of is the day the tools default to; the token's identity mode makes the dates
             // relative before the words are filled in, as every tool answer does
             let as_of = ownhealth_core::access::today();
-            let doc = ownhealth_rules::calc::document(&mut *conn, perm.profile.id, as_of).await?;
+            // the risk results read conditions, medicines and vitals only under their own scopes
+            let doc = ownhealth_rules::calc::document_for(&mut *conn, perm.profile.id, as_of, &perm.scopes).await?;
             let mode = redact::stricter(&principal.identity_mode, None);
             let lang = if principal.lang == "en" { "en" } else { "es" };
             content = ownhealth_rules::calc::render(&redact::apply(doc, &mode, as_of, &[]), lang)?;

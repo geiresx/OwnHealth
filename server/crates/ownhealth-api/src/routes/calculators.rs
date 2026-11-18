@@ -7,7 +7,9 @@
 //! The answer is the ownhealth.calculators/v1 document of the profile on `as_of`, with the words in
 //! `lang`: eGFR by CKD-EPI 2021 (creatinine, and creatinine with cystatin C), FIB-4 and HOMA-IR, each
 //! with its formula version, citation and inputs with their src ids, or the reason it was not
-//! computed. The `calculators_hash` is the same for every caller and language.
+//! computed. SCORE2 and PREVENT also read conditions, medicines and vitals, so they need read:records
+//! and read:vitals too; without them each is `not_assessed`, `scope_missing`, with no input line. The
+//! `calculators_hash` is the same for every caller with the same scopes, in every language.
 
 use std::collections::HashMap;
 
@@ -36,7 +38,7 @@ pub async fn calculators(
     let perm = Caller(principal.clone())
         .require(&mut tx, p, Some("read:labs"), None)
         .await?;
-    let doc = calc::document(&mut tx, perm.profile.id, as_of.unwrap_or_else(today_utc)).await?;
+    let doc = calc::document_for(&mut tx, perm.profile.id, as_of.unwrap_or_else(today_utc), &perm.scopes).await?;
     let mut e = event(principal, perm.profile.id, "GET /api/profiles/{p}/calculators");
     e.resource_type = Some("calculators".into());
     e.resource_ids = Some(vec![doc["calculators_hash"].as_str().unwrap_or_default().to_string()]);

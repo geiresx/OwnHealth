@@ -40,6 +40,7 @@ fn pt(day: &str, value: &str, canonical: Option<&str>) -> Point {
         flag: None,
         loinc: None,
         method: None,
+        lab: None,
         src: "src_x".into(),
         src_label: None,
         src_kind: "document_region".into(),
@@ -81,6 +82,35 @@ fn rcv_compares_the_unit_comparable_is_in() {
             &[pt("2025-01-01", "77", Some("2.0")), pt("2026-01-01", "90", Some("2.6"))]
         )
         .is_some()
+    );
+}
+
+/// An RCV sentence names one unit, so its two numbers are in that unit: a creatinine printed in mg/dL
+/// and then in umol/L reads in the unit the change was judged in, never "from 0.91 to 110 umol/L".
+#[test]
+fn an_rcv_flag_shows_both_values_in_the_unit_it_names() {
+    let r = rule(json!({"id": "r", "cv_i": "4.5", "cv_a": "3"}));
+    let unit = |mut p: Point, printed: &str, canonical_unit: &str| {
+        p.unit = Some(printed.into());
+        p.canonical_unit = Some(canonical_unit.into());
+        p
+    };
+    let before = unit(pt("2025-01-01", "0.91", Some("80.444")), "mg/dL", "umol/L");
+    let after = unit(pt("2026-01-01", "110", Some("110")), "umol/L", "umol/L");
+    let f = rcv(&r, &[before, after]).unwrap_or_default();
+    assert_eq!(
+        (f["prev"].clone(), f["value"].clone(), f["unit"].clone()),
+        (json!("80.44"), json!("110"), json!("umol/L")),
+        "{f:?}"
+    );
+    // the same printed unit on both keeps the numbers as the lab printed them
+    let before = unit(pt("2025-01-01", "0.91", Some("80.444")), "mg/dL", "umol/L");
+    let after = unit(pt("2026-01-01", "1.24", Some("109.62")), "mg/dL", "umol/L");
+    let f = rcv(&r, &[before, after]).unwrap_or_default();
+    assert_eq!(
+        (f["prev"].clone(), f["value"].clone(), f["unit"].clone()),
+        (json!("0.91"), json!("1.24"), json!("mg/dL")),
+        "{f:?}"
     );
 }
 

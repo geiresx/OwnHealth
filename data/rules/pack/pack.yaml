@@ -1,12 +1,13 @@
 # OwnHealth rule pack v1: the deterministic current state (docs/design/architecture.md section 11).
-# Semver: a rule change that alters output for any fixture bumps the minor; a new rule kind bumps the major.
+# Semver: a rule change that alters output for any fixture bumps the minor; a new rule kind bumps the major
+# (before 1.0, the minor: 0.2.0 added the baseline kind and moved the RCV values to EuBIVAS papers).
 # Every rule has an id, a kind, a reason code, a severity and a `cite`. `basis: pack_default` marks a
 # threshold we chose ourselves (no external guideline sets it); its cite points at the design that says so.
 pack: ownhealth-rules
-version: 0.1.0
+version: 0.2.0
 
 # Flags, fixed order (mcp.md section 4). Inside the list: severity desc, then date desc, then code.
-order: [lab_range, rcv, trend, gene_drug, gene_lab]
+order: [lab_range, rcv, baseline, trend, gene_drug, gene_lab]
 
 rules:
   - id: range.lab
@@ -16,6 +17,19 @@ rules:
     # The lab's own printed range and flag; no "optimal" range by default (ROADMAP v0.1, Normalization).
     cite: https://github.com/GeiserX/OwnHealth/blob/main/docs/design/ingestion.md#8-normalisation
     basis: lab_printed_range
+  # A value outside the person's own usual level: the set point is the mean of the latest 3 to 5 earlier
+  # results with the same method and lab, and the band is
+  # set point x (1 +/- z * sqrt(CVa^2 + CVi^2) * sqrt(1 + 1/n)) (Coskun et al. 2021, personalised reference
+  # intervals). CVa and CVi come from the analyte's rcv rule, so only an analyte with a cited rcv rule has
+  # a baseline.
+  - id: baseline.personal
+    kind: baseline
+    match: [ldl_c, creatinine, alt, tsh, crp_hs]
+    z: "1.96"
+    min_points: 3
+    max_points: 5
+    cite: https://doi.org/10.1093/clinchem/hvaa233
+    note: Coskun A et al. Personalized reference intervals in laboratory medicine, Clin Chem 2021;67:374-84; 3 or more earlier results give a robust set point.
 
 dashboard:
   # "Changed since last draw" lists a marker when its status is not OK or it moved by at least this much.

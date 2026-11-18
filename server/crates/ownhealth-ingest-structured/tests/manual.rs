@@ -27,6 +27,7 @@ async fn a_typed_loinc_sets_the_alias_group() -> R {
             note: None,
             category: None,
             loinc: Some("2276-4"),
+            value_code: None,
             corrects: None,
             reason: None,
         },

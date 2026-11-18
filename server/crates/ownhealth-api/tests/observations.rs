@@ -215,7 +215,28 @@ async fn test_trend() -> R {
     assert_eq!(pct, round1((last - 84.0) / 84.0 * 100.0));
     assert_ne!(pct, pct.round()); // one decimal, not a whole number
     let rcv = st["rcv_pct"].as_f64().unwrap_or_default();
-    assert!(rcv > 0.0 && st["exceeds_rcv"] == json!(pct.abs() > rcv), "{st}");
+    // each point after the first comes from another LOINC code: no change is judged against the RCV
+    assert!(
+        rcv > 0.0 && st["exceeds_rcv"].is_null() && st["method_change"] == true,
+        "{st}"
+    );
+    let switched: Vec<&Value> = points.iter().map(|p| &p["method_change"]).collect();
+    assert_eq!(switched, [&json!(false), &json!(true), &json!(true)]);
+    assert!(
+        lim.iter()
+            .any(|x| x.contains("not compared with the reference change value")),
+        "{lim:?}"
+    );
+    // every CV shown cites the paper it comes from
+    assert_eq!((&st["cv_i"], &st["cv_a"]), (&json!("8.46"), &json!("1.77")));
+    assert!(
+        st["rcv_cite"]
+            .as_str()
+            .is_some_and(|c| c.starts_with("https://doi.org/")),
+        "{st}"
+    );
+    // no earlier point shares the last one's code, so there is no usual level yet
+    assert!(st["baseline"].is_null(), "{st}");
     let statuses: Vec<&Value> = points.iter().map(|p| &p["status"]).collect();
     // lane E's word as of each point's day
     assert!(
@@ -230,6 +251,198 @@ async fn test_trend() -> R {
     assert_eq!(s, StatusCode::UNPROCESSABLE_ENTITY);
     let (s, _) = get(&a, "alex", "/profiles/alex/trend?code=zzz%20qqq").await?;
     assert_eq!(s, StatusCode::NOT_FOUND);
+    Ok(())
+}
+
+/// One LDL printed by a lab, on a document named after that lab.
+async fn lab_row(c: &mut PgConnection, f: &Family, lab: &str, day: &str, value: &str) -> R {
+    lab_row_in(c, f, lab, day, value, Some("mg/dL")).await
+}
+
+async fn lab_row_in(c: &mut PgConnection, f: &Family, lab: &str, day: &str, value: &str, unit: Option<&str>) -> R {
+    let doc: uuid::Uuid = sqlx::query_scalar(
+        "insert into document (household_id, profile_id, blob_sha256, mime, size_bytes, doc_type, provider_name) \
+         values ($1, $2, $3, 'application/pdf', 1, 'lab_report', $4) returning id",
+    )
+    .bind(f.household_id)
+    .bind(f.profile("alex"))
+    .bind(format!("{lab} {day} {value}").into_bytes())
+    .bind(lab)
+    .fetch_one(&mut *c)
+    .await?;
+    let when = Utc.from_utc_datetime(
+        &chrono::NaiveDate::parse_from_str(day, "%Y-%m-%d")?
+            .and_hms_opt(8, 0, 0)
+            .unwrap_or_default(),
+    );
+    let n = normalize_row(
+        c,
+        &RowIn {
+            profile_id: f.profile("alex"),
+            printed_name: "Colesterol LDL",
+            printed_value: value,
+            printed_unit: unit,
+            printed_range: Some("< 130"),
+            printed_flag: None,
+            effective_at: when.fixed_offset(),
+            lang: "es",
+            specimen: None,
+            provider: None,
+            loinc: None,
+            method: None,
+            document_id: Some(doc),
+        },
+    )
+    .await?;
+    let mut obs = n.observation;
+    obs.document_id = Some(doc); // the caller links the document, as the PDF import does
+    commit_observation(c, &obs, &SrcRef::New(SrcIn::manual(None)), CommitOptions::new("person")).await?;
+    Ok(())
+}
+
+/// Inside one lab the last change is judged against the RCV and the person's usual level; a switch
+/// to another lab is not judged, and the answer says why.
+#[tokio::test]
+async fn a_lab_switch_is_not_judged_as_a_change() -> R {
+    let a = app().await?;
+    let mut tx = a.rt.pool.begin().await?;
+    for (day, v) in [
+        ("2026-01-10", "100"),
+        ("2026-03-10", "102"),
+        ("2026-05-10", "101"),
+        ("2026-07-10", "140"),
+    ] {
+        lab_row(&mut tx, &a.family, "LabNorte", day, v).await?;
+    }
+    tx.commit().await?;
+    let (s, t) = get(&a, "alex", "/profiles/alex/trend?code=ldl_c&lang=en").await?;
+    assert_eq!(s, StatusCode::OK, "{t}");
+    let st = &t["stats"];
+    assert_eq!(
+        (&st["exceeds_rcv"], &st["method_change"]),
+        (&json!(true), &json!(false)),
+        "{st}"
+    );
+    // set point 101, half width 101 * 1.96 * sqrt(8.46^2 + 1.77^2) % * sqrt(1 + 1/3) = 19.76
+    assert_eq!(
+        st["baseline"],
+        json!({"set_point": 101.0, "low": 81.24, "high": 120.76, "n": 3, "outside": true, "rule": "baseline.personal",
+               "cite": "https://doi.org/10.1093/clinchem/hvaa233"}),
+        "{st}"
+    );
+    let mut tx = a.rt.pool.begin().await?;
+    lab_row(&mut tx, &a.family, "Hospital Norte", "2026-09-10", "104").await?;
+    tx.commit().await?;
+    let (_, t) = get(&a, "alex", "/profiles/alex/trend?code=ldl_c&lang=es").await?;
+    let st = &t["stats"];
+    assert_eq!(
+        (&st["exceeds_rcv"], &st["method_change"]),
+        (&Value::Null, &json!(true)),
+        "{st}"
+    );
+    assert!(st["baseline"].is_null(), "{st}");
+    let last = t["points"]
+        .as_array()
+        .and_then(|p| p.last())
+        .cloned()
+        .unwrap_or_default();
+    assert_eq!(
+        (&last["lab"], &last["method_change"]),
+        (&json!("Hospital Norte"), &json!(true))
+    );
+    assert!(
+        t["limitations"].as_array().is_some_and(|l| l
+            .iter()
+            .any(|x| x.as_str().is_some_and(|x| x.contains("otro método o laboratorio")))),
+        "{t}"
+    );
+    Ok(())
+}
+
+/// The usual level reads every earlier result of the same lab and method, as the state flag does,
+/// whatever window the chart asks for.
+#[tokio::test]
+async fn the_usual_level_does_not_depend_on_the_window() -> R {
+    let a = app().await?;
+    let today = chrono::Local::now().date_naive();
+    let mut tx = a.rt.pool.begin().await?;
+    for (days_ago, v) in [(1825, "100"), (1460, "102"), (1095, "101"), (730, "100"), (30, "140")] {
+        let day = (today - chrono::Days::new(days_ago)).format("%Y-%m-%d").to_string();
+        lab_row(&mut tx, &a.family, "LabNorte", &day, v).await?;
+    }
+    tx.commit().await?;
+    let mut seen = Vec::new();
+    for window in ["P1Y", "P3Y", "P10Y"] {
+        let (s, t) = get(&a, "alex", &format!("/profiles/alex/trend?code=ldl_c&window={window}")).await?;
+        assert_eq!(s, StatusCode::OK, "{t}");
+        seen.push(t["stats"]["baseline"].clone());
+    }
+    // set point 100.75 from the four earlier results, even when the window shows only the last one
+    assert_eq!(
+        (&seen[0]["n"], &seen[0]["set_point"], &seen[0]["outside"]),
+        (&json!(4), &json!(100.75), &json!(true)),
+        "{seen:?}"
+    );
+    assert!(seen.iter().all(|b| *b == seen[0]), "{seen:?}");
+    Ok(())
+}
+
+/// A last result printed with no unit has no chart unit to compare in, so there is no usual level.
+#[tokio::test]
+async fn a_result_with_no_unit_gets_no_usual_level() -> R {
+    let a = app().await?;
+    let today = chrono::Local::now().date_naive();
+    let mut tx = a.rt.pool.begin().await?;
+    for (days_ago, v, unit) in [
+        (900, "100", Some("mg/dL")),
+        (800, "102", Some("mg/dL")),
+        (700, "101", Some("mg/dL")),
+        (30, "300", None),
+    ] {
+        let day = (today - chrono::Days::new(days_ago)).format("%Y-%m-%d").to_string();
+        lab_row_in(&mut tx, &a.family, "LabNorte", &day, v, unit).await?;
+    }
+    tx.commit().await?;
+    let (s, t) = get(&a, "alex", "/profiles/alex/trend?code=ldl_c&window=P1Y").await?;
+    assert_eq!(s, StatusCode::OK, "{t}");
+    assert!(t["stats"]["baseline"].is_null(), "{t}");
+    Ok(())
+}
+
+/// Two results on the same day are ordered as the engine orders them, by when they were recorded,
+/// so the last point the trend judges is the one the state flag judges.
+#[tokio::test]
+async fn results_on_one_day_keep_the_order_they_were_recorded_in() -> R {
+    let a = app().await?;
+    // find a pair whose id order is the reverse of its recording order; each insert is its own transaction
+    let mut found = false;
+    for i in 1..=30 {
+        let day = format!("2026-01-{i:02}");
+        let mut ids = Vec::new();
+        for v in ["100", "140"] {
+            let mut tx = a.rt.pool.begin().await?;
+            lab_row(&mut tx, &a.family, "LabNorte", &day, v).await?;
+            tx.commit().await?;
+            let id: uuid::Uuid = sqlx::query_scalar(
+                "select id from observation where alias_group = 'ldl_c' order by recorded_at desc limit 1",
+            )
+            .fetch_one(&a.rt.pool)
+            .await?;
+            ids.push(id.to_string());
+        }
+        if ids[0] > ids[1] {
+            found = true;
+            break;
+        }
+    }
+    assert!(found, "no pair with ids in reverse recording order");
+    let (_, t) = get(&a, "alex", "/profiles/alex/trend?code=ldl_c&window=P10Y").await?;
+    let last = t["points"]
+        .as_array()
+        .and_then(|p| p.last())
+        .cloned()
+        .unwrap_or_default();
+    assert_eq!(last["value"], json!(140.0), "{t}");
     Ok(())
 }
 

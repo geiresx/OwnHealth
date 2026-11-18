@@ -127,3 +127,15 @@ export function limitLines(
 	});
 	return [...new Set(lines)];
 }
+
+/**
+ * The release part of the Genome subtitle, in the genome file's order. ClinVar is the release in use: the newest
+ * the weekly check compared, else the genome file's own. A genome file that names no ClinVar release still shows
+ * the compared one.
+ */
+export function releaseParts(dbVersions: Record<string, string>, clinvarNow: string | null): string[] {
+	const parts = Object.entries(dbVersions)
+		.filter(([k]) => k === 'clinvar' || k === 'cpic')
+		.map(([k, v]) => (k === 'clinvar' ? `ClinVar ${clinvarNow ?? v}` : `CPIC ${v}`));
+	return clinvarNow && !('clinvar' in dbVersions) ? [...parts, `ClinVar ${clinvarNow}`] : parts;
+}

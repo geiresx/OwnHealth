@@ -23,6 +23,7 @@ server/vendor/
 !/data/rules/
 !/data/summary/
 !/data/terminology/
+!/data/timeline/
 !/data/vendors/
 server/data/
 .env

@@ -8,6 +8,14 @@
 //!   `relationships.yaml`, and under `patterns` the ownhealth.family/v1 document of the same rows:
 //!   the guideline patterns they show (`ownhealth_rules::family`), worded in es and en.
 //!
+//! - `GET /profiles/{p}/family-shares`: what this profile lets its results feed as hints in each other
+//!   profile of the household (`family_share`, migration 1111), with that profile's minor flag and the
+//!   degree of its relative row linked to this one. A profile the caller has no access to is masked:
+//!   its id, no name, no minor flag, no degree. The degree needs `read:records` there (`history`), and
+//!   a row with a sensitivity tag also `read:sensitive`. `PUT` `{target, categories}` sets one pair;
+//!   widening it needs step-up, narrowing does not. `DELETE ?target=` revokes it. Only this profile's
+//!   manager reads or writes them, and a minor's profile shares nothing.
+//!
 //! Reading needs `read:records`; a row with a sensitivity tag is left out without `read:sensitive`.
 //! A relative linked to their own profile shows that profile's name only when the caller can read
 //! it (`read:records` there); otherwise the row comes back masked: no name, no years, no conditions.
@@ -37,6 +45,10 @@ pub fn router() -> Router<Runtime> {
         .route("/profiles/{p}/family", get(list).post(add))
         .route("/profiles/{p}/family/{id}", axum::routing::put(update).delete(retract))
         .route("/profiles/{p}/pedigree", get(pedigree))
+        .route(
+            "/profiles/{p}/family-shares",
+            get(list_shares).put(put_share).delete(delete_share),
+        )
 }
 
 type Answer = Result<(StatusCode, Json<Value>), ApiError>;
@@ -476,5 +488,306 @@ async fn pedigree(State(rt): State<Runtime>, caller: Caller, Path(p): Path<Strin
             "nodes": nodes,
             "patterns": ownhealth_rules::family::render(&patterns)?,
         })),
+    ))
+}
+
+// ------------------------------------------------------------- consent ----
+
+/// The source profile, for its manager only (owner, or guardian of an unclaimed profile).
+async fn share_manager(conn: &mut PgConnection, caller: &Caller, p: &str) -> Result<Permission, ApiError> {
+    let perm = caller.require(&mut *conn, p, None, None).await?;
+    Ok(ownhealth_auth::household::require_manage(perm)?)
+}
+
+/// The source's manager for a write. The source's profile row is locked first and the permission read
+/// again after it, so a claim of that profile (which updates the row) finishes before the check, and
+/// two writes of one source's shares run one after the other.
+async fn share_writer(conn: &mut PgConnection, caller: &Caller, p: &str) -> Result<Permission, ApiError> {
+    let perm = share_manager(&mut *conn, caller, p).await?;
+    // no key update: it still waits for a claim and for another write of this source, and it lets a
+    // share that references this profile check its foreign key meanwhile (no A-to-B, B-to-A deadlock)
+    sqlx::query("select 1 from profile where id = $1 for no key update")
+        .bind(perm.profile.id)
+        .execute(&mut *conn)
+        .await?;
+    share_manager(conn, caller, p).await
+}
+
+async fn is_minor(conn: &mut PgConnection, profile: &ownhealth_core::access::Profile) -> Result<bool, ApiError> {
+    let aom = ownhealth_core::access::majority(&mut *conn, profile.household_id).await?;
+    Ok(profile.is_minor(ownhealth_core::access::today(), aom))
+}
+
+/// Another profile of the source's household, by slug or id; it need not be readable by the caller.
+async fn share_target(
+    conn: &mut PgConnection,
+    source: &Permission,
+    target: &str,
+) -> Result<ownhealth_core::access::Profile, ApiError> {
+    let refused = || bad_input("target: not another profile of this household.");
+    let target = target.trim();
+    let found = match Uuid::parse_str(target) {
+        Ok(id) => ownhealth_core::access::get_profile(&mut *conn, id).await?,
+        Err(_) => ownhealth_core::access::get_profile_by_slug(&mut *conn, source.profile.household_id, target).await?,
+    };
+    found
+        .filter(|t| t.household_id == source.profile.household_id && t.id != source.profile.id)
+        .ok_or_else(refused)
+}
+
+async fn share_audit(
+    conn: &mut PgConnection,
+    principal: &Principal,
+    source: &Permission,
+    target: Uuid,
+    categories: &[String],
+) -> Result<(), ApiError> {
+    let via = if principal.kind == ownhealth_core::access::PrincipalKind::Token {
+        "api"
+    } else {
+        "ui"
+    };
+    let mut ev = AuditEvent::new(principal.actor_kind(), via, "consent_change");
+    ev.actor_id = principal.user_id;
+    ev.token_id = principal.token_id;
+    ev.tool = Some("family_share".into());
+    ev.profile_id = Some(source.profile.id);
+    ev.resource_type = Some("profile".into());
+    ev.resource_ids = Some(vec![target.to_string()]);
+    ev.args_summary = Some(format!("categories={}", categories.join(",")));
+    write_audit(conn, &ev).await?;
+    Ok(())
+}
+
+/// How the caller may see another profile of the household in the consent list: `None` when it has no
+/// access there (the profile is masked), otherwise whether it reads that profile's relative rows
+/// (`read:records`) and their tagged rows (`read:sensitive`).
+async fn share_view(
+    conn: &mut PgConnection,
+    principal: &Principal,
+    profile_id: Uuid,
+) -> Result<Option<(bool, bool)>, ApiError> {
+    Ok(match effective_permission(conn, principal, profile_id).await {
+        Ok(perm) => Some((perm.has("read:records"), perm.has("read:sensitive"))),
+        Err(ownhealth_core::Error::AccessDenied { .. }) => None,
+        Err(e) => return Err(e.into()),
+    })
+}
+
+/// The address of a target in answers: its slug when the caller has access there, otherwise its id,
+/// so an answer never names a profile the consent list masks.
+async fn target_label(
+    conn: &mut PgConnection,
+    principal: &Principal,
+    target: &ownhealth_core::access::Profile,
+) -> Result<String, ApiError> {
+    Ok(match share_view(conn, principal, target.id).await? {
+        Some(_) => target.slug.clone(),
+        None => target.id.to_string(),
+    })
+}
+
+/// Every other profile of the household with what this one shares with it. A profile the caller has
+/// no access to comes back masked: its id, no name, no minor flag and no degree.
+async fn list_shares(State(rt): State<Runtime>, caller: Caller, Path(p): Path<String>) -> Answer {
+    let mut tx = rt.pool.begin().await?;
+    let perm = share_manager(&mut tx, &caller, &p).await?;
+    let source_minor = is_minor(&mut tx, &perm.profile).await?;
+    type Row = (Uuid, Option<Vec<String>>, Option<chrono::DateTime<chrono::Utc>>);
+    let rows: Vec<Row> = sqlx::query_as(
+        "select t.id, s.categories, s.granted_at from profile t \
+         left join family_share s on s.source_profile_id = $1 and s.target_profile_id = t.id \
+         where t.household_id = $2 and t.id <> $1 order by t.slug",
+    )
+    .bind(perm.profile.id)
+    .bind(perm.profile.household_id)
+    .fetch_all(&mut *tx)
+    .await?;
+    let cat = family::catalog()?;
+    let mut items = Vec::with_capacity(rows.len());
+    for (id, categories, granted_at) in rows {
+        let Some(t) = ownhealth_core::access::get_profile(&mut tx, id).await? else {
+            continue;
+        };
+        let categories = categories.unwrap_or_default();
+        let Some((read_records, read_sensitive)) = share_view(&mut tx, &caller.0, t.id).await? else {
+            items.push(json!({
+                "profile": t.id,
+                "display_name": null,
+                "masked": true,
+                "minor": null,
+                "history": false,
+                "degree": null,
+                "categories": categories,
+                "granted_at": granted_at,
+            }));
+            continue;
+        };
+        // the relationship of its current relative row linked to this one, read as GET /family would:
+        // only with read:records there, and a tagged row only with read:sensitive
+        let rel: Option<String> = if !read_records {
+            None
+        } else {
+            sqlx::query_scalar(
+                "select m.relationship from family_member m join family_member_link l on l.family_member_id = m.id \
+             where m.profile_id = $1 and m.status = 'current' and l.linked_profile_id = $2 \
+             and ($3 or m.sensitivity = '{}') limit 1",
+            )
+            .bind(t.id)
+            .bind(perm.profile.id)
+            .bind(read_sensitive)
+            .fetch_optional(&mut *tx)
+            .await?
+        };
+        let degree = rel
+            .as_deref()
+            .and_then(|r| cat.relationship(r))
+            .map(|r| r.degree)
+            .filter(|d| *d > 0);
+        items.push(json!({
+            "profile": t.slug,
+            "display_name": t.display_name,
+            "masked": false,
+            "minor": is_minor(&mut tx, &t).await?,
+            "history": read_records,
+            "degree": degree,
+            "categories": categories,
+            "granted_at": granted_at,
+        }));
+    }
+    tx.commit().await?;
+    Ok((
+        StatusCode::OK,
+        Json(json!({
+            "profile": perm.profile.slug,
+            "minor": source_minor,
+            "categories": ownhealth_rules::family::SHARE_CATEGORIES,
+            "items": items,
+        })),
+    ))
+}
+
+/// Body `{target, categories}`: the whole set this profile shares with the target. An empty set
+/// revokes. Adding a category needs step-up; taking one away does not.
+async fn put_share(
+    State(rt): State<Runtime>,
+    caller: Caller,
+    Path(p): Path<String>,
+    body: Result<Json<Value>, JsonRejection>,
+) -> Answer {
+    let body = body_object(body)?;
+    let wanted: Vec<String> = match body.get("categories") {
+        Some(Value::Array(a)) => a
+            .iter()
+            .map(|c| c.as_str().map(str::to_string))
+            .collect::<Option<_>>()
+            .ok_or_else(|| bad_input("categories: a list of labs and cascade."))?,
+        _ => return Err(bad_input("categories: a list of labs and cascade.")),
+    };
+    if let Some(c) = wanted
+        .iter()
+        .find(|c| !ownhealth_rules::family::SHARE_CATEGORIES.contains(&c.as_str()))
+    {
+        return Err(bad_input(format!("categories: unknown category {c}.")));
+    }
+    // canonical order, no repeats
+    let categories: Vec<String> = ownhealth_rules::family::SHARE_CATEGORIES
+        .iter()
+        .filter(|c| wanted.iter().any(|w| w == *c))
+        .map(|c| (*c).to_string())
+        .collect();
+    let target = body
+        .get("target")
+        .and_then(Value::as_str)
+        .ok_or_else(|| bad_input("target: the slug or id of another profile of this household."))?;
+    let mut tx = rt.pool.begin().await?;
+    let perm = share_writer(&mut tx, &caller, &p).await?;
+    let target = share_target(&mut tx, &perm, target).await?;
+    if !categories.is_empty() && is_minor(&mut tx, &perm.profile).await? {
+        return Err(ApiError::new(
+            StatusCode::CONFLICT,
+            "minor",
+            "A minor's results never feed hints in another profile.",
+        ));
+    }
+    if categories.iter().any(|c| c == "cascade") && is_minor(&mut tx, &target).await? {
+        return Err(ApiError::new(
+            StatusCode::CONFLICT,
+            "minor_target",
+            "A genetic finding never feeds a hint in a minor's profile.",
+        ));
+    }
+    let had: Vec<String> = sqlx::query_scalar(
+        "select categories from family_share where source_profile_id = $1 and target_profile_id = $2",
+    )
+    .bind(perm.profile.id)
+    .bind(target.id)
+    .fetch_optional(&mut *tx)
+    .await?
+    .unwrap_or_default();
+    if categories.iter().any(|c| !had.contains(c)) {
+        ownhealth_auth::sessions::require_step_up(&mut tx, &caller.0, ownhealth_auth::sessions::STEP_UP_SECONDS)
+            .await?;
+    }
+    if categories.is_empty() {
+        sqlx::query("delete from family_share where source_profile_id = $1 and target_profile_id = $2")
+            .bind(perm.profile.id)
+            .bind(target.id)
+            .execute(&mut *tx)
+            .await?;
+    } else {
+        sqlx::query(
+            "insert into family_share (source_profile_id, target_profile_id, categories, granted_by) \
+             values ($1, $2, $3, $4) on conflict (source_profile_id, target_profile_id) do update \
+             set categories = excluded.categories, granted_by = excluded.granted_by, granted_at = now()",
+        )
+        .bind(perm.profile.id)
+        .bind(target.id)
+        .bind(&categories)
+        .bind(caller.0.user_id)
+        .execute(&mut *tx)
+        .await?;
+    }
+    if categories != had {
+        share_audit(&mut tx, &caller.0, &perm, target.id, &categories).await?;
+    }
+    let label = target_label(&mut tx, &caller.0, &target).await?;
+    tx.commit().await?;
+    Ok((
+        StatusCode::OK,
+        Json(json!({"profile": perm.profile.slug, "target": label, "categories": categories})),
+    ))
+}
+
+/// `?target=`: revoke everything this profile shares with the target, with no step-up.
+async fn delete_share(
+    State(rt): State<Runtime>,
+    caller: Caller,
+    Path(p): Path<String>,
+    Query(q): Query<Vec<(String, String)>>,
+) -> Answer {
+    let target = q
+        .iter()
+        .rev()
+        .find(|(k, _)| k == "target")
+        .map(|(_, v)| v.clone())
+        .ok_or_else(|| bad_input("target: the slug or id of another profile of this household."))?;
+    let mut tx = rt.pool.begin().await?;
+    let perm = share_writer(&mut tx, &caller, &p).await?;
+    let target = share_target(&mut tx, &perm, &target).await?;
+    let n = sqlx::query("delete from family_share where source_profile_id = $1 and target_profile_id = $2")
+        .bind(perm.profile.id)
+        .bind(target.id)
+        .execute(&mut *tx)
+        .await?
+        .rows_affected();
+    if n > 0 {
+        share_audit(&mut tx, &caller.0, &perm, target.id, &[]).await?;
+    }
+    let label = target_label(&mut tx, &caller.0, &target).await?;
+    tx.commit().await?;
+    Ok((
+        StatusCode::OK,
+        Json(json!({"profile": perm.profile.slug, "target": label, "categories": []})),
     ))
 }

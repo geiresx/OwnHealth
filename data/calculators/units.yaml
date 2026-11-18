@@ -7,7 +7,7 @@
 # cite    where the number comes from
 #
 # A value in a unit with no row here is refused (reason unit_unsupported); no factor is guessed.
-version: 0.1.0
+version: 0.2.0
 rows:
   # Creatinine: 1 mg/dL = 10 000 / 113.12 umol/L = 88.4 umol/L (creatinine 113.12 g/mol). The
   # CKD-EPI equations take mg/dL.
@@ -31,3 +31,9 @@ rows:
   # lower in uIU/mL, and HOMA-IR with it. Every result that converted pmol/L says so (limitation
   # insulin_factor).
   - {id: insulin.pmol_l, group: insulin, unit: pmol/L, to: "u[IU]/mL", divide: "6.00", cite: "https://pubmed.ncbi.nlm.nih.gov/30318910/", limitation: insulin_factor}
+  # SCORE2 and PREVENT take cholesterol in mmol/L. 1 mmol/L of cholesterol = 38.67 mg/dL
+  # (cholesterol 386.65 g/mol); PREVENT's own conversion, x 0.02586, is the same factor.
+  - {id: total_cholesterol.mmol_l, group: total_cholesterol, unit: mmol/L, to: mmol/L, divide: "1", cite: "https://pubmed.ncbi.nlm.nih.gov/34120177/"}
+  - {id: total_cholesterol.mg_dl, group: total_cholesterol, unit: mg/dL, to: mmol/L, divide: "38.67", cite: "https://pubchem.ncbi.nlm.nih.gov/compound/5997"}
+  - {id: hdl_c.mmol_l, group: hdl_c, unit: mmol/L, to: mmol/L, divide: "1", cite: "https://pubmed.ncbi.nlm.nih.gov/34120177/"}
+  - {id: hdl_c.mg_dl, group: hdl_c, unit: mg/dL, to: mmol/L, divide: "38.67", cite: "https://pubchem.ncbi.nlm.nih.gov/compound/5997"}

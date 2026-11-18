@@ -1,0 +1,70 @@
+# The next-draw planner (server/crates/ownhealth-rules/src/next_draw.rs): what a cited source says
+# about the preparation for a test, and the words of the planner and its printed request. Our own
+# reading of each source, written as information about the test, never as an instruction.
+#
+# Row fields: id; name, text and source (es and en); groups: the pack's alias groups (data/rules/pack/
+# analytes.yaml) the row is about; source: a short label of the cited source; cite: https.
+version: "draw-prep 0.1.0"
+reviewer: "OwnHealth maintainers (not clinicians)"
+reviewed: 2026-11-16
+rows:
+  - id: fasting
+    name: {en: "Fasting", es: "Ayuno"}
+    text:
+      en: "The cited standard defines a fasting glucose as one with no caloric intake for at least 8 hours before it."
+      es: "La norma citada define la glucosa en ayunas como la medida sin ingesta calórica en las 8 horas anteriores como mínimo."
+    groups: [glucose]
+    source: {en: "ADA Standards of Care 2026, section 2", es: "Estándares de atención de la ADA 2026, sección 2"}
+    cite: https://doi.org/10.2337/dc26-S002
+  - id: morning_urine
+    name: {en: "Early-morning urine", es: "Orina de primera hora"}
+    text:
+      en: "The cited guideline prefers an early-morning urine sample for the albumin-to-creatinine ratio."
+      es: "La guía citada prefiere una muestra de orina de primera hora de la mañana para el cociente albúmina/creatinina."
+    groups: [urine_acr]
+    source: {en: "KDIGO 2024 CKD guideline", es: "Guía KDIGO 2024 de ERC"}
+    cite: https://kdigo.org/guidelines/ckd-evaluation-and-management/
+  - id: biotin
+    name: {en: "Biotin", es: "Biotina"}
+    # The FDA communication names hormone immunoassays such as the thyroid tests among those biotin can
+    # disturb; this page of the FDA links the communication and is where it is kept up to date.
+    text:
+      en: "Biotin (vitamin B7), common in supplements, can interfere with some lab tests and give a wrong result, according to the FDA."
+      es: "La biotina (vitamina B7), frecuente en suplementos, puede interferir con algunas pruebas de laboratorio y dar un resultado erróneo, según la FDA."
+    groups: [tsh, ft4]
+    source: {en: "FDA, biotin interference with lab tests", es: "FDA, interferencia de la biotina en pruebas de laboratorio"}
+    cite: https://www.fda.gov/medical-devices/in-vitro-diagnostics/biotin-interference-troponin-lab-tests-assays-subject-biotin-interference
+templates:
+  # why each test is on the list
+  reason.recency:
+    en: "Last measured on {last}, longer ago than the rule's interval of {months} months."
+    es: "Última medición el {last}, hace más que el intervalo de {months} meses de la regla."
+  reason.never_measured:
+    en: "No value on record; the rule lists this test for this person."
+    es: "Ningún valor en el registro; la regla incluye esta prueba para esta persona."
+  reason.lab_range:
+    en: "Last value {value} {unit} on {date}, outside the lab range {ref}."
+    es: "Último valor {value} {unit} el {date}, fuera del rango del laboratorio {ref}."
+  # the screen and the printed request
+  title: {en: "Tests for the next blood draw", es: "Pruebas para la próxima analítica"}
+  notice:
+    en: "Information from this person's own health record, for their doctor. It is not a prescription or a diagnosis: the doctor decides what to order."
+    es: "Información del propio registro de salud de esta persona, para su médico. No es una receta ni un diagnóstico: el médico decide qué pedir."
+  as_of: {en: "From the record as of {as_of}.", es: "Según el registro a fecha de {as_of}."}
+  name_blank: {en: "Name:", es: "Nombre:"}
+  born: {en: "born {date}", es: "nacimiento {date}"}
+  age: {en: "{n} years", es: "{n} años"}
+  sex.female: {en: "female", es: "mujer"}
+  sex.male: {en: "male", es: "hombre"}
+  prep_none: {en: "No preparation listed by our sources", es: "Nuestras fuentes no indican preparación"}
+  col.test: {en: "Test", es: "Prueba"}
+  col.loinc: {en: "LOINC", es: "LOINC"}
+  col.reason: {en: "Why it is listed", es: "Por qué figura"}
+  col.basis: {en: "Rule and source", es: "Regla y fuente"}
+  sources: {en: "Cited sources", es: "Fuentes citadas"}
+  empty:
+    en: "Nothing to list: the record has no overdue retest, no test it lacks and no last value outside its range."
+    es: "Nada que listar: el registro no tiene repeticiones pendientes, pruebas que falten ni últimos valores fuera de rango."
+  footer:
+    en: "OwnHealth · {rules} · state {hash} · page {page}/{pages}"
+    es: "OwnHealth · {rules} · estado {hash} · página {page}/{pages}"

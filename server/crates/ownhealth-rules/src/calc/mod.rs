@@ -22,16 +22,19 @@
 //! is quantised to the row's precision. The document holds codes, numbers, dates and ids only:
 //! `render` adds the words in one language, so the hash is the same for every caller.
 
+pub mod cardio;
 pub mod ckd_epi_2021;
 pub mod fib4;
 pub mod homa_ir;
+pub mod prevent;
+pub mod score2;
 pub mod units;
 
 use std::collections::BTreeMap;
 use std::sync::OnceLock;
 
 use chrono::{DateTime, NaiveDate, Utc};
-use ownhealth_core::access::{Profile, get_profile};
+use ownhealth_core::access::{Profile, Scopes, all_scopes, get_profile};
 use ownhealth_core::canonical::canonical_json;
 use ownhealth_core::lifecycle::visible_sql;
 use ownhealth_core::{Error, Result};
@@ -51,7 +54,16 @@ use units::UnitRow;
 pub const SCHEMA: &str = "ownhealth.calculators/v1";
 pub const STATUSES: [&str; 3] = ["ok", "refused", "not_assessed"];
 /// The calculators the code computes; a data row with another id is refused at load.
-pub const IDS: [&str; 4] = ["ckd_epi_2021_cr", "ckd_epi_2021_cr_cys", "fib4", "homa_ir"];
+pub const IDS: [&str; 8] = [
+    "ckd_epi_2021_cr",
+    "ckd_epi_2021_cr_cys",
+    "fib4",
+    "homa_ir",
+    "score2",
+    "score2_op",
+    "prevent_cvd",
+    "prevent_ascvd",
+];
 /// CKD-EPI is validated in adults.
 const ADULT_AGE: i32 = 18;
 /// FIB-4 is validated from this age.
@@ -601,19 +613,38 @@ pub fn calculators_hash(doc: &Value) -> Result<String> {
     Ok(format!("sha256:{}", hex::encode(Sha256::digest(bytes))))
 }
 
-/// The document from values already read (the pure core of `document`).
-pub fn build(data: &Data, slug: &str, as_of: NaiveDate, person: &Person, draws: &[Draw]) -> Result<Value> {
-    let items: Vec<Value> = data
+/// The document from values already read (the pure core of `document`). The lab calculators run
+/// first; the cardiovascular ones (`cardio`) then read their eGFR.
+pub fn build(
+    data: &Data,
+    slug: &str,
+    as_of: NaiveDate,
+    person: &Person,
+    draws: &[Draw],
+    facts: &cardio::Facts,
+) -> Result<Value> {
+    let cv = cardio::data()?;
+    let lab: Vec<Value> = data
         .calcs
         .iter()
+        .filter(|c| !cardio::IDS.contains(&c.id.as_str()))
         .flat_map(|c| evaluate(data, c, draws, person, as_of))
         .collect();
+    let mut items = Vec::new();
+    for c in &data.calcs {
+        if cardio::IDS.contains(&c.id.as_str()) {
+            items.extend(cardio::evaluate(data, cv, c, draws, person, facts, &lab, as_of));
+        } else {
+            items.extend(lab.iter().filter(|i| i["id"] == c.id.as_str()).cloned());
+        }
+    }
     let mut doc = json!({
         "schema": SCHEMA,
         "profile": slug,
         "as_of": iso(as_of),
         "rules": format!("calculators.yaml {}", data.version),
         "units": format!("units.yaml {}", data.units_version),
+        "cardiovascular": cv.versions,
         "items": items,
     });
     let hash = calculators_hash(&doc)?;
@@ -623,17 +654,40 @@ pub fn build(data: &Data, slug: &str, as_of: NaiveDate, person: &Person, draws: 
     Ok(doc)
 }
 
-/// The ownhealth.calculators/v1 document of one profile on `as_of`.
+/// The ownhealth.calculators/v1 document of one profile on `as_of`, read with every scope.
 pub async fn document(conn: &mut PgConnection, profile_id: Uuid, as_of: NaiveDate) -> Result<Value> {
+    document_for(conn, profile_id, as_of, &all_scopes()).await
+}
+
+/// The document as a caller with `scopes` may read it: a cardiovascular result reads conditions,
+/// medicines, vitals and wearables only under their own scopes (`cardio::facts`). The hash is the same
+/// for every caller with the same scopes.
+pub async fn document_for(
+    conn: &mut PgConnection,
+    profile_id: Uuid,
+    as_of: NaiveDate,
+    scopes: &Scopes,
+) -> Result<Value> {
     let data = data()?;
     let profile = get_profile(&mut *conn, profile_id)
         .await?
         .ok_or_else(|| Error::NotFound(format!("profile {profile_id} not found")))?;
     let mut groups: Vec<String> = data.calcs.iter().flat_map(|c| c.inputs.clone()).collect();
+    // SCORE2 reads LDL-C for its markedly-raised rule
+    groups.push("ldl_c".into());
     groups.sort();
     groups.dedup();
     let draws = draws(&mut *conn, profile_id, as_of, None, &groups).await?;
-    build(data, &profile.slug, as_of, &Person::of(&profile), &draws)
+    let facts = cardio::facts(
+        &mut *conn,
+        cardio::data()?,
+        profile_id,
+        profile.country.as_deref(),
+        as_of,
+        scopes,
+    )
+    .await?;
+    build(data, &profile.slug, as_of, &Person::of(&profile), &draws, &facts)
 }
 
 // ------------------------------------------------------------------ words ----
@@ -651,13 +705,26 @@ fn fill(text: &str, params: &Map<String, Value>, data: &Data, lang: &str) -> Str
     let mut out = text.to_string();
     for (k, v) in params {
         let shown = match (k.as_str(), v) {
-            ("groups", Value::Array(gs)) => gs
-                .iter()
-                .filter_map(Value::as_str)
-                .map(|g| group_name(data, g, lang))
-                .collect::<Vec<_>>()
-                .join(and),
+            // "a, b and c": the last two joined by the word, the rest by commas
+            ("groups" | "scopes", Value::Array(gs)) => {
+                let names: Vec<String> = gs
+                    .iter()
+                    .filter_map(Value::as_str)
+                    .map(|g| {
+                        if k == "groups" {
+                            group_name(data, g, lang)
+                        } else {
+                            g.to_string()
+                        }
+                    })
+                    .collect();
+                match names.split_last() {
+                    Some((last, rest)) if !rest.is_empty() => format!("{}{and}{last}", rest.join(", ")),
+                    _ => names.join(and),
+                }
+            }
             ("group", Value::String(g)) => group_name(data, g, lang),
+            ("condition", Value::String(c)) => template(data, "condition", c, lang).unwrap_or(c).to_string(),
             (_, Value::String(s)) => localized(s, lang),
             (_, other) => other.to_string(),
         };
@@ -679,7 +746,15 @@ pub fn render(doc: &Value, lang: &str) -> Result<Value> {
     for it in out.get_mut("items").and_then(Value::as_array_mut).into_iter().flatten() {
         let Some(m) = it.as_object_mut() else { continue };
         let id = m.get("id").and_then(Value::as_str).unwrap_or_default().to_string();
-        let name = template(data, "name", &id, lang).unwrap_or(&id).to_string();
+        let mut name = template(data, "name", &id, lang).unwrap_or(&id).to_string();
+        // SCORE2's region, as the ESC names it
+        if let Some(r) = m
+            .get("region")
+            .and_then(Value::as_str)
+            .and_then(|r| template(data, "region", r, lang))
+        {
+            name = format!("{name}, {r}");
+        }
         m.insert("name".into(), json!(name));
         let short = template(data, "short", &id, lang).unwrap_or(&name).to_string();
         m.insert("short".into(), json!(short));
@@ -695,8 +770,26 @@ pub fn render(doc: &Value, lang: &str) -> Result<Value> {
         }
         for i in m.get_mut("inputs").and_then(Value::as_array_mut).into_iter().flatten() {
             let g = i["group"].as_str().unwrap_or_default().to_string();
+            let fact = format!("{g}.{}", i["value"].as_str().unwrap_or_default());
+            // a line that is no lab value reads as a phrase: "no diabetes recorded", "smokes now", or a
+            // wearable mean with its window
+            let text = match i.get("window").and_then(Value::as_object) {
+                Some(w) => {
+                    let mut p = w.clone();
+                    p.insert("value".into(), i["value"].clone());
+                    template(data, "fact", "bp_systolic.window", lang).map(|t| fill(t, &p, data, lang))
+                }
+                // a smoking status with no known code shows its words: "{printed}"
+                None => template(data, "fact", &fact, lang).map(|t| match i.get("printed") {
+                    Some(Value::String(p)) => t.replace("{printed}", p),
+                    _ => t.to_string(),
+                }),
+            };
             if let Some(o) = i.as_object_mut() {
                 o.insert("name".into(), json!(group_name(data, &g, lang)));
+                if let Some(t) = text {
+                    o.insert("text".into(), json!(t));
+                }
             }
         }
         let mut notes = Vec::new();

@@ -1,0 +1,6 @@
+# The reviewer of record for each country's prevention rules (docs/guidelines.md). GitHub asks this
+# person to review every pull request that changes the file. Until a clinician volunteers for a
+# country, it is the maintainer. The `reviewer` field inside the file names the same reviewer: change
+# both together. One line per file in data/prevention/pack.yaml `countries`.
+/data/prevention/es.yaml @GeiserX
+/data/prevention/us.yaml @GeiserX

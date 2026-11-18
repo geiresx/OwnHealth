@@ -11,13 +11,14 @@
 	import { errText, Loader, tf, tp } from '#lib/components/pages1/util.svelte';
 	import ConfirmRow from '#lib/components/ConfirmRow.svelte';
 	import CoupleCarrierCard from '#lib/components/CoupleCarrierCard.svelte';
+	import GenomeEvents from '#lib/components/GenomeEvents.svelte';
 	import { ApiError } from '#lib/api/core';
 	import { focusOnOpen } from '#lib/actions/focusOnOpen';
 	import StepUpDialog from '#lib/components/pages2/StepUpDialog.svelte';
 	import { day, plain } from '#lib/components/pages2/fmt';
 	import { withStepUp } from '#lib/components/pages2/stepup.svelte';
 	import { i18n, t, type Key } from '#lib/i18n/index.svelte';
-	import { genomeEmpty, gridCall, limitLines, resultCell as resultCellOf, svNote } from '#lib/logic/genome';
+	import { genomeEmpty, gridCall, limitLines, releaseParts, resultCell as resultCellOf, svNote } from '#lib/logic/genome';
 	import { reinterpText } from '#lib/logic/inbox';
 	import { currentProfile } from '#lib/state/app.svelte';
 
@@ -111,7 +112,9 @@
 		if (!ds || !prof) return prof?.display_name ?? '';
 		return [prof.display_name, [ds.assay.toUpperCase(), ds.mean_depth ? `${Math.round(ds.mean_depth)}×` : null].filter(Boolean).join(' '), ds.build].join(' · ');
 	});
-	const subTail = $derived(ds ? [...Object.entries(ds.db_versions).filter(([k]) => k === 'clinvar' || k === 'cpic').map(([k, val]) => `${k === 'clinvar' ? 'ClinVar' : 'CPIC'} ${val}`), `${t('i2_ingested')} ${day(ds.imported_at)}`].join(' · ') : '');
+	// The ClinVar release in use: the newest the weekly check compared, else the genome file's own.
+	let clinvarNow = $state<string | null>(null);
+	const subTail = $derived(ds ? [...releaseParts(ds.db_versions, clinvarNow), `${t('i2_ingested')} ${day(ds.imported_at)}`].join(' · ') : '');
 	const sensitiveShown = $derived((g?.findings ?? []).filter((f) => f.sensitive));
 	// The server's limitation codes in the reader's language; an unknown code keeps the server's text.
 	const limits = $derived(limitLines(g?.limitations ?? [], g?.limitation_codes, tf));
@@ -317,8 +320,9 @@
 		{/if}
 	</div>
 	{#if sensitiveShown.length}<div class="sr-only" role="status">{t('i2_sens_shown')}</div>{/if}
-	<!-- Slot (slice 13): the ClinVar history card mounts here, one line. -->
 {/if}
+<!-- Outside the findings branch: a genome with nothing to report can still carry a reclassified variant. -->
+{#if !gen.error && g && ds && prof}<GenomeEvents profile={prof.slug} rev={gen.data} bind:release={clinvarNow} />{/if}
 
 {#if !denied}
 	<div class="note" style="margin-top:10px">

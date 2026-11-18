@@ -38,7 +38,12 @@ const SOURCES: &[(&str, Source)] = &[
     ("due", |s| Box::pin(due(s))),
     ("calculators", |s| Box::pin(calculators(s))),
     ("couple_carrier", |_| Box::pin(couple_carrier())),
+    ("next_draw", |s| Box::pin(next_draws(s))),
     ("family_patterns", |_| Box::pin(family_patterns())),
+    ("family_hints", |_| Box::pin(family_hints())),
+    ("gaps", |s| Box::pin(gaps(s))),
+    ("gap_letters", |_| Box::pin(gap_letters())),
+    ("ips", |s| Box::pin(ips_narratives(s))),
 ];
 
 async fn status(s: &Seeded) -> anyhow::Result<Vec<Value>> {
@@ -129,6 +134,57 @@ async fn due(s: &Seeded) -> anyhow::Result<Vec<Value>> {
         let doc = ownhealth_rules::prevention::build_document(&mut tx, s.pid(slug), as_of()).await?;
         for lang in LANGS {
             out.push(ownhealth_rules::prevention::render(&doc, &pack, lang, &all_scopes())?);
+        }
+    }
+    Ok(out)
+}
+
+/// The document gaps (ownhealth.gaps/v1 rendered) of each person in both languages, plus one gap of
+/// each rule as the Gaps card and the Due list word it (the seed has holes but no visit).
+async fn gaps(s: &Seeded) -> anyhow::Result<Vec<Value>> {
+    use ownhealth_rules::gaps::{build_document, due_text, render};
+    let mut tx = s.pool().begin().await?;
+    let mut out = Vec::new();
+    let each = json!({"schema": "ownhealth.gaps/v1", "items": [
+        {"key": "visit:2025-11-10:00000000", "rule": "visit_without_report", "date": "2025-11-10",
+         "provider": "Hospital Norte", "src": ["src_example"]},
+        {"key": "hole:2016-05-10:2021-11-09", "rule": "records_hole", "from": "2016-05-10", "to": "2021-11-09",
+         "days": 2009, "src": ["src_example"]},
+    ]});
+    for lang in LANGS {
+        out.push(render(&each, lang, &all_scopes())?);
+        for it in each["items"].as_array().into_iter().flatten() {
+            out.push(json!(due_text(it, lang)?));
+        }
+    }
+    for slug in SLUGS {
+        let doc = build_document(&mut tx, s.pid(slug), as_of()).await?;
+        for lang in LANGS {
+            out.push(render(&doc, lang, &all_scopes())?);
+        }
+    }
+    Ok(out)
+}
+
+/// Every access-request letter (`ownhealth_ops::letter_pdf`) in both languages, the person's own and
+/// a legal representative's, read back from the PDF's text layer.
+async fn gap_letters() -> anyhow::Result<Vec<Value>> {
+    use ownhealth_ops::letter_pdf::{LetterIn, render};
+    let g = ownhealth_rules::gaps::load()?;
+    let mut out = Vec::new();
+    for l in &g.letters {
+        for lang in LANGS {
+            for on_behalf in [false, true] {
+                let input = LetterIn {
+                    lang,
+                    name: "Alex Rivera",
+                    provider: "Hospital Norte",
+                    date: "2025-11-10",
+                    on_behalf,
+                };
+                let lines = ownhealth_ingest_pdf::textcheck::assert_text_layer(&render(g, l, &input), |_| Ok(()));
+                out.push(json!({"letter": l.id, "lang": lang, "lines": lines}));
+            }
         }
     }
     Ok(out)
@@ -472,6 +528,27 @@ fn the_clinvar_alert_file_passes_the_cited_loader() -> R {
     Ok(())
 }
 
+/// The next-draw planner rendered for each person in both languages, with the person's line (its PDF
+/// text layer is linted in `next_draw_pdf.rs`).
+async fn next_draws(s: &Seeded) -> anyhow::Result<Vec<Value>> {
+    use ownhealth_rules::next_draw;
+    let mut tx = s.pool().begin().await?;
+    let pack = load_pack()?;
+    let mut out = Vec::new();
+    for slug in SLUGS {
+        let plan = next_draw::build(&mut tx, s.pid(slug), as_of()).await?;
+        let profile = ownhealth_core::access::get_profile(&mut tx, s.pid(slug)).await?;
+        for lang in LANGS {
+            let mut model = next_draw::render(&plan, &pack, lang)?;
+            if let Some(p) = &profile {
+                model["person"] = next_draw::person(p, as_of(), lang, true)?;
+            }
+            out.push(model);
+        }
+    }
+    Ok(out)
+}
+
 /// The family patterns card with every rule present and one that cannot be checked.
 async fn family_patterns() -> anyhow::Result<Vec<Value>> {
     use ownhealth_core::family::FamilyCondition;
@@ -502,4 +579,53 @@ async fn family_patterns() -> anyhow::Result<Vec<Value>> {
         render(&document("alex", as_of(), &every)?)?,
         render(&document("alex", as_of(), &undated)?)?,
     ])
+}
+
+/// Every cross-profile hint in both languages: each rule, a named gene and a withheld one.
+async fn family_hints() -> anyhow::Result<Vec<Value>> {
+    use ownhealth_rules::family::{HintSource, HintViewer, document, hint_items, load_hints, render, with_hints};
+    use std::collections::{BTreeMap, BTreeSet};
+    let source = |rel: &str, sensitive: bool| HintSource {
+        rel: rel.into(),
+        categories: vec!["labs".into(), "cascade".into()],
+        minor: false,
+        labs: BTreeSet::from(["lab.ldl_fh".to_string()]),
+        findings: BTreeMap::from([("genome.cascade".to_string(), vec![("BRCA2".to_string(), sensitive)])]),
+    };
+    let viewer = HintViewer {
+        labs: true,
+        genome: true,
+        sensitive: false,
+        target_minor: false,
+        guardian: false,
+    };
+    let rules = load_hints()?;
+    let cat = ownhealth_core::family::catalog()?;
+    let hints = hint_items(rules, cat, &viewer, &[source("MTH", false), source("FTH", true)]);
+    assert_eq!(hints.len(), 4, "{hints:?}");
+    assert!(hints.iter().any(|h| h["withheld"] == true), "{hints:?}");
+    Ok(vec![render(&with_hints(document("alex", as_of(), &[])?, hints)?)?])
+}
+
+/// The IPS export's own words: the Composition title and every section's title and narrative, for
+/// every profile in es and en (the rows' FHIR is the record as received, not text we write).
+async fn ips_narratives(s: &Seeded) -> anyhow::Result<Vec<Value>> {
+    let mut tx = s.pool().begin().await?;
+    let mut out = Vec::new();
+    for slug in SLUGS {
+        for lang in LANGS {
+            let b = ownhealth_ops::ips::build(&mut tx, s.pid(slug), &all_scopes(), lang, as_of())
+                .await?
+                .bundle;
+            let comp = &b["entry"][0]["resource"];
+            let sections: Vec<Value> = comp["section"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .map(|x| json!({"title": x["title"], "narrative": x["text"]["div"]}))
+                .collect();
+            out.push(json!({"title": comp["title"], "sections": sections}));
+        }
+    }
+    Ok(out)
 }

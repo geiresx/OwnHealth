@@ -467,3 +467,80 @@ async fn a_retraction_during_a_comparison_still_dismisses_what_it_wrote() -> R {
     assert_eq!(after["items"], serde_json::json!([]), "{after}");
     Ok(())
 }
+
+/// The history says which ClinVar release is in use, whether the weekly check is on, and where a
+/// reclassified call is made again. The weekly check is one switch: on and off through the inbox API,
+/// never deleted, and its local file is checked when saved.
+#[tokio::test]
+async fn the_history_names_the_release_in_use_and_the_weekly_switch() -> R {
+    let e = env().await?;
+    let (status, body) = e.get("alex", "/api/profiles/alex/genome/events").await?;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(body["release"], "2026-10-12");
+    assert_eq!(body["weekly"], false);
+    assert_eq!(
+        body["rerun"]["en"],
+        "OwnGenome makes the call again with bin/og recheck --sample <name> --rerun."
+    );
+    assert_eq!(
+        body["rerun"]["es"],
+        "OwnGenome lo obtiene de nuevo con bin/og recheck --sample <name> --rerun."
+    );
+    // Lucía has no genome: nothing compared yet.
+    let (_, lucia) = e.get("alex", "/api/profiles/lucia/genome/events").await?;
+    assert_eq!(lucia["release"], Value::Null, "{lucia}");
+
+    let new = |config: Value| serde_json::json!({"kind": "clinvar", "label": "ClinVar", "config": config});
+    let (status, bad) = e
+        .post(
+            "alex",
+            "/api/inboxes",
+            new(serde_json::json!({"path": "clinvar.vcf.gz"})),
+        )
+        .await?;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{bad}");
+    let (status, bad) = e
+        .post(
+            "alex",
+            "/api/inboxes",
+            new(serde_json::json!({"url": "http://mirror.example/clinvar.vcf.gz"})),
+        )
+        .await?;
+    assert_eq!(
+        status,
+        StatusCode::UNPROCESSABLE_ENTITY,
+        "plain http only on the person's network: {bad}"
+    );
+    let (status, src) = e.post("alex", "/api/inboxes", new(serde_json::json!({}))).await?;
+    assert_eq!(status, StatusCode::CREATED, "{src}");
+    assert_eq!(src["poll_seconds"], 7 * 24 * 3600);
+    assert_eq!(src["profile_id"], Value::Null);
+    let (_, body) = e.get("alex", "/api/profiles/alex/genome/events").await?;
+    assert_eq!(body["weekly"], true);
+    // One check per household: a second one would download the release twice a week and could
+    // neither show in Settings nor be deleted.
+    let (status, twice) = e.post("alex", "/api/inboxes", new(serde_json::json!({}))).await?;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{twice}");
+    let n: i64 = sqlx::query_scalar("select count(*) from source where kind = 'clinvar'")
+        .fetch_one(&e.db.pool)
+        .await?;
+    assert_eq!(n, 1);
+
+    let id = src["id"].as_str().unwrap_or_default();
+    let (status, gone) = e
+        .send("alex", Request::delete(format!("/api/inboxes/{id}")), Body::empty())
+        .await?;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{gone}");
+    let req = Request::patch(format!("/api/inboxes/{id}")).header("content-type", "application/json");
+    let (status, off) = e
+        .send(
+            "alex",
+            req,
+            Body::from(serde_json::json!({"enabled": false}).to_string()),
+        )
+        .await?;
+    assert_eq!(status, StatusCode::OK, "{off}");
+    let (_, body) = e.get("alex", "/api/profiles/alex/genome/events").await?;
+    assert_eq!(body["weekly"], false);
+    Ok(())
+}

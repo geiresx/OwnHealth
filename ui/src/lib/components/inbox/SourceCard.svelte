@@ -64,6 +64,9 @@
 				return [where.url, where.tag ? `tag: ${where.tag}` : null].filter(Boolean).join(' · ');
 			case 'nightscout':
 				return where.url;
+			// The weekly ClinVar check: a local file, a mirror, or NCBI.
+			case 'clinvar':
+				return String(c.path || c.url || 'ftp.ncbi.nlm.nih.gov');
 			// These two never send with a token of their own: say how their files arrive instead.
 			case 'gadgetbridge':
 				return t('fu_via_upload');
@@ -79,6 +82,7 @@
 		if (source.kind === 'email') return { text: t('fu_f_profile_rule'), warn: false };
 		if (source.kind === 'folder') return { text: t('fu_f_profile_folder'), warn: false };
 		if (source.kind === 'share') return { text: t('fu_to_share'), warn: false };
+		if (source.kind === 'clinvar') return { text: t('gen_src_to'), warn: false };
 		if (PROFILE_KINDS.includes(source.kind)) return { text: t('fu_to_none'), warn: true };
 		return { text: '—', warn: false };
 	});
@@ -91,7 +95,7 @@
 	<div class="hd">
 		<div style="min-width:0">
 			<b id="src-{source.id}">{source.label}</b>
-			<div class="dim kind">{t('fu_k_' + source.kind)} · <span class:mono={source.kind !== 'gadgetbridge' && source.kind !== 'share'}>{detail}</span></div>
+			<div class="dim kind">{t(source.kind === 'clinvar' ? 'gen_cv_set_t' : 'fu_k_' + source.kind)} · <span class:mono={source.kind !== 'gadgetbridge' && source.kind !== 'share'}>{detail}</span></div>
 		</div>
 		<span class="pill {PILL[status]}"><i aria-hidden="true"></i>{t(pillWord)}</span>
 	</div>
@@ -127,8 +131,13 @@
 		<button class="btn sm" disabled={busy} aria-expanded={source.token_prefix ? confirmToken : undefined} onclick={() => (source.token_prefix ? (confirmToken = !confirmToken) : ontoken())}>{t(tokenButtonKey(source.kind, !!source.token_prefix))}</button>
 		{#if source.kind === 'email'}<button class="btn sm" onclick={() => toggle('senders')} aria-expanded={open === 'senders'}>{t('fu_senders')}</button>{/if}
 		<button class="btn sm" onclick={() => toggle('runs')} aria-expanded={open === 'runs'}>{t('fu_runs')}</button>
-		<button class="btn sm" data-edit={source.id} onclick={onedit}>{t('i2_edit')}</button>
-		<button class="btn sm no del" disabled={busy} onclick={() => (confirming = !confirming)} aria-expanded={confirming}>{t('fu_delete')}</button>
+		<!-- The ClinVar check comes back by itself while the household has a genome: Settings switches it off. -->
+		{#if source.kind === 'clinvar'}
+			<a class="btn sm" href="/settings">{t('i2_settings')}</a>
+		{:else}
+			<button class="btn sm" data-edit={source.id} onclick={onedit}>{t('i2_edit')}</button>
+			<button class="btn sm no del" disabled={busy} onclick={() => (confirming = !confirming)} aria-expanded={confirming}>{t('fu_delete')}</button>
+		{/if}
 	</div>
 	{#if confirmToken}
 		<ConfirmRow text={t('fu_token_new_d')} confirmLabel={t('fu_token_new_yes')} {busy} onconfirm={() => { confirmToken = false; ontoken(); }} oncancel={() => (confirmToken = false)} />

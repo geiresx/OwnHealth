@@ -262,7 +262,7 @@ Example (synthetic fixture for Alex Rivera, the same one PLAN.md uses; scopes `r
        "src": ["src_g31", "src_m02"]}
     ],
     "medications": [{"name": "Atorvastatin 20 mg", "since": "2026-03-10", "src": "src_m02"},
-                    {"name": "Omeprazole 20 mg", "since": "2026-04-01", "src": "src_m05"}],
+                    {"name": "Cenobamate 50 mg", "since": "2026-04-01", "src": "src_m05"}],
     "supplements": [],
     "active_conditions": [{"name": "Hypercholesterolaemia", "verification": "confirmed", "since": "2021-11", "src": "src_c02"}],
     "never_measured": [{"name": "Hepatitis C antibody", "rule": "infect.hcv.once_adult"}],
@@ -506,7 +506,7 @@ Phenoconversion in v0.1: for CYP2D6 the server applies the CPIC rule to the geno
 
 Wording rule: guidance is quoted from CPIC or DPWG with its citation and followed by "Discuss with your prescriber." The server never writes "do not take X" in its own words. Drug-drug interactions beyond phenoconversion are `not_assessed` until an open-licence source is configured.
 
-Example 1 is PLAN.md's clopidogrel call for Alex (CYP2C19 *1/*2 with omeprazole, phenoconversion not computed). Example 2 shows a computed CYP2D6 phenoconversion for Sam Rivera (synthetic; CPIC text to be checked verbatim at build time):
+Example 1 is PLAN.md's clopidogrel call for Alex (CYP2C19 *1/*2 with cenobamate, a moderate CYP2C19 inhibitor, phenoconversion not computed). Example 2 shows a computed CYP2D6 phenoconversion for Sam Rivera (synthetic; CPIC text to be checked verbatim at build time):
 
 ```json
 {

@@ -12,10 +12,11 @@ rules:
   - id: rcv.creatinine
     kind: rcv
     match: [creatinine]
-    cv_i: "4.5"
-    cv_a: "2.0"
-    cite: https://biologicalvariation.eu/
-    verify: CV values to confirm against the EFLM database
+    cv_i: "4.4"
+    cv_a: "1.1"
+    cite: https://doi.org/10.1515/cclm-2021-0370
+    primary: https://doi.org/10.1373/clinchem.2017.275115
+    note: EuBIVAS, enzymatic creatinine; CVi 4.4% (4.2-4.7), CVa 1.1%. The alkaline picrate (Jaffe) method gave CVi 4.7%, CVa 4.4%.
   - id: trend.egfr.decline
     kind: trend
     match: [egfr]

@@ -745,6 +745,7 @@ pub async fn check_drug(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::BTreeMap;
 
     /// The texts beside the pack pass the cited-file checks: version, https cite, es and en, wording.
     #[test]
@@ -758,6 +759,45 @@ mod tests {
             }
         }
         assert!(own_text("drug.na.missing", "en").is_err());
+        Ok(())
+    }
+
+    /// pgx_phenoconversion.yaml lists exactly the rows of the pinned FDA table, per gene and strength,
+    /// and every drug in it has a name the drug check knows.
+    #[test]
+    fn the_inhibitor_lists_are_the_pinned_fda_table() -> Result<()> {
+        const TSV: &str = include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../../data/rules/pack/fda_cyp_inhibitors.tsv"
+        ));
+        let mut rows = TSV.lines().filter(|l| !l.starts_with('#') && !l.trim().is_empty());
+        let header = rows.next().unwrap_or_default();
+        assert!(header.starts_with("Drug\tGene\tStrength\t"), "{header}");
+        let mut want: BTreeMap<String, BTreeMap<String, BTreeSet<String>>> = BTreeMap::new();
+        for row in rows {
+            let cols: Vec<&str> = row.split('\t').collect();
+            assert!(cols.len() == 6 && ["strong", "moderate"].contains(&cols[2]), "{row}");
+            want.entry(cols[1].into())
+                .or_default()
+                .entry(cols[2].into())
+                .or_default()
+                .insert(cols[0].into());
+        }
+        let pack = load_pack()?;
+        let got: BTreeMap<String, BTreeMap<String, BTreeSet<String>>> =
+            serde_json::from_value(pack.phenoconversion.get("inhibitors").cloned().unwrap_or(Value::Null))
+                .map_err(|e| Error::Invalid(e.to_string()))?;
+        assert_eq!(
+            got, want,
+            "regenerate the inhibitors block of pgx_phenoconversion.yaml from the TSV"
+        );
+        for drug in want.values().flat_map(|g| g.values()).flatten() {
+            assert_eq!(
+                drug_key(&pack, Some(drug)).as_deref(),
+                Some(drug.as_str()),
+                "{drug} needs a drugs.yaml entry"
+            );
+        }
         Ok(())
     }
 

@@ -109,3 +109,56 @@ async fn a_minimal_token_reads_dates_relative_to_as_of() -> R {
     assert!(dates >= 3, "the control saw dates: {dates}");
     Ok(())
 }
+
+/// A token with read:labs only reads the lab calculators, and each risk result as not assessed for
+/// the scopes it lacks: no condition, medicine or smoking line and no src of them. With read:records
+/// and read:vitals the statin and its src show, so the check can fail.
+#[tokio::test]
+async fn a_read_labs_token_sees_no_condition_medicine_or_vital_in_a_risk_result() -> R {
+    let w = world().await?;
+    let read = |s: &'static [&'static str]| {
+        let w = &w;
+        async move {
+            let c = w.connect(&w.tok_scopes(scopes(s)).await?).await?;
+            anyhow::Ok(serde_json::from_str::<Value>(&c.read_text(URI).await?)?)
+        }
+    };
+    let all = read(&["read:summary", "read:labs", "read:records", "read:vitals"]).await?;
+    // the control: with read:records and read:vitals the statin line shows, with its src
+    let statin_src = all["items"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .flat_map(|i| i["inputs"].as_array().into_iter().flatten())
+        .find(|i| i["group"] == "statin" && i["value"] == "recorded")
+        .and_then(|i| i["src"].as_str())
+        .map(str::to_string)
+        .expect("the control sees the statin");
+    let doc = read(&["read:labs"]).await?;
+    let body = doc.to_string();
+    for hidden in [
+        statin_src.as_str(),
+        "\"statin\"",
+        "antihypertensive",
+        "\"diabetes\"",
+        "smoking_status",
+        "bp_systolic",
+    ] {
+        assert!(!body.contains(hidden), "{hidden} in {body}");
+    }
+    let mut risk = 0;
+    for it in doc["items"].as_array().into_iter().flatten() {
+        let id = it["id"].as_str().unwrap_or_default();
+        if id.starts_with("score2") || id.starts_with("prevent") {
+            risk += 1;
+            assert_eq!(it["reason_code"], "scope_missing", "{it}");
+            assert_eq!(
+                it["reason"]["scopes"],
+                serde_json::json!(["read:records", "read:vitals"])
+            );
+            assert_eq!(it["inputs"], serde_json::json!([]));
+        }
+    }
+    assert!(risk >= 3, "{risk}");
+    Ok(())
+}

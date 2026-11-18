@@ -39,7 +39,7 @@ export const forGroup = (items: CalcItem[], group: string) => summarize(items, (
 export const rowsForCard = (items: CalcItem[], card: string) =>
 	summarize(items, (i) => i.system === card).filter((s): s is CalcSummary & { latestOk: CalcItem } => !!s.latestOk);
 
-/** A unit for people: 'mL/min/{1.73_m2}' reads 'mL/min/1.73 m²', 'u[IU]/mL' reads 'µU/mL' (Matthews' unit),
+/** A unit for people: 'mL/min/{1.73_m2}' reads 'mL/min/1.73 m²', 'u[IU]/mL' reads 'µU/mL' (Matthews' unit), 'mm[Hg]' reads 'mmHg',
  *  and UCUM's micro prefix 'u' reads 'µ' ('umol/L' reads 'µmol/L'). */
 export const calcUnit = (u: string | null | undefined) =>
 	unitLabel(u)
@@ -47,4 +47,5 @@ export const calcUnit = (u: string | null | undefined) =>
 		.replace('{1.73_m2}', '1.73 m²')
 		.replace('u[IU]/mL', 'µU/mL')
 		.replace('m[IU]/L', 'mU/L')
+		.replace('mm[Hg]', 'mmHg')
 		.replace(/^u(?=mol\/|g\/)/, 'µ');

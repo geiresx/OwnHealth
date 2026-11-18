@@ -38,8 +38,8 @@ fn shipped(name: &str) -> &'static str {
 #[test]
 fn shipped_pack() -> R {
     let p = load_pack()?;
-    assert_eq!(rules_version()?, "ownhealth-rules 0.1.0");
-    assert_eq!(p.version, "ownhealth-rules 0.1.0");
+    assert_eq!(rules_version()?, "ownhealth-rules 0.2.0");
+    assert_eq!(p.version, "ownhealth-rules 0.2.0");
     assert_eq!(p.sha256.len(), 64);
     let kinds: BTreeSet<String> = p
         .rules
@@ -139,7 +139,7 @@ fn override_changes_version_and_hash() -> R {
     let local = load(dir.0.to_str())?;
     assert_eq!(
         local.version,
-        format!("ownhealth-rules 0.1.0+local.{}", &local.sha256[..8])
+        format!("ownhealth-rules 0.2.0+local.{}", &local.sha256[..8])
     );
     assert_ne!(local.sha256, shipped_pack.sha256);
     assert_eq!(
@@ -278,7 +278,7 @@ fn an_unquoted_decimal_in_a_pack_file_is_a_pack_error() -> R {
     let dir = TempDir::new()?;
     std::fs::write(
         dir.0.join("kidney.yaml"),
-        shipped("kidney.yaml").replace("cv_i: \"4.5\"", "cv_i: 4.5"),
+        shipped("kidney.yaml").replace("cv_i: \"4.4\"", "cv_i: 4.4"),
     )?;
     let err = load(dir.0.to_str()).err().map(|e| e.to_string()).unwrap_or_default();
     assert!(err.starts_with("kidney.yaml: ") && err.contains("quoted"), "{err}");

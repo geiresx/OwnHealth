@@ -52,7 +52,7 @@ async fn demo_seed_matches_the_alex_fixture() -> anyhow::Result<()> {
     )
     .fetch_all(p)
     .await?;
-    assert_eq!(active, ["Atorvastatin", "Omeprazole"]);
+    assert_eq!(active, ["Atorvastatin", "Cenobamate"]);
     let metrics: Vec<String> = sqlx::query_scalar(
         "select distinct r.metric from wearable_rollup r join profile p on p.id = r.profile_id \
          where p.slug = 'alex' order by 1",

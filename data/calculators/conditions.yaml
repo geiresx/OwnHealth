@@ -1,0 +1,88 @@
+# Conditions the cardiovascular calculators read (docs/calculators/score2.md, prevent.md). SCORE2 is
+# for apparently healthy people: it refuses when established cardiovascular disease, diabetes, chronic
+# kidney disease or familial hypercholesterolaemia is recorded. PREVENT is for adults without
+# cardiovascular disease: it refuses on established cardiovascular disease or heart failure and reads
+# diabetes as an input.
+#
+# A recorded condition (not refuted, not entered in error, resolved or not) is in a class when
+#   - its text holds one of the `terms` as whole words, compared in lower case without accents, with
+#     none of the `not_terms` before it and none of the `qualifiers` in its clause; or
+#   - its code was received as ICD-10 (any ICD-10 code system) and starts with one of `icd10`.
+# Codes are matched only as received: no other code system is translated to ICD-10.
+#
+# id         ascvd | diabetes | ckd | fh | heart_failure
+# terms      English and Spanish words, lower case, no accents
+# not_terms  words that make a term after them mean something else; "riesgo de" and "risk of", never a
+#            bare "risk", so "diabetes, alto riesgo cardiovascular" stays diabetes; each holds only before
+#            the term and in its own clause (split at "," "/" "con" and "with" outside a bracket, and at the
+#            end of a statement); a bracket stays with the words before it and a heading before a colon
+#            with every clause after it; so "Family history: diabetes", "Riesgo de diabetes" and
+#            "Hypertension without diabetes" are not diabetes, but "diabetes con riesgo de complicaciones",
+#            "Diabetes sin complicaciones" and "Stroke (risk of recurrence)" stay
+# qualifiers words that make a term mean something else wherever they stand in its clause, so
+#            "Diabetes mellitus (gestational)", "Gestational diabetes" and "Stroke (family history)"
+#            are not that disease; a qualifier inside a longer not_term is that not_term, so
+#            "Type 2 diabetes: family history of stroke" and "Type 2 diabetes (no family history)"
+#            stay diabetes
+# icd10      code prefixes, with or without the dot
+# cite       the definition
+version: 0.1.0
+rows:
+  - id: ascvd
+    terms: [
+      myocardial infarction, heart attack, infarto, iam, angina, ischemic heart disease,
+      ischaemic heart disease, cardiopatia isquemica, coronary artery disease, coronary heart disease,
+      enfermedad coronaria, stroke, ictus, acv, accidente cerebrovascular, infarto cerebral,
+      transient ischemic attack, transient ischaemic attack, ataque isquemico transitorio, ait,
+      peripheral artery disease, peripheral arterial disease, enfermedad arterial periferica,
+      arteriopatia periferica, coronary stent, stent coronario, coronary artery bypass, bypass coronario,
+      coronary angioplasty, angioplastia coronaria,
+    ]
+    not_terms: [
+      screening, cribado, antecedentes familiares de, family history of, no family history,
+      without family history, sin antecedentes familiares, riesgo de, risk of, risk for, without, sin,
+      no,
+    ]
+    qualifiers: [antecedentes familiares, family history]
+    icd10: [I20, I21, I22, I23, I24, I25, I63, I64, I65, I66, I69.3, I70, I73.9, G45, Z95.1, Z95.5]
+    cite: https://academic.oup.com/eurheartj/article/42/34/3227/6358713
+  - id: diabetes
+    terms: [diabetes, diabetes mellitus, dm1, dm2]
+    not_terms: [
+      screening, cribado, antecedentes familiares de, family history of, no family history,
+      without family history, sin antecedentes familiares, riesgo de, risk of, risk for, without, sin,
+      no,
+    ]
+    qualifiers: [gestational, gestacional, insipidus, insipida, antecedentes familiares, family history]
+    icd10: [E08, E09, E10, E11, E13, E14]
+    cite: https://academic.oup.com/eurheartj/article/42/34/3227/6358713
+  - id: ckd
+    terms: [chronic kidney disease, chronic renal failure, ckd, enfermedad renal cronica, insuficiencia renal cronica, erc]
+    not_terms: [
+      screening, cribado, antecedentes familiares de, family history of, no family history,
+      without family history, sin antecedentes familiares, riesgo de, risk of, risk for, without, sin,
+      no,
+    ]
+    qualifiers: [antecedentes familiares, family history]
+    icd10: [N18]
+    cite: https://academic.oup.com/eurheartj/article/42/34/3227/6358713
+  - id: fh
+    terms: [familial hypercholesterolemia, familial hypercholesterolaemia, hipercolesterolemia familiar]
+    not_terms: [
+      screening, cribado, antecedentes familiares de, family history of, no family history,
+      without family history, sin antecedentes familiares, riesgo de, risk of, risk for, without, sin,
+      no,
+    ]
+    qualifiers: [antecedentes familiares, family history]
+    icd10: [E78.01]
+    cite: https://academic.oup.com/eurheartj/article/42/34/3227/6358713
+  - id: heart_failure
+    terms: [heart failure, cardiac failure, insuficiencia cardiaca]
+    not_terms: [
+      screening, cribado, antecedentes familiares de, family history of, no family history,
+      without family history, sin antecedentes familiares, riesgo de, risk of, risk for, without, sin,
+      no,
+    ]
+    qualifiers: [antecedentes familiares, family history]
+    icd10: [I50]
+    cite: https://pubmed.ncbi.nlm.nih.gov/37947085/

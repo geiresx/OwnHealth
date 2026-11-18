@@ -112,7 +112,50 @@ export interface FamilyPatterns {
 	as_of: string;
 	rules: string;
 	items: FamilyPattern[];
+	/** Cross-profile hints (data/family/hints.yaml), present only when one fires. */
+	hints?: FamilyHint[];
 	family_hash: string;
+}
+
+/** A relative who shares their results with this profile meets a cited test. No name, value or src. */
+export interface FamilyHint {
+	rule: string;
+	category: ShareCategory;
+	/** The RoleCode of this profile's relative row linked to the person who shared. */
+	rel: string;
+	analyte?: string;
+	gene?: string;
+	/** The gene is withheld from this caller: the hint reads as a shared genetic finding. */
+	withheld?: boolean;
+	basis: 'guideline' | 'pack_default';
+	source: string;
+	cite: string;
+	title: { en: string; es: string };
+	why: { en: string; es: string };
+}
+
+export type ShareCategory = 'labs' | 'cascade';
+
+/** GET /profiles/{p}/family-shares: what this profile lets feed hints in each other profile. */
+export interface FamilyShares {
+	profile: string;
+	/** A minor's results never feed hints. */
+	minor: boolean;
+	categories: ShareCategory[];
+	items: {
+		/** The slug, or the id of a masked profile. */
+		profile: string;
+		/** Null when masked: the caller cannot read that profile. */
+		display_name: string | null;
+		masked: boolean;
+		minor: boolean | null;
+		/** The caller reads that profile's family history; without it the degree is unknown, not absent. */
+		history: boolean;
+		/** The blood degree of that profile's relative row linked to this one, or null. */
+		degree: number | null;
+		categories: ShareCategory[];
+		granted_at: string | null;
+	}[];
 }
 
 /** A new version: the whole relative. `linked_profile` absent keeps the link, null removes it. */
@@ -134,3 +177,7 @@ export const getPedigree = (profile: string) => get<Pedigree>(`${p(profile)}/ped
 export const addFamilyMember = (profile: string, body: MemberIn) => post<FamilyMember>(`${p(profile)}/family`, body);
 export const updateFamilyMember = (profile: string, id: Uuid, body: MemberIn) => put<FamilyMember>(`${p(profile)}/family/${id}`, body);
 export const removeFamilyMember = (profile: string, id: Uuid) => del<{ id: Uuid; status: 'retracted' }>(`${p(profile)}/family/${id}`);
+export const listFamilyShares = (profile: string) => get<FamilyShares>(`${p(profile)}/family-shares`);
+/** The whole set shared with `target`; an empty set revokes. Adding a category needs step-up. */
+export const putFamilyShare = (profile: string, target: string, categories: ShareCategory[]) =>
+	put<{ profile: string; target: string; categories: ShareCategory[] }>(`${p(profile)}/family-shares`, { target, categories });

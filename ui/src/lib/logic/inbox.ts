@@ -1,14 +1,14 @@
 // Pure helpers for the v0.2 screens (Inbox, review queue additions, OAuth consent). No Svelte, no
 // fetch: tests/inbox.test.ts runs them under node.
 
-type Kind = 'email' | 'folder' | 'paperless' | 'share' | 'shortcut' | 'health_auto_export' | 'gadgetbridge' | 'nightscout';
+type Kind = 'email' | 'folder' | 'paperless' | 'share' | 'shortcut' | 'health_auto_export' | 'gadgetbridge' | 'nightscout' | 'clinvar';
 
 /** Kinds a person can add from the Inbox screen, in the order the form offers them. */
 export const ADDABLE: Kind[] = ['email', 'folder', 'paperless', 'health_auto_export', 'shortcut', 'nightscout'];
 /** Kinds that receive pushes with an `oh_ing_` token (Paperless webhook, Shortcut, Health Auto Export). */
 export const PUSH_KINDS: Kind[] = ['paperless', 'shortcut', 'health_auto_export'];
 /** Kinds the scheduler polls. */
-export const POLL_KINDS: Kind[] = ['email', 'folder', 'paperless', 'nightscout'];
+export const POLL_KINDS: Kind[] = ['email', 'folder', 'paperless', 'nightscout', 'clinvar'];
 /** Kinds whose data always belongs to one profile (email picks it per sender rule, a folder per subfolder). */
 export const PROFILE_KINDS: Kind[] = ['paperless', 'shortcut', 'health_auto_export', 'nightscout'];
 /** The secret each kind keeps sealed, if any. */
@@ -525,4 +525,20 @@ export function consentProblem(scopes: string[], profiles: string[], days: numbe
 	if (!scopes.length) return 'fu_oa_need_scope';
 	if (!Number.isInteger(days) || days < 1 || days > 365) return 'fu_oa_need_days';
 	return null;
+}
+
+/**
+ * The Settings ClinVar switch. With no source yet the scheduler turns the check on with the first
+ * genome (never in the demo), so the switch shows that default and a click records the opposite.
+ */
+export function clinvarOn(src: { enabled: boolean } | null, demo: boolean): boolean {
+	return src ? src.enabled : !demo;
+}
+
+/** The config a Settings save sends: a typed path, else the mirror set through the API, else NCBI. */
+export function clinvarConfig(path: string, current: Record<string, unknown> | undefined): Record<string, unknown> {
+	const p = path.trim();
+	if (p) return { path: p };
+	if (typeof current?.url === 'string' && current.url) return { url: current.url, ...(current.allow_private ? { allow_private: true } : {}) };
+	return {};
 }

@@ -46,12 +46,17 @@
     "[]": {
       "name": "string",
       "pgx": {
-        "gene": "string",
-        "label": "string",
-        "level": "string",
-        "phenotype": "string",
-        "src": "src_id",
-        "text": "string"
+        "|": [
+          "null",
+          {
+            "gene": "string",
+            "label": "string",
+            "level": "string",
+            "phenotype": "string",
+            "src": "src_id",
+            "text": "string"
+          }
+        ]
       },
       "since": "date",
       "src": "src_id",
@@ -65,7 +70,25 @@
     "[]": {
       "area": "string",
       "cite": "string",
+      "date": {
+        "|": [
+          "absent",
+          "date"
+        ]
+      },
+      "days": {
+        "|": [
+          "absent",
+          "int"
+        ]
+      },
       "due": {
+        "|": [
+          "absent",
+          "date"
+        ]
+      },
+      "from": {
         "|": [
           "absent",
           "date"
@@ -80,6 +103,7 @@
       "key": "string",
       "kind": {
         "|": [
+          "=document_request",
           "=never_measured",
           "=once",
           "=recency",
@@ -99,6 +123,12 @@
             "date": "date",
             "src": "src_id"
           }
+        ]
+      },
+      "letter": {
+        "|": [
+          "absent",
+          "string"
         ]
       },
       "record": {
@@ -128,6 +158,12 @@
         ]
       },
       "title": "string",
+      "to": {
+        "|": [
+          "absent",
+          "date"
+        ]
+      },
       "why": "string"
     }
   },

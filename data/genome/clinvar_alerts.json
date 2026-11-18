@@ -1,5 +1,5 @@
 {
- "version": "clinvar_alerts 0.1.0",
+ "version": "clinvar_alerts 0.2.0",
  "cite": "https://www.ncbi.nlm.nih.gov/clinvar/docs/review_status/",
  "templates": {
   "named": {
@@ -25,6 +25,10 @@
   "withheld": {
    "en": "A withheld result changed in ClinVar.",
    "es": "Ha cambiado en ClinVar un resultado que está oculto."
+  },
+  "rerun": {
+   "en": "OwnGenome makes the call again with bin/og recheck --sample <name> --rerun.",
+   "es": "OwnGenome lo obtiene de nuevo con bin/og recheck --sample <name> --rerun."
   },
   "chip": {
    "en": "It comes from a chip and is unconfirmed: worth a clinical test.",

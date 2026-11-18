@@ -11,6 +11,8 @@
 # statically into the `ocr` binary by ort-sys; its download carries no licence file). Kept out of the
 # models directory so it holds only the pinned model files. ONNX Runtime's tag follows the version
 # ort-sys downloads (ort-sys 2.0.0-rc.13: 1.28.0): bump it with ort.
+# ONNX Runtime's texts come through jsDelivr's copy of the tag, because github.com/microsoft/onnxruntime
+# answers 404 since 2026-11-17; the pinned sums are the ones the GitHub tag served.
 #
 # Why these models and not the server ones or ocrs: server/SPIKES-v0.2.md section 1. Bump: change a
 # URL and its sum together, and ENGINE_VERSION in crates/ownhealth-ocr.
@@ -22,8 +24,8 @@ latin_pp-ocrv5_mobile_rec.onnx:e3a6bfeea1c8a01d6fccfd480a0bd363fd907f8c65931e228
 ppocrv5_latin_dict.txt:ccbcc45730b3fbbd9050c5bc74db6a99067141ef1035e3d14889a84a6b9b1aff"
 # <folder>/<file> <url> <sha256>
 LICENSES="paddleocr/LICENSE https://raw.githubusercontent.com/PaddlePaddle/PaddleOCR/v3.0.0/LICENSE 3840c5c0c61c294264d2dd77b8777be6ddd90121ef4e0e64abcd22edea581d6e
-onnxruntime/LICENSE https://raw.githubusercontent.com/microsoft/onnxruntime/v1.28.0/LICENSE 2f07c72751aed99790b8a4869cf2311df85a860b22ded05fa22803587a48922c
-onnxruntime/ThirdPartyNotices.txt https://raw.githubusercontent.com/microsoft/onnxruntime/v1.28.0/ThirdPartyNotices.txt 0e07b95f3a8d6230037707c5c4a2b554d12c4cb67369669ac255635528ffcee2"
+onnxruntime/LICENSE https://cdn.jsdelivr.net/gh/microsoft/onnxruntime@v1.28.0/LICENSE 2f07c72751aed99790b8a4869cf2311df85a860b22ded05fa22803587a48922c
+onnxruntime/ThirdPartyNotices.txt https://cdn.jsdelivr.net/gh/microsoft/onnxruntime@v1.28.0/ThirdPartyNotices.txt 0e07b95f3a8d6230037707c5c4a2b554d12c4cb67369669ac255635528ffcee2"
 
 root=$(cd "$(dirname "$0")/.." && pwd)
 dest=${1:-$root/server/vendor/ocr-models}

@@ -2,8 +2,10 @@
 	// Mockup screen #doctor-summary: the printed doctor summary. The options sit on the left (specialty,
 	// language of the sheet, sensitive findings for this print); the server renders the PDF, shown on
 	// the right with a download. Printing needs a fresh step-up, so the PDF is made on request only.
+	// The IPS (FHIR) button downloads the same summary as an International Patient Summary file, in the
+	// sheet's language; the `ips` specialty prints its twin.
 	import '#lib/components/pages2/pages2.css';
-	import { ApiError, printSummary, SUMMARY_SPECIALTIES, type SummarySpecialty } from '#lib/api';
+	import { ApiError, exportIps, printSummary, SUMMARY_SPECIALTIES, type SummarySpecialty } from '#lib/api';
 	import StepUpDialog from '#lib/components/pages2/StepUpDialog.svelte';
 	import { withStepUp } from '#lib/components/pages2/stepup.svelte';
 	import NotReady from '#lib/components/pages1/NotReady.svelte';
@@ -17,6 +19,9 @@
 	let busy = $state(false);
 	let error = $state<unknown>(null);
 	let pdf = $state<{ url: string; filename: string; key: string } | null>(null);
+	let ipsBusy = $state(false);
+	let ipsNote = $state<'done' | 'failed' | null>(null);
+	const specName = (s: SummarySpecialty) => (s === 'ips' ? t('ips_spec') : t('sum_spec_' + s));
 
 	const canGenome = $derived(!!prof?.scopes.includes('read:genome'));
 	const sensitiveWhy = $derived(prof?.is_minor ? t('sum_sens_minor') : prof && !prof.genome_sensitive_ui ? t('sum_sens_off') : null);
@@ -34,6 +39,7 @@
 	$effect(() => {
 		void prof?.slug;
 		sensitive = false;
+		ipsNote = null;
 		return drop;
 	});
 
@@ -59,14 +65,36 @@
 		}
 	}
 
-	function download() {
-		if (!pdf) return;
+	function save(url: string, filename: string) {
 		const a = document.createElement('a');
-		a.href = pdf.url;
-		a.download = pdf.filename;
+		a.href = url;
+		a.download = filename;
 		document.body.appendChild(a);
 		a.click();
 		a.remove();
+	}
+
+	function download() {
+		if (pdf) save(pdf.url, pdf.filename);
+	}
+
+	async function ips() {
+		const slug = prof?.slug;
+		if (!slug || ipsBusy) return;
+		ipsBusy = true;
+		ipsNote = null;
+		try {
+			const { blob, filename } = await withStepUp(() => exportIps(slug, lang));
+			if (prof?.slug !== slug) return;
+			const url = URL.createObjectURL(new Blob([blob], { type: 'application/fhir+json' }));
+			save(url, filename);
+			setTimeout(() => URL.revokeObjectURL(url), 1000);
+			ipsNote = 'done';
+		} catch (e) {
+			if (!(e instanceof ApiError && e.code === 'step_up_required')) ipsNote = 'failed';
+		} finally {
+			ipsBusy = false;
+		}
 	}
 </script>
 
@@ -83,7 +111,7 @@
 		<fieldset>
 			<legend>{t('sum_spec')}</legend>
 			{#each SUMMARY_SPECIALTIES as s (s)}
-				<label class="opt"><input type="radio" name="specialty" value={s} bind:group={specialty} />{t('sum_spec_' + s)}</label>
+				<label class="opt"><input type="radio" name="specialty" value={s} bind:group={specialty} />{specName(s)}</label>
 			{/each}
 			<div class="dim hint">{t('sum_spec_d')}</div>
 		</fieldset>
@@ -106,6 +134,11 @@
 				<!-- out of date: no href and out of the tab order, so neither a click nor Enter opens the old sheet -->
 				<a class="btn" href={outdated ? undefined : pdf.url} target="_blank" rel="noopener" aria-disabled={outdated} tabindex={outdated ? -1 : undefined}>{t('sum_open')}</a>
 			{/if}
+		</div>
+		<div class="ips">
+			<button class="btn" onclick={ips} disabled={!prof || ipsBusy} aria-busy={ipsBusy} aria-describedby="ips-d">{ipsBusy ? t('ips_making') : t('ips_fhir')}</button>
+			<div class="dim hint" id="ips-d">{t('ips_fhir_d')}</div>
+			<div class="hint" class:bad={ipsNote === 'failed'} role="status">{ipsNote === 'done' ? t('ips_done') : ipsNote === 'failed' ? t('ips_failed') : ''}</div>
 		</div>
 	</section>
 
@@ -161,6 +194,14 @@
 		flex-wrap: wrap;
 		gap: 8px;
 		margin-top: 6px;
+	}
+	.ips {
+		border-top: 1px solid var(--line);
+		margin-top: 12px;
+		padding-top: 10px;
+	}
+	.bad {
+		color: var(--out);
 	}
 	.acts a[aria-disabled='true'] {
 		pointer-events: none;

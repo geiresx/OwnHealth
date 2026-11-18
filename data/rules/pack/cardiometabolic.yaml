@@ -22,20 +22,16 @@ rules:
     cite: https://github.com/GeiserX/OwnHealth/blob/main/docs/design/architecture.md#11-current-state-the-deterministic-rule-pack
     basis: pack_default
   # Lp(a) is largely genetic and measured once in adult life, so it has no recency window.
+  # CVi and CVa from the EuBIVAS summary report, Table 2 (cite), measured in the primary study (primary).
+  # HbA1c has no EuBIVAS estimate we may ship, so it has no RCV. An install can add one in its override directory (OWNHEALTH_RULES_OVERRIDE_DIR), which makes the version end in +local.
   - id: rcv.ldl_c
     kind: rcv
     match: [ldl_c]
-    cv_i: "8.3"
-    cv_a: "2.0"
-    cite: https://biologicalvariation.eu/
-    verify: CV values to confirm against the EFLM database
-  - id: rcv.hba1c
-    kind: rcv
-    match: [hba1c]
-    cv_i: "1.9"
-    cv_a: "1.5"
-    cite: https://biologicalvariation.eu/
-    verify: CV values to confirm against the EFLM database
+    cv_i: "8.46"
+    cv_a: "1.77"
+    cite: https://doi.org/10.1515/cclm-2021-0370
+    primary: https://doi.org/10.1373/clinchem.2018.288415
+    note: EuBIVAS, 91 healthy adults, 10 weekly samples, LDL cholesterol on an ADVIA 2400; CVi 8.46% (8.05-8.94), CVa 1.77%.
   - id: trend.hba1c.rise
     kind: trend
     match: [hba1c]

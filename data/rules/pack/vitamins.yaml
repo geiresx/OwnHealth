@@ -9,10 +9,4 @@ rules:
     window_days: 365
     cite: https://github.com/GeiserX/OwnHealth/blob/main/docs/design/architecture.md#11-current-state-the-deterministic-rule-pack
     basis: pack_default
-  - id: rcv.ferritin
-    kind: rcv
-    match: [ferritin]
-    cv_i: "14.2"
-    cv_a: "3.0"
-    cite: https://biologicalvariation.eu/
-    verify: CV values to confirm against the EFLM database
+  # Ferritin has no EuBIVAS estimate we may ship, so it has no RCV. An install can add one in its override directory (OWNHEALTH_RULES_OVERRIDE_DIR), which makes the version end in +local.

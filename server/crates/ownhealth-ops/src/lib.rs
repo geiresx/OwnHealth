@@ -6,11 +6,17 @@
 //! - `export::export_profile`: the full export of one profile (FHIR NDJSON plus the original files,
 //!   one zip), for the step-up-protected REST route.
 //! - `summary_pdf::render`: the printed doctor summary, two A4 pages through `pdfwrite`.
+//! - `letter_pdf::render`: the access-request letter for one document gap, one A4 page.
+//! - `next_draw_pdf::render`: the printed next-draw request, through `pdfwrite`.
+//! - `ips::build`: the International Patient Summary, a FHIR document Bundle of the summary's `ips` view.
 //! - the demo hook `base` (order 0), the port of `demo/base.py`.
 
 mod backup;
 mod demo_base;
 pub mod export;
+pub mod ips;
+pub mod letter_pdf;
+pub mod next_draw_pdf;
 pub mod summary_pdf;
 
 pub use backup::{MANIFEST_SCHEMA, backup, restore, verify_restore};

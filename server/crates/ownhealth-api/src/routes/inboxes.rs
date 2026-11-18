@@ -79,6 +79,7 @@ fn default_poll_seconds(kind: &str) -> Option<i32> {
         "folder" => Some(ownhealth_inbox::folder::DEFAULT_POLL_SECONDS),
         "paperless" => Some(ownhealth_inbox::paperless::DEFAULT_POLL_SECONDS),
         "nightscout" => Some(ownhealth_devices::nightscout::DEFAULT_POLL_SECONDS),
+        "clinvar" => Some(ownhealth_genome::clinvar_fetch::POLL_SECONDS),
         _ => None,
     }
 }
@@ -95,6 +96,7 @@ fn check_config(kind: &str, config: &Value) -> Result<(), Error> {
         "folder" => ownhealth_inbox::folder::check_config(config),
         "paperless" => ownhealth_inbox::paperless::check_config(config),
         "nightscout" => ownhealth_devices::nightscout::check_config(config).map_err(Error::Invalid),
+        "clinvar" => ownhealth_genome::clinvar_fetch::check_config(config).map_err(Error::Invalid),
         _ => Ok(()),
     }
 }
@@ -102,7 +104,7 @@ fn check_config(kind: &str, config: &Value) -> Result<(), Error> {
 /// A Paperless or Nightscout address on plain http without the local-network option would fail at
 /// its first sync (only https leaves the network); refuse it when it is saved instead.
 fn plain_http(kind: &str, config: &Value) -> R<()> {
-    if !matches!(kind, "paperless" | "nightscout") {
+    if !matches!(kind, "paperless" | "nightscout" | "clinvar") {
         return Ok(());
     }
     let url = config
@@ -343,6 +345,11 @@ async fn create(State(rt): State<Runtime>, Caller(p): Caller, Body(b): Body<Sour
     if b.kind == "folder" {
         ownhealth_inbox::folder::check_overlap(&mut tx, None, &config).await?;
     }
+    if b.kind == ownhealth_genome::clinvar_fetch::KIND
+        && ownhealth_genome::clinvar_fetch::has_source(&mut tx, household).await?
+    {
+        return Err(Error::Invalid("the household already has its ClinVar check: change it in Settings".into()).into());
+    }
     if b.kind == "paperless" {
         for profile in tag_profiles(&config) {
             manages_profile(&mut tx, &p, profile).await?;
@@ -479,6 +486,11 @@ async fn patch(State(rt): State<Runtime>, Caller(p): Caller, Path(id): Path<Stri
 async fn remove(State(rt): State<Runtime>, Caller(p): Caller, Path(id): Path<String>) -> R {
     let mut tx = rt.pool.begin().await?;
     let s = managed_source(&mut tx, &p, &id).await?;
+    // The weekly ClinVar check is added again by itself while the household has a genome: it is
+    // switched off, never deleted, so off stays off.
+    if s.kind == ownhealth_genome::clinvar_fetch::KIND {
+        return Err(Error::Invalid("the ClinVar check is switched off in Settings, never deleted".into()).into());
+    }
     let pdf_secrets: Vec<Uuid> = sqlx::query_scalar(
         "select pr.secret_id from pdf_password_rule pr join sender_rule r on r.id = pr.sender_rule_id          where r.source_id = $1",
     )

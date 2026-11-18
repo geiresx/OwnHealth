@@ -18,15 +18,20 @@ rule:
     - {min: "1.25", max: "2.25", phenotype: Normal Metabolizer}
     - {above: "2.25", max: null, phenotype: Ultrarapid Metabolizer}
 
-# Clinical inhibitors from the FDA table of CYP enzyme interactions (strong and moderate only).
+# Clinical inhibitors from the FDA table of CYP enzyme interactions (strong and moderate only), generated
+# from fda_cyp_inhibitors.tsv (a test fails when the two differ). CYP3A4 and CYP3A5 have strong rows only;
+# like every gene but CYP2D6, an inhibitor of them is named and its effect is not computed.
 inhibitors_cite: https://www.fda.gov/drugs/drug-interactions-labeling/healthcare-professionals-fdas-examples-drugs-interact-cyp-enzymes-and-transporter-systems
-inhibitors_verify: class per drug to confirm against the current FDA table
 inhibitors:
   CYP2D6:
     strong: [bupropion, fluoxetine, paroxetine, quinidine, terbinafine]
-    moderate: [abiraterone, cinacalcet, duloxetine, mirabegron]
+    moderate: [abiraterone, cinacalcet, duloxetine, lorcaserin, mirabegron, rolapitant]
   CYP2C19:
     strong: [fluconazole, fluoxetine, fluvoxamine, ticlopidine]
-    moderate: [esomeprazole, felbamate, moclobemide, omeprazole]
+    moderate: [cenobamate, felbamate, voriconazole]
   CYP2C9:
-    moderate: [amiodarone, fluconazole, miconazole]
+    moderate: [amiodarone, fluconazole, miconazole, piperine]
+  CYP3A4:
+    strong: [adagrasib, ceritinib, clarithromycin, cobicistat, elvitegravir, idelalisib, indinavir, itraconazole, ketoconazole, lopinavir, nefazodone, nelfinavir, paritaprevir, posaconazole, ritonavir, saquinavir, telithromycin, tipranavir, tucatinib, voriconazole]
+  CYP3A5:
+    strong: [adagrasib, ceritinib, clarithromycin, cobicistat, elvitegravir, idelalisib, indinavir, itraconazole, ketoconazole, lopinavir, nefazodone, nelfinavir, paritaprevir, posaconazole, ritonavir, saquinavir, telithromycin, tipranavir, tucatinib, voriconazole]

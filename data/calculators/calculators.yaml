@@ -10,7 +10,7 @@
 # unit       UCUM unit of the result, empty for a ratio
 # precision  decimals shown
 # cite       the paper
-version: 0.1.0
+version: 0.2.0
 rows:
   - id: ckd_epi_2021_cr
     version: CKD-EPI 2021 cr
@@ -44,6 +44,42 @@ rows:
     unit: ""
     precision: 2
     cite: https://pubmed.ncbi.nlm.nih.gov/3899825/
+  # Cardiovascular risk (docs/calculators/score2.md, prevent.md). The inputs here are the lipid draw;
+  # systolic pressure, smoking status, eGFR, conditions and medicines are read beside it
+  # (score2_regions.yaml, conditions.yaml, drug_classes.yaml). A person gets SCORE2 below 70 and
+  # SCORE2-OP from 70.
+  - id: score2
+    version: SCORE2 (ESC 2021)
+    inputs: [total_cholesterol, hdl_c]
+    shows_on: [total_cholesterol, hdl_c, ldl_c, non_hdl_c]
+    system: cardiometabolic
+    unit: "%"
+    precision: 1
+    cite: https://pubmed.ncbi.nlm.nih.gov/34120177/
+  - id: score2_op
+    version: SCORE2-OP (ESC 2021)
+    inputs: [total_cholesterol, hdl_c]
+    shows_on: [total_cholesterol, hdl_c, ldl_c, non_hdl_c]
+    system: cardiometabolic
+    unit: "%"
+    precision: 1
+    cite: https://pubmed.ncbi.nlm.nih.gov/34120185/
+  - id: prevent_cvd
+    version: PREVENT base (AHA 2023)
+    inputs: [total_cholesterol, hdl_c]
+    shows_on: [total_cholesterol, hdl_c, ldl_c, non_hdl_c]
+    system: cardiometabolic
+    unit: "%"
+    precision: 1
+    cite: https://pubmed.ncbi.nlm.nih.gov/37947085/
+  - id: prevent_ascvd
+    version: PREVENT base (AHA 2023)
+    inputs: [total_cholesterol, hdl_c]
+    shows_on: [total_cholesterol, hdl_c, ldl_c, non_hdl_c]
+    system: cardiometabolic
+    unit: "%"
+    precision: 1
+    cite: https://pubmed.ncbi.nlm.nih.gov/37947085/
   # The published FIB-4 bands. Shah 2009 gives 1.3 and 2.67; McPherson 2017 gives 2.0 as the lower
   # cutoff from age 65.
   - id: fib4.cutoffs
@@ -61,11 +97,19 @@ templates:
     ckd_epi_2021_cr_cys: {en: "eGFR (CKD-EPI 2021, creatinine and cystatin C)", es: "FGe (CKD-EPI 2021, creatinina y cistatina C)"}
     fib4: {en: "FIB-4", es: "FIB-4"}
     homa_ir: {en: "HOMA-IR", es: "HOMA-IR"}
+    score2: {en: "SCORE2, 10-year cardiovascular risk", es: "SCORE2, riesgo cardiovascular a 10 años"}
+    score2_op: {en: "SCORE2-OP, 10-year cardiovascular risk from age 70", es: "SCORE2-OP, riesgo cardiovascular a 10 años desde los 70"}
+    prevent_cvd: {en: "PREVENT, 10-year risk of cardiovascular disease", es: "PREVENT, riesgo a 10 años de enfermedad cardiovascular"}
+    prevent_ascvd: {en: "PREVENT, 10-year risk of atherosclerotic cardiovascular disease", es: "PREVENT, riesgo a 10 años de enfermedad cardiovascular aterosclerótica"}
   short:
     ckd_epi_2021_cr: {en: "eGFR (creatinine)", es: "FGe (creatinina)"}
     ckd_epi_2021_cr_cys: {en: "eGFR (creatinine, cystatin C)", es: "FGe (creatinina, cistatina C)"}
     fib4: {en: "FIB-4", es: "FIB-4"}
     homa_ir: {en: "HOMA-IR", es: "HOMA-IR"}
+    score2: {en: SCORE2, es: SCORE2}
+    score2_op: {en: SCORE2-OP, es: SCORE2-OP}
+    prevent_cvd: {en: "PREVENT CVD", es: "PREVENT ECV"}
+    prevent_ascvd: {en: "PREVENT ASCVD", es: "PREVENT ECVA"}
   reason:
     missing_input: {en: "Not computed: no {groups} on record.", es: "Sin calcular: el registro no tiene {groups}."}
     inputs_not_same_draw: {en: "Not computed: {groups} come from different draws, and the formula needs one draw.", es: "Sin calcular: {groups} vienen de extracciones distintas y la fórmula necesita una sola."}
@@ -76,10 +120,22 @@ templates:
     unit_unsupported: {en: "Not computed: {group} is in {unit}, a unit with no published conversion here.", es: "Sin calcular: {group} está en {unit}, una unidad sin conversión publicada aquí."}
     out_of_range: {en: "Not computed: an input is zero or negative, outside what the formula takes.", es: "Sin calcular: un valor es cero o negativo, fuera de lo que admite la fórmula."}
     not_a_number: {en: "Not computed: {group} is not a plain number ({printed}).", es: "Sin calcular: {group} no es un número exacto ({printed})."}
+    age_out_of_range: {en: "Not computed: the equation covers ages {low} to {high}; age {age} on {on}.", es: "Sin calcular: la ecuación abarca de {low} a {high} años; {age} años el {on}."}
+    country_not_recorded: {en: "Not computed: SCORE2 is recalibrated by country risk region, and no country is recorded for this profile.", es: "Sin calcular: SCORE2 se recalibra por la región de riesgo del país y este perfil no tiene país registrado."}
+    region_not_covered: {en: "Not computed: the country {country} is in no SCORE2 risk region.", es: "Sin calcular: el país {country} no está en ninguna región de riesgo de SCORE2."}
+    outside_score2_scope: {en: "Not computed: {condition} is recorded. SCORE2 does not apply: it is for apparently healthy people (ESC 2021).", es: "Sin calcular: consta {condition}. SCORE2 no se aplica: es para personas aparentemente sanas (ESC 2021)."}
+    outside_prevent_scope: {en: "Not computed: {condition} is recorded. PREVENT does not apply: it is for adults without cardiovascular disease.", es: "Sin calcular: consta {condition}. PREVENT no se aplica: es para adultos sin enfermedad cardiovascular."}
+    egfr_below_60: {en: "Not computed: eGFR {value} on {on} is below 60, which ESC 2021 counts as chronic kidney disease. SCORE2 does not apply.", es: "Sin calcular: el FGe de {value} el {on} es menor de 60, lo que la ESC 2021 cuenta como enfermedad renal crónica. SCORE2 no se aplica."}
+    marked_risk_factor: {en: "Not computed: {group} {value} {unit} on {on} is at or above {limit} {unit}, a markedly raised single risk factor. SCORE2 does not apply (ESC 2021).", es: "Sin calcular: {group} de {value} {unit} el {on} alcanza o supera {limit} {unit}, un factor de riesgo aislado muy elevado. SCORE2 no se aplica (ESC 2021)."}
+    input_out_of_range: {en: "Not computed: {group} {value} {unit} is outside the range PREVENT was built on ({low} to {high} {unit}).", es: "Sin calcular: {group} de {value} {unit} está fuera del rango con el que se construyó PREVENT ({low} a {high} {unit})."}
+    smoking_status_not_coded: {en: "Not computed: the newest smoking status, on {on}, reads \"{printed}\" with no code the equation reads (never, former or current smoker).", es: "Sin calcular: el tabaquismo más reciente, del {on}, dice «{printed}» sin un código que la ecuación lea (nunca, en el pasado o actualmente)."}
+    scope_missing: {en: "Not computed: this access does not include {scopes}, and the risk equation reads conditions, medicines and vital signs.", es: "Sin calcular: este acceso no incluye {scopes}, y la ecuación de riesgo lee diagnósticos, medicación y constantes vitales."}
   limitation:
     fasting_not_recorded: {en: "HOMA-IR assumes fasting samples; the record does not say whether this draw was fasting.", es: "El HOMA-IR supone muestras en ayunas; el registro no dice si esta extracción lo fue."}
     insulin_factor: {en: "Insulin was printed in pmol/L and read as µIU/mL with the factor 6.00 (Knopp 2019). With the other published factor, 6.945, this result would be about 14% lower.", es: "La insulina venía en pmol/L y se leyó en µUI/mL con el factor 6,00 (Knopp 2019). Con el otro factor publicado, 6,945, este resultado sería un 14 % más bajo."}
     fib4_age_65: {en: "From age 65 the published lower cutoff is 2.0 instead of 1.3 (McPherson 2017).", es: "Desde los 65 años el punto de corte inferior publicado es 2,0 en lugar de 1,3 (McPherson 2017)."}
+    prevent_us_cohorts: {en: "PREVENT was developed and validated in adults in the United States.", es: "PREVENT se desarrolló y validó en adultos de Estados Unidos."}
+    sbp_from_wearable: {en: "No office blood pressure in the 12 months before; the systolic pressure is the 30-day mean of wearable readings.", es: "No hay presión arterial de consulta en los 12 meses previos; la sistólica es la media de 30 días de las lecturas del wearable."}
   category:
     fib4.low: {en: "Below the published lower cutoff ({low}).", es: "Por debajo del punto de corte inferior publicado ({low})."}
     fib4.mid: {en: "Between the published cutoffs ({low} and {high}).", es: "Entre los puntos de corte publicados ({low} y {high})."}
@@ -92,3 +148,42 @@ templates:
     platelets: {en: platelets, es: plaquetas}
     glucose: {en: glucose, es: glucosa}
     insulin: {en: insulin, es: insulina}
+    total_cholesterol: {en: total cholesterol, es: colesterol total}
+    hdl_c: {en: HDL cholesterol, es: colesterol HDL}
+    ldl_c: {en: LDL cholesterol, es: colesterol LDL}
+    bp_systolic: {en: systolic blood pressure, es: presión arterial sistólica}
+    smoking_status: {en: smoking status, es: tabaquismo}
+    egfr: {en: eGFR, es: FGe}
+  # SCORE2's risk region, appended to the name
+  region:
+    low: {en: low-risk region, es: región de riesgo bajo}
+    moderate: {en: moderate-risk region, es: región de riesgo moderado}
+    high: {en: high-risk region, es: región de riesgo alto}
+    very_high: {en: very-high-risk region, es: región de riesgo muy alto}
+  condition:
+    ascvd: {en: established cardiovascular disease, es: enfermedad cardiovascular establecida}
+    diabetes: {en: diabetes, es: diabetes}
+    ckd: {en: chronic kidney disease, es: enfermedad renal crónica}
+    fh: {en: familial hypercholesterolaemia, es: hipercolesterolemia familiar}
+    heart_failure: {en: heart failure, es: insuficiencia cardiaca}
+  # what a risk calculator read beside the labs, one line each in the inputs
+  fact:
+    smoking_status.current: {en: smokes now, es: fuma actualmente}
+    smoking_status.former: {en: former smoker, es: fumó en el pasado}
+    smoking_status.never: {en: never smoked, es: nunca ha fumado}
+    smoking_status.not_coded: {en: "smoking status as recorded: {printed}", es: "tabaquismo según el registro: {printed}"}
+    ascvd.recorded: {en: established cardiovascular disease recorded, es: enfermedad cardiovascular establecida registrada}
+    ascvd.not_recorded: {en: no established cardiovascular disease recorded, es: sin enfermedad cardiovascular establecida registrada}
+    diabetes.recorded: {en: diabetes recorded, es: diabetes registrada}
+    diabetes.not_recorded: {en: no diabetes recorded, es: sin diabetes registrada}
+    ckd.recorded: {en: chronic kidney disease recorded, es: enfermedad renal crónica registrada}
+    ckd.not_recorded: {en: no chronic kidney disease recorded, es: sin enfermedad renal crónica registrada}
+    fh.recorded: {en: familial hypercholesterolaemia recorded, es: hipercolesterolemia familiar registrada}
+    fh.not_recorded: {en: no familial hypercholesterolaemia recorded, es: sin hipercolesterolemia familiar registrada}
+    heart_failure.recorded: {en: heart failure recorded, es: insuficiencia cardiaca registrada}
+    heart_failure.not_recorded: {en: no heart failure recorded, es: sin insuficiencia cardiaca registrada}
+    statin.recorded: {en: statin recorded, es: estatina registrada}
+    statin.not_recorded: {en: no statin recorded, es: sin estatina registrada}
+    antihypertensive.recorded: {en: blood pressure medicine recorded, es: medicación para la tensión registrada}
+    antihypertensive.not_recorded: {en: no blood pressure medicine recorded, es: sin medicación para la tensión registrada}
+    bp_systolic.window: {en: "systolic blood pressure {value} mmHg, mean of {days} days of wearable readings ({since} to {until})", es: "presión arterial sistólica {value} mmHg, media de {days} días de lecturas del wearable ({since} a {until})"}

@@ -10,7 +10,7 @@
       "description": "The rule pack in force, to explain a flag by rule id.",
       "mimeType": "application/json",
       "name": "rules",
-      "uri": "ownhealth://rules/ownhealth-rules 0.1.0"
+      "uri": "ownhealth://rules/ownhealth-rules 0.2.0"
     },
     {
       "description": "The health status of this profile.",

@@ -1,7 +1,8 @@
-# Every word the printed doctor summary writes itself, in English and Spanish. Placeholders in
-# braces are filled by the server ({n}, {date}, {page}, ...). Information, never advice: the
-# wording lint reads each string, and the PDF's text layer is linted again in the tests.
-version: "summary-templates 0.1.0"
+# Every word the printed doctor summary and the IPS export (its section titles and narratives) write
+# themselves, in English and Spanish. Placeholders in braces are filled by the server ({n}, {date},
+# {page}, ...). Information, never advice: the wording lint reads each string, and the PDF's text
+# layer is linted again in the tests.
+version: "summary-templates 0.2.0"
 templates:
   title: {en: Doctor summary, es: Resumen para el médico}
   subtitle: {en: "Data as of {as_of}", es: "Datos a {as_of}"}
@@ -21,6 +22,7 @@ templates:
     flags: {en: Flags, by rank, es: Avisos, por orden de importancia}
     markers: {en: Lab values, es: Valores de laboratorio}
     vaccines: {en: Vaccines, es: Vacunas}
+    procedures: {en: Procedures, es: Procedimientos}
     sources: {en: Sources, es: Fuentes}
   col:
     condition: {en: Condition, es: Problema}
@@ -45,6 +47,7 @@ templates:
     previous: {en: Previous value, es: Valor anterior}
     vaccine: {en: Vaccine, es: Vacuna}
     dose: {en: Dose, es: Dosis}
+    procedure: {en: Procedure, es: Procedimiento}
     document: {en: Document, page and date, es: Documento, página y fecha}
   none: {en: None on record., es: Nada registrado.}
   not_measured: {en: not measured, es: no medido}
@@ -71,3 +74,5 @@ templates:
   footer:
     en: "OwnHealth · {rules} · {summary} · state {hash} · page {page}/{pages}"
     es: "OwnHealth · {rules} · {summary} · estado {hash} · página {page}/{pages}"
+  ips:
+    title: {en: International Patient Summary, es: Resumen internacional del paciente}

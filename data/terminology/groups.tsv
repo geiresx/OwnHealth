@@ -84,6 +84,8 @@ triglycerides	mg/dL	mmol/L	mg/dL	10	10000	Triglycerides	Triglicéridos
 non_hdl_c	mg/dL	mmol/L	mg/dL	10	900	Non-HDL cholesterol	Colesterol no HDL
 chol_hdl_ratio	{ratio}	{ratio}	{ratio}	0.5	30	Total/HDL cholesterol ratio	Índice colesterol total/HDL
 vldl_c	mg/dL	mmol/L	mg/dL	1	500	VLDL cholesterol	Colesterol VLDL
+bp_systolic	mm[Hg]	mm[Hg]	mm[Hg]	40	300	Systolic blood pressure	Presión arterial sistólica
+smoking_status						Tobacco smoking status	Tabaquismo
 lpa	nmol/L	nmol/L	nmol/L	0	1000	Lipoprotein(a)	Lipoproteína (a)
 apob	mg/dL	g/L	mg/dL	10	400	Apolipoprotein B	Apolipoproteína B
 apoa1	mg/dL	g/L	mg/dL	10	400	Apolipoprotein A-I	Apolipoproteína A1

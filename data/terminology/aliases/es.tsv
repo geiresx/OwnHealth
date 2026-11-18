@@ -274,6 +274,11 @@ Colesterol total/HDL	chol_hdl_ratio		curated	2026-11-08
 Colesterol VLDL	vldl_c	calculated	curated	2026-11-08
 c-VLDL	vldl_c	calculated	curated	2026-11-08
 VLDL colesterol	vldl_c	calculated	curated	2026-11-08
+Presión arterial sistólica	bp_systolic		curated	2026-11-13
+Tensión arterial sistólica	bp_systolic		curated	2026-11-13
+Presión sistólica	bp_systolic		curated	2026-11-13
+Tabaquismo	smoking_status		curated	2026-11-13
+Hábito tabáquico	smoking_status		curated	2026-11-13
 Lipoproteína (a)	lpa		curated	2026-11-08
 Lipoproteína a	lpa		curated	2026-11-08
 Lp(a)	lpa		curated	2026-11-08

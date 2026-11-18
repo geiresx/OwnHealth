@@ -38,6 +38,16 @@ const SYSTEM_NAMES: [(&str, &str); 6] = [
     ("http://www.whocc.no/atc", "atc"),
 ];
 
+/// The IPS code system whose codes say a section has nothing to show ("no information about
+/// allergies", "no known problems"): such an entry is a statement about the list, never a row.
+pub const ABSENT_UNKNOWN: &str = "http://hl7.org/fhir/uv/ips/CodeSystem/absent-unknown-uv-ips";
+
+fn absent(cc: Option<&Value>) -> bool {
+    list(cc, "coding")
+        .iter()
+        .any(|c| c.get("system").and_then(Value::as_str) == Some(ABSENT_UNKNOWN))
+}
+
 /// Resources that give context to others and are kept in the bundle blob only.
 pub const SUPPORTING: [&str; 7] = [
     "Patient",
@@ -502,6 +512,9 @@ fn or_period<'a>(r: &'a Value, direct: &str, period: &str, key: &str) -> Option<
 }
 
 pub fn condition(r: &Value, profile_id: Uuid) -> Mapped {
+    if absent(r.get("code")) {
+        return skip("absent_unknown");
+    }
     let mut ver = status_code(r.get("verificationStatus"), "unconfirmed");
     if ver == "entered-in-error" {
         return skip("status_entered-in-error");
@@ -530,6 +543,9 @@ pub fn condition(r: &Value, profile_id: Uuid) -> Mapped {
 }
 
 pub fn allergy(r: &Value, profile_id: Uuid) -> Mapped {
+    if absent(r.get("code")) {
+        return skip("absent_unknown");
+    }
     if status_code(r.get("verificationStatus"), "") == "entered-in-error" {
         return skip("status_entered-in-error");
     }
@@ -573,6 +589,9 @@ pub fn allergy(r: &Value, profile_id: Uuid) -> Mapped {
 }
 
 pub fn immunization(r: &Value, profile_id: Uuid) -> Mapped {
+    if absent(r.get("vaccineCode")) {
+        return skip("absent_unknown");
+    }
     match status(r).as_deref() {
         Some("entered-in-error") => return skip("status_entered-in-error"),
         Some("not-done") => return unmapped("Immunization not given (status not-done)"),
@@ -608,6 +627,9 @@ pub fn immunization(r: &Value, profile_id: Uuid) -> Mapped {
 }
 
 pub fn procedure(r: &Value, profile_id: Uuid) -> Mapped {
+    if absent(r.get("code")) {
+        return skip("absent_unknown");
+    }
     if let Some(s) = status(r).filter(|s| s == "entered-in-error" || s == "not-done") {
         return skip(&format!("status_{s}"));
     }
@@ -733,6 +755,15 @@ fn med_codes(concept: Option<&Value>) -> Option<Vec<MedCode>> {
 /// `resolve(reference)` returns a contained or bundled resource (for medicationReference).
 pub fn medication<'a>(r: &'a Value, profile_id: Uuid, resolve: impl Fn(Option<&str>) -> Option<&'a Value>) -> Mapped {
     let rtype = r.get("resourceType").and_then(Value::as_str).unwrap_or_default();
+    let mut concept = r.get("medicationCodeableConcept").filter(|c| !c.is_null());
+    if concept.is_none() && truthy(r.get("medicationReference")) {
+        let reference = r["medicationReference"].get("reference").and_then(Value::as_str);
+        concept = resolve(reference).and_then(|m| m.get("code"));
+    }
+    // an IPS "no information" entry, inline or through the Medication it references
+    if absent(concept) {
+        return skip("absent_unknown");
+    }
     let raw_status = status(r);
     if raw_status.as_deref() == Some("entered-in-error") {
         return skip("status_entered-in-error");
@@ -743,11 +774,6 @@ pub fn medication<'a>(r: &'a Value, profile_id: Uuid, resolve: impl Fn(Option<&s
     let Some(status) = raw_status.as_deref().and_then(med_status) else {
         return unmapped(format!("{rtype} with status {}", py::py_str(r.get("status"))));
     };
-    let mut concept = r.get("medicationCodeableConcept").filter(|c| !c.is_null());
-    if concept.is_none() && truthy(r.get("medicationReference")) {
-        let reference = r["medicationReference"].get("reference").and_then(Value::as_str);
-        concept = resolve(reference).and_then(|m| m.get("code"));
-    }
     let Some(name) = concept_text(concept).filter(|t| !t.is_empty()) else {
         return unmapped(format!("{rtype} without a medication code"));
     };
@@ -1000,6 +1026,22 @@ mod tests {
 
     use super::*;
 
+    /// An IPS "no information" medicine is skipped whether it is inline or a referenced Medication.
+    #[test]
+    fn a_referenced_no_information_medicine_is_skipped() {
+        let none = json!({"coding": [{"system": ABSENT_UNKNOWN, "code": "no-medication-info"}]});
+        let med = json!({"resourceType": "Medication", "id": "m", "code": none});
+        for status in ["active", "unknown"] {
+            let r = json!({
+                "resourceType": "MedicationStatement",
+                "status": status,
+                "medicationReference": {"reference": "#m"}
+            });
+            let got = medication(&r, Uuid::nil(), |_| Some(&med));
+            assert!(matches!(&got, Mapped::Skip(why) if why == "absent_unknown"), "{status}");
+        }
+    }
+
     #[test]
     fn a_re_imported_export_keeps_the_recorded_decision() {
         let ext = json!([{"url": ownhealth_core::fhir::DECISION_EXTENSION, "extension": [
@@ -1072,6 +1114,45 @@ mod tests {
             panic!("not mapped");
         };
         assert_eq!(member.sensitivity, ["mental_health", "reproductive"]);
+    }
+
+    /// An IPS "no information about ..." entry says a list is empty: it never becomes a row, and a
+    /// MedicationStatement of status unknown is not left unprojected for it.
+    #[test]
+    fn an_ips_no_information_entry_is_skipped_not_imported() {
+        let no = |code: &str| json!({"coding": [{"system": ABSENT_UNKNOWN, "code": code}]});
+        let pid = Uuid::nil();
+        for m in [
+            condition(
+                &json!({"resourceType": "Condition", "code": no("no-problem-info")}),
+                pid,
+            ),
+            allergy(
+                &json!({"resourceType": "AllergyIntolerance", "code": no("no-allergy-info")}),
+                pid,
+            ),
+            immunization(
+                &json!({"resourceType": "Immunization", "status": "completed", "vaccineCode": no("no-immunization-info")}),
+                pid,
+            ),
+            procedure(
+                &json!({"resourceType": "Procedure", "status": "completed", "code": no("no-procedure-info")}),
+                pid,
+            ),
+            medication(
+                &json!({"resourceType": "MedicationStatement", "status": "unknown", "medicationCodeableConcept": no("no-medication-info")}),
+                pid,
+                |_| None,
+            ),
+        ] {
+            assert_eq!(m, Mapped::Skip("absent_unknown".into()));
+        }
+        // a real code from another system still maps
+        let m = condition(
+            &json!({"resourceType": "Condition", "code": {"coding": [{"system": SNOMED, "code": "38341003"}]}}),
+            pid,
+        );
+        assert!(matches!(m, Mapped::Record { .. }), "{m:?}");
     }
 
     #[test]

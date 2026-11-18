@@ -2,7 +2,7 @@
 // with nothing shown twice.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { dueCard, dueCardView, dueColor, dueScreenOpen, isOpen, lockedScopes, partialScopes, type DueItem, type GlanceDue } from '../src/lib/logic/due.ts';
+import { dateParts, dueCard, dueCardView, dueColor, dueScreenOpen, gapShortKey, isOpen, lockedScopes, partialScopes, type DueItem, type GlanceDue } from '../src/lib/logic/due.ts';
 
 const item = (key: string, status: DueItem['status'], extra: Partial<DueItem> = {}): DueItem => ({
 	key,
@@ -95,4 +95,12 @@ test('the Due card reveals its hidden rows when the Due screen is closed to the 
 	assert.deepEqual([all.rows.length, all.more, all.action], [8, 0, 'collapse']);
 	const few = dueCardView(rows.slice(0, 4), 6, false, false);
 	assert.deepEqual([few.rows.length, few.more, few.action], [4, 0, null]);
+});
+
+// A document gap on the dashboard card: each ISO date stays on one line, and the note is one short line.
+test('a document gap row keeps its dates whole and its note short', () => {
+	assert.deepEqual(dateParts('Records from 2016-05-10 to 2021-11-09'), ['Records from ', '2016-05-10', ' to ', '2021-11-09', '']);
+	assert.deepEqual(dateParts('Mammography'), ['Mammography']);
+	assert.equal(gapShortKey('gap:visit:2025-11-10:ffe275da'), 'gap_short_visit');
+	assert.equal(gapShortKey('gap:hole:2016-05-10:2021-11-09'), 'gap_short_hole');
 });

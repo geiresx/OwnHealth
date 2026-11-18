@@ -78,6 +78,7 @@ OwnHealth is for personal record keeping and for showing values computed from pu
 - Design: [architecture](docs/design/architecture.md), [ingestion](docs/design/ingestion.md), [connectors](docs/design/connectors.md), [MCP](docs/design/mcp.md), [genomics](docs/design/genomics.md), [security, privacy and threat model](docs/design/security-privacy.md)
 - [Rivals](docs/research/rivals.md)
 - [Contributing](CONTRIBUTING.md): how to add a lab template or an alias
+- [Guideline files](docs/guidelines.md): how to add a country's screenings and vaccines
 - [Security policy](SECURITY.md)
 
 ## Related projects

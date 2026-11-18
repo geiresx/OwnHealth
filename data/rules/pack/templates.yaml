@@ -19,6 +19,9 @@ templates:
   RCV_CHANGE:
     en: "{name} went from {prev} to {value} {unit} ({change_pct}%) since {prev_date}, more than the reference change value of {rcv_pct}%."
     es: "{name} pasó de {prev} a {value} {unit} ({change_pct} %) desde el {prev_date}, más que el valor de referencia del cambio ({rcv_pct} %)."
+  BASELINE_OUT:
+    en: "{name} {value} {unit} {when} is outside this person's usual level of {low} to {high} {unit}, set by the mean of {n} earlier results from the same lab and method."
+    es: "{name} {value} {unit} {when} queda fuera de su nivel habitual, de {low} a {high} {unit}, según la media de {n} resultados anteriores del mismo laboratorio y método."
   TREND_UP:
     en: "{name} rose over the last {n} results ({slope} {unit} per year) to {value} {unit} {when}."
     es: "{name} subió en los últimos {n} resultados ({slope} {unit} al año) hasta {value} {unit} {when}."

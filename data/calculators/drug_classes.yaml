@@ -1,0 +1,47 @@
+# Medicine classes the cardiovascular calculators read: PREVENT takes "antihypertensive use" and
+# "statin use" (docs/calculators/prevent.md). A medicine is in a class when a word of its name or of
+# its recorded ingredient is one of the names below, compared in lower case without accents
+# ("Atorvastatina Cinfa 20 mg", "CARDYL 40", "losartán"). Ingredient names in English and Spanish,
+# and common brand names in Spain and the United States. Only active medicines count (not
+# supplements, not stopped ones).
+#
+# id     statin | antihypertensive
+# names  ingredient and brand names, lower case, no accents
+# cite   where the class and its members are defined
+version: 0.1.0
+rows:
+  - id: statin
+    names: [
+      atorvastatin, atorvastatina, cardyl, zarator, prevencor, lipitor,
+      rosuvastatin, rosuvastatina, crestor, provisacor,
+      simvastatin, simvastatina, zocor, inegy, vytorin,
+      pravastatin, pravastatina, lipemol, pravachol,
+      pitavastatin, pitavastatina, livazo, livalo,
+      fluvastatin, fluvastatina, lescol,
+      lovastatin, lovastatina, mevacor,
+    ]
+    cite: https://pubmed.ncbi.nlm.nih.gov/31504418/
+  - id: antihypertensive
+    names: [
+      # ACE inhibitors
+      enalapril, renitec, vasotec, lisinopril, zestril, prinivil, ramipril, altace, captopril,
+      perindopril, quinapril, fosinopril, trandolapril, benazepril, cilazapril, zofenopril,
+      # angiotensin receptor blockers
+      losartan, cozaar, valsartan, diovan, irbesartan, aprovel, avapro, candesartan, atacand,
+      olmesartan, olmetec, benicar, telmisartan, micardis, eprosartan, azilsartan,
+      # calcium channel blockers
+      amlodipine, amlodipino, norvas, norvasc, nifedipine, nifedipino, adalat, felodipine, felodipino,
+      lercanidipine, lercanidipino, zanidip, nitrendipine, nitrendipino, lacidipine, lacidipino,
+      manidipine, manidipino, barnidipine, barnidipino, diltiazem, verapamil,
+      # beta blockers
+      atenolol, tenormin, bisoprolol, emconcor, metoprolol, seloken, lopressor, toprol, nebivolol,
+      carvedilol, coropres, labetalol, propranolol, nadolol, celiprolol,
+      # diuretics used for blood pressure
+      hydrochlorothiazide, hidroclorotiazida, hidrosaluretil, microzide, chlorthalidone, clortalidona,
+      indapamide, indapamida, tertensif, spironolactone, espironolactona, aldactone, eplerenone,
+      eplerenona, amiloride, amilorida,
+      # others
+      doxazosin, doxazosina, carduran, clonidine, clonidina, methyldopa, metildopa, hydralazine,
+      hidralazina, moxonidine, moxonidina, aliskiren,
+    ]
+    cite: https://pubmed.ncbi.nlm.nih.gov/37345492/

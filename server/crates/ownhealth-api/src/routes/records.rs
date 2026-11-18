@@ -23,7 +23,10 @@ use ownhealth_core::pyjson::pydantic_datetime_utc;
 
 use crate::validate::pydantic_datetimes;
 use ownhealth_core::records::{self as rec, RecordIn, RecordOptions};
-use ownhealth_ingest_structured::manual::{ManualObservation, add_manual_observation, refusal as manual_refusal};
+use ownhealth_ingest_structured::manual::{
+    ManualObservation, add_manual_observation, future as manual_future, refusal as manual_refusal,
+};
+use ownhealth_rules::calc::cardio::{SMOKING, SMOKING_LOINC};
 use serde_json::{Map, Value, json};
 use sqlx::PgConnection;
 use uuid::Uuid;
@@ -777,6 +780,7 @@ struct ManualIn {
     note: Option<String>,
     category: Option<String>,
     loinc: Option<String>,
+    value_code: Option<String>,
     corrects: Option<Uuid>,
     reason: Option<String>,
 }
@@ -860,6 +864,7 @@ fn manual_in(body: &Map<String, Value>) -> Result<ManualIn, Failure> {
     let reason = text("reason", false, 0, 500, false);
     let category = text("category", false, 0, usize::MAX, false);
     let loinc = text("loinc", false, 0, usize::MAX, false);
+    let value_code = text("value_code", true, 1, 40, false);
     let corrects = text("corrects", false, 0, usize::MAX, false);
     let effective = match body.get("effective_at") {
         None => {
@@ -908,6 +913,31 @@ fn manual_in(body: &Map<String, Value>) -> Result<ManualIn, Failure> {
             json!(l),
         );
     }
+    // a coded answer is taken only for a question whose answers we know: the smoking status
+    if let Some(c) = &value_code
+        && (loinc.as_deref() != Some(SMOKING_LOINC) || !SMOKING.iter().any(|(k, _)| k == c))
+    {
+        err(
+            "value_error",
+            "value_code",
+            "Value error, a value_code is a SNOMED CT smoking status answer to loinc 72166-2",
+            json!(c),
+        );
+    }
+    // a coded answer is a survey answer, never a lab value: no category means survey, another one is refused
+    let category = match (&value_code, category) {
+        (Some(_), None) => Some("survey".to_string()),
+        (Some(_), Some(c)) if c != "survey" => {
+            err(
+                "value_error",
+                "category",
+                "Value error, a value_code answer has category survey",
+                json!(c),
+            );
+            None
+        }
+        (_, c) => c,
+    };
     let corrects_id = match &corrects {
         Some(c) => match Uuid::parse_str(c) {
             Ok(u) => Some(u),
@@ -932,6 +962,7 @@ fn manual_in(body: &Map<String, Value>) -> Result<ManualIn, Failure> {
         note,
         category,
         loinc,
+        value_code,
         corrects: corrects_id,
         reason,
     })
@@ -949,7 +980,11 @@ async fn manual_observation(
     let Some(effective_at) = body.effective_at else {
         return Err(bad_input("effective_at needs a UTC offset.").into());
     };
-    if let Some(why) = manual_refusal(body.value.trim(), effective_at, Utc::now()) {
+    let why = match body.value_code {
+        Some(_) => manual_future(effective_at, Utc::now()),
+        None => manual_refusal(body.value.trim(), effective_at, Utc::now()),
+    };
+    if let Some(why) = why {
         return Err(bad_input(why).into());
     }
     if let Some(old) = body.corrects {
@@ -974,6 +1009,7 @@ async fn manual_observation(
             note: body.note.as_deref(),
             category: body.category.as_deref(),
             loinc: body.loinc.as_deref(),
+            value_code: body.value_code.as_deref(),
             corrects: body.corrects,
             reason: body.reason.as_deref(),
         },

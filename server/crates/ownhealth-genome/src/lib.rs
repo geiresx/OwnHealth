@@ -5,6 +5,7 @@
 //! hook `genome` (order 400). The constants are final.
 
 pub mod clinvar;
+pub mod clinvar_fetch;
 pub mod couple;
 pub mod findings;
 pub mod ingest;
@@ -282,9 +283,11 @@ fn demo_hook<'c>(conn: &'c mut PgConnection, ctx: &'c mut DemoContext) -> BoxFut
     Box::pin(demo_seed(conn, ctx))
 }
 
-/// Register lane D's job handler (`import.genome_facts`) and demo hook (`genome`, order 400).
+/// Register lane D's job handler (`import.genome_facts`), demo hook (`genome`, order 400) and the
+/// weekly ClinVar poller (`clinvar_fetch`).
 /// Python has no accept handler for `genome_reinterpretation` items, so neither does this.
 pub fn register() {
     jobs::register_handler("import.genome_facts", import_job_handler);
     demo::register_demo_hook("genome", 400, demo_hook);
+    clinvar_fetch::register();
 }

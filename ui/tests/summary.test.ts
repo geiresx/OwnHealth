@@ -11,3 +11,10 @@ test('summary: a change of profile clears the sensitive tick, so it is chosen ag
 	assert.equal(onProfile.length, 1, 'one effect runs on a change of profile');
 	assert.match(onProfile[0], /\bsensitive = false;/);
 });
+
+test('summary: the IPS (FHIR) button asks the export for the IPS in the language of the sheet', () => {
+	const manage = readFileSync(new URL('../src/lib/api/manage.ts', import.meta.url), 'utf8');
+	assert.match(page, /exportIps\(slug, lang\)/);
+	assert.match(manage, /\{ fmt: 'ips', lang \}/);
+	assert.match(manage, /SUMMARY_SPECIALTIES = \[[^\]]*'ips'\]/);
+});

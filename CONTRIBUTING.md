@@ -100,6 +100,10 @@ Then run `cargo test -p ownhealth-normalize` from `server/`. [pure.rs](server/cr
 
 **Just for your household.** In the review queue, "Add alias" on an unresolved row saves the alias for your household only and re-links the rows it matches. If it would help everyone, open a pull request with the row as above.
 
+## How to add a country's screenings and vaccines
+
+Write the country's schedule as one YAML file in [data/prevention/](data/prevention). [docs/guidelines.md](docs/guidelines.md) covers the fields, the licences of the sources, the reviewer of record and the tests.
+
 ## Reporting a security problem
 
 Do not open a public issue. See [SECURITY.md](SECURITY.md).

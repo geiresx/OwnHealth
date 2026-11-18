@@ -1,0 +1,228 @@
+{
+ "calculator": "prevent_cvd",
+ "source": "Khan SS et al., Circulation 2024 (PREVENT, base 10-year model). Expected values are the supplement's example and the published outputs of the R package preventr 0.12.2, which rounds to 3 decimals of a fraction (1 decimal of a percent); three cases beyond preventr's input caps are the paper's equations. Numbers only; no code was copied.",
+ "paper": "https://pubmed.ncbi.nlm.nih.gov/37947085/",
+ "precision": 1,
+ "cases": [
+  {
+   "from": "Table S25 of the PREVENT supplement (via preventr 0.12.2 (CRAN), tests/testthat/test-estimate_risk.R)",
+   "age": 50,
+   "sex": "female",
+   "smoker": false,
+   "sbp": "160",
+   "diabetes": true,
+   "bp_treated": true,
+   "statin": false,
+   "egfr": "90",
+   "inputs": {
+    "total_cholesterol": {
+     "value": "200",
+     "unit": "mg/dL"
+    },
+    "hdl_c": {
+     "value": "45",
+     "unit": "mg/dL"
+    }
+   },
+   "expected": "14.7"
+  },
+  {
+   "from": "preventr 0.12.2 (CRAN), tests/testthat/test-estimate_risk.R",
+   "age": 50,
+   "sex": "male",
+   "smoker": false,
+   "sbp": "160",
+   "diabetes": true,
+   "bp_treated": true,
+   "statin": false,
+   "egfr": "90",
+   "inputs": {
+    "total_cholesterol": {
+     "value": "200",
+     "unit": "mg/dL"
+    },
+    "hdl_c": {
+     "value": "45",
+     "unit": "mg/dL"
+    }
+   },
+   "expected": "16.3"
+  },
+  {
+   "from": "preventr 0.12.2 (CRAN), tests/testthat/_snaps/estimate_risk.md (bp_tx 0)",
+   "age": 50,
+   "sex": "female",
+   "smoker": false,
+   "sbp": "160",
+   "diabetes": true,
+   "bp_treated": false,
+   "statin": false,
+   "egfr": "90",
+   "inputs": {
+    "total_cholesterol": {
+     "value": "200",
+     "unit": "mg/dL"
+    },
+    "hdl_c": {
+     "value": "45",
+     "unit": "mg/dL"
+    }
+   },
+   "expected": "12.2"
+  },
+  {
+   "from": "preventr 0.12.2 (CRAN), tests/testthat/_snaps/estimate_risk.md (bp_tx 0)",
+   "age": 50,
+   "sex": "male",
+   "smoker": false,
+   "sbp": "160",
+   "diabetes": true,
+   "bp_treated": false,
+   "statin": false,
+   "egfr": "90",
+   "inputs": {
+    "total_cholesterol": {
+     "value": "200",
+     "unit": "mg/dL"
+    },
+    "hdl_c": {
+     "value": "45",
+     "unit": "mg/dL"
+    }
+   },
+   "expected": "13.6"
+  },
+  {
+   "from": "preventr 0.12.2 (CRAN), tests/testthat/_snaps/estimate_risk.md (dm 0)",
+   "age": 50,
+   "sex": "female",
+   "smoker": false,
+   "sbp": "160",
+   "diabetes": false,
+   "bp_treated": true,
+   "statin": false,
+   "egfr": "90",
+   "inputs": {
+    "total_cholesterol": {
+     "value": "200",
+     "unit": "mg/dL"
+    },
+    "hdl_c": {
+     "value": "45",
+     "unit": "mg/dL"
+    }
+   },
+   "expected": "5.9"
+  },
+  {
+   "from": "preventr 0.12.2 (CRAN), tests/testthat/_snaps/estimate_risk.md (dm 0)",
+   "age": 50,
+   "sex": "male",
+   "smoker": false,
+   "sbp": "160",
+   "diabetes": false,
+   "bp_treated": true,
+   "statin": false,
+   "egfr": "90",
+   "inputs": {
+    "total_cholesterol": {
+     "value": "200",
+     "unit": "mg/dL"
+    },
+    "hdl_c": {
+     "value": "45",
+     "unit": "mg/dL"
+    }
+   },
+   "expected": "7.5"
+  },
+  {
+   "from": "preventr 0.12.2 (CRAN), vignettes/using-data-frame (row 5, base model)",
+   "age": 52,
+   "sex": "female",
+   "smoker": true,
+   "sbp": "179",
+   "diabetes": true,
+   "bp_treated": true,
+   "statin": true,
+   "egfr": "77",
+   "inputs": {
+    "total_cholesterol": {
+     "value": "253",
+     "unit": "mg/dL"
+    },
+    "hdl_c": {
+     "value": "44",
+     "unit": "mg/dL"
+    }
+   },
+   "expected": "35.0"
+  },
+  {
+   "from": "the PREVENT base equations (supplement coefficients) evaluated with Python floats; SBP 195 is above preventr's cap of 180",
+   "age": 60,
+   "sex": "male",
+   "smoker": true,
+   "sbp": "195",
+   "diabetes": false,
+   "bp_treated": true,
+   "statin": false,
+   "egfr": "75",
+   "inputs": {
+    "total_cholesterol": {
+     "value": "210",
+     "unit": "mg/dL"
+    },
+    "hdl_c": {
+     "value": "50",
+     "unit": "mg/dL"
+    }
+   },
+   "expected": "24.1"
+  },
+  {
+   "from": "the PREVENT base equations (supplement coefficients) evaluated with Python floats, mmol/L, SBP below 110 and eGFR below 60",
+   "age": 65,
+   "sex": "female",
+   "smoker": false,
+   "sbp": "100",
+   "diabetes": true,
+   "bp_treated": false,
+   "statin": true,
+   "egfr": "45",
+   "inputs": {
+    "total_cholesterol": {
+     "value": "5.2",
+     "unit": "mmol/L"
+    },
+    "hdl_c": {
+     "value": "1.4",
+     "unit": "mmol/L"
+    }
+   },
+   "expected": "15.4"
+  },
+  {
+   "from": "the PREVENT base equations (supplement coefficients) evaluated with Python floats, mmol/L",
+   "age": 41,
+   "sex": "male",
+   "smoker": true,
+   "sbp": "122",
+   "diabetes": false,
+   "bp_treated": false,
+   "statin": false,
+   "egfr": "104",
+   "inputs": {
+    "total_cholesterol": {
+     "value": "4.6",
+     "unit": "mmol/L"
+    },
+    "hdl_c": {
+     "value": "1.1",
+     "unit": "mmol/L"
+    }
+   },
+   "expected": "2.5"
+  }
+ ]
+}

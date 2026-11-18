@@ -1,0 +1,77 @@
+name: Cite links
+
+# Every week, fetch each link that the cited data files under data/ name (scripts/cite-links.sh) and
+# keep one issue that lists the dead ones. The run goes red while a link is dead. This is not a pull
+# request gate: a guideline site can be down for a day while every change is right. A run on another
+# branch goes red or green but leaves the issue alone.
+
+on:
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: cite-links
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Check every cite link
+        id: check
+        run: |
+          set +e
+          bash scripts/cite-links.sh > report.md
+          echo "status=$?" >> "$GITHUB_OUTPUT"
+          cat report.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Open, update or close the issue
+        # a scheduled run has no repository in its event, so name the default branch here
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          STATUS: ${{ steps.check.outputs.status }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          GUIDE_URL: ${{ github.server_url }}/${{ github.repository }}/blob/main/docs/guidelines.md
+        run: |
+          title="Dead links in the cited data files"
+          number=$(gh issue list --state open --limit 500 --json number,title \
+            --jq "map(select(.title == \"$title\")) | .[0].number // empty")
+          {
+            echo "The weekly link check found a dead link in data/. Each row names the file that cites it."
+            echo "Find the page's new address, or a newer version of the source, and fix the \`cite\`"
+            echo "in a pull request. How: $GUIDE_URL"
+            echo "This issue updates every week and closes by itself when no link is dead."
+            echo
+            cat report.md
+            echo
+            echo "Run: $RUN_URL"
+          } > body.md
+          case "$STATUS" in
+            1)
+              if [ -n "$number" ]; then
+                gh issue edit "$number" --body-file body.md
+              else
+                gh issue create --title "$title" --body-file body.md
+              fi
+              ;;
+            0)
+              if [ -n "$number" ]; then
+                gh issue close "$number" --comment "No dead link this week. Run: $RUN_URL"
+              fi
+              ;;
+          esac
+      - name: Fail while a link is dead or the check could not run
+        if: steps.check.outputs.status != '0'
+        env:
+          STATUS: ${{ steps.check.outputs.status }}
+        run: |
+          echo "scripts/cite-links.sh exited $STATUS; see the summary of this run."
+          exit 1

@@ -1,9 +1,11 @@
-# The four views of the printed doctor summary. Each row names the lab series its marker table
-# lists, in print order; a series with no result prints as "not measured". The lists are the app's
-# own selection for a first visit, read from the guideline the row cites (basis: app_default where
-# no single guideline fixes the list). They choose what is printed, never a status or a threshold.
-# Every series is a marker of a pack system, so its status word comes from the rule engine.
-version: "summary-specialties 0.1.0"
+# The five views of the printed doctor summary; the fifth, ips, is the printed twin of the IPS export
+# (ownhealth_ops::ips) and lists the same lab rows its Results section carries. Each row names the lab
+# series its marker table lists, in print order; a series with no result prints as "not measured". The
+# lists are the app's own selection for a first visit, read from the guideline the row cites (basis:
+# app_default where no single guideline fixes the list). They choose what is printed, never a status
+# or a threshold. Every series is a marker of a pack system, so its status word comes from the rule
+# engine.
+version: "summary-specialties 0.2.0"
 rows:
   - id: gp
     names: {en: General practice, es: Medicina general}
@@ -22,4 +24,9 @@ rows:
     names: {en: Hematology, es: Hematología}
     markers: [hemoglobin, mcv, platelets, wbc, ferritin, vitamin_b12, crp_hs, creatinine, alt]
     cite: https://github.com/GeiserX/OwnHealth/blob/main/docs/ROADMAP.md#v03-insight
+    basis: app_default
+  - id: ips
+    names: {en: International Patient Summary (IPS), es: Resumen internacional del paciente (IPS)}
+    markers: [ldl_c, hba1c, glucose, egfr, creatinine, urine_acr, alt, ast, ggt, tsh, hemoglobin, ferritin, vitamin_d_25oh, vitamin_b12, crp_hs]
+    cite: https://hl7.org/fhir/uv/ips/
     basis: app_default

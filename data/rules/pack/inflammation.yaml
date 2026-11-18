@@ -12,7 +12,8 @@ rules:
   - id: rcv.crp_hs
     kind: rcv
     match: [crp_hs]
-    cv_i: "42.2"
-    cv_a: "5.0"
-    cite: https://biologicalvariation.eu/
-    verify: CV values to confirm against the EFLM database
+    cv_i: "29.4"
+    cv_a: "11.1"
+    cite: https://doi.org/10.1515/cclm-2021-0370
+    primary: https://doi.org/10.1373/clinchem.2019.304618
+    note: EuBIVAS, CRP on a Roche Cobas c702 (mean 0.72 mg/L); CVi 29.4% (27.6-31.1), CVa 11.1%.

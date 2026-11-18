@@ -1109,8 +1109,22 @@ pub async fn get_trend(call: &mut Call<'_>) -> ToolResult<Answer> {
             }
         };
         let empty_docs = HashMap::new();
+        // a point from another method or lab than the one before it says so
+        let ids: Vec<Option<Uuid>> = rows.iter().map(|r| r.document_id).collect();
+        let docs = documents(call, &ids).await?;
+        let keys: Vec<ownhealth_rules::engine::MethodKey> = rows
+            .iter()
+            .map(|r| {
+                let lab = r
+                    .document_id
+                    .and_then(|d| docs.get(&d))
+                    .and_then(|d| d.provider_name.as_deref());
+                ownhealth_rules::engine::method_key(r.method.as_deref(), r.loinc.as_deref(), lab)
+            })
+            .collect();
+        let switched = |i: usize| i > 0 && keys[i] != keys[i - 1];
         let mut raw_points: Vec<Map<String, Value>> = Vec::new();
-        for (r, c) in rows.iter().zip(&cans) {
+        for (i, (r, c)) in rows.iter().zip(&cans).enumerate() {
             let p = obs_row(r, &empty_docs, false, &call.units);
             let mut point = Map::new();
             for (k, v) in [
@@ -1122,6 +1136,7 @@ pub async fn get_trend(call: &mut Call<'_>) -> ToolResult<Answer> {
                 ("flag", p.get("flag").cloned()),
                 ("method", r.method.as_deref().map(|m| json!(m))),
                 ("code", p.get("code").cloned()),
+                ("method_change", switched(i).then_some(json!(true))),
                 ("src", Some(json!(r.src_id))),
             ] {
                 if let Some(v) = v.filter(|v| !v.is_null()) {
@@ -1148,15 +1163,30 @@ pub async fn get_trend(call: &mut Call<'_>) -> ToolResult<Answer> {
                 "This series mixes LOINC codes (for example calculated and direct); each point names its code."
             ));
         }
+        if resolution == "auto" {
+            resolution = if raw_points.len() <= MAX_POINTS { "raw" } else { "month" }.into();
+        }
+        if (0..rows.len()).any(switched) {
+            // only raw points carry method_change; an aggregated answer names the switch for the series
+            limitations.push(if resolution == "raw" {
+                json!(
+                    "A point with method_change comes from another method or lab than the point before it; \
+                     the change between them is not judged against the reference change value. The trend \
+                     statistics still use every point."
+                )
+            } else {
+                json!(
+                    "The series changes method or lab; a change across a switch is not judged against the \
+                     reference change value. The trend statistics still use every point."
+                )
+            });
+        }
         let ranges: HashSet<(Option<Decimal>, Option<Decimal>)> = rows
             .iter()
             .map(|r| (r.ref_low.map(|d| d.normalize()), r.ref_high.map(|d| d.normalize())))
             .collect();
         if ranges.len() > 1 {
             limitations.push(json!("Labs use different reference ranges."));
-        }
-        if resolution == "auto" {
-            resolution = if raw_points.len() <= MAX_POINTS { "raw" } else { "month" }.into();
         }
         let points: Vec<Value> = if resolution == "raw" {
             raw_points.iter().cloned().map(Value::Object).collect()

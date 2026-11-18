@@ -13,11 +13,12 @@
 //! (`prevention_decision`) move an item to `hidden` or mark it. `hidden` is absent when empty, so a
 //! profile without decisions keeps the hash it had before they existed.
 //!
-//! Items come from two places, each with one stable key:
+//! Items come from three places, each with one stable key:
 //! - a row of the country file (`es.yaml`, `us.yaml`): key = the row id;
 //! - the rule pack's lab gaps already in the state body: a never-measured analyte keeps its rule id,
 //!   a stale series is `stale:<rule>:<group>`. The pack stays their only home: the loader refuses a
-//!   country row whose evidence the pack already checks.
+//!   country row whose evidence the pack already checks;
+//! - the record's document gaps (`crate::gaps`): key = `gap:<gap key>`, kind `document_request`.
 //!
 //! The document holds codes, dates and ids only: language and the caller are not inputs, so the
 //! hash is the same for every token. `render` adds the words in one language and drops what the
@@ -809,6 +810,21 @@ pub struct Evidence {
     pub day: Option<NaiveDate>,
     /// The record's src id (none for a document).
     pub src: Option<String>,
+    /// A document's upload day (none for a record).
+    pub uploaded: Option<NaiveDate>,
+}
+
+impl Evidence {
+    /// The day this evidence counts from for the item `key`. A document gap (`gap:<key>`) asks for a
+    /// copy of a document, so any document that came counts from the day it was uploaded when it
+    /// carries no date of its own; every other item needs the day the record or document shows.
+    pub fn day_for(&self, key: &str) -> Option<NaiveDate> {
+        self.day.or_else(|| {
+            key.starts_with(crate::gaps::DUE_PREFIX)
+                .then_some(self.uploaded)
+                .flatten()
+        })
+    }
 }
 
 /// The evidence a `done` decision points at, when it still holds: a record of this profile that is
@@ -821,10 +837,10 @@ pub async fn evidence(
     table: &str,
     id: uuid::Uuid,
 ) -> Result<Option<Evidence>> {
-    let found: Option<(Option<NaiveDate>, Option<String>)> = if table == "document" {
+    let found: Option<(Option<NaiveDate>, Option<String>, Option<NaiveDate>)> = if table == "document" {
         sqlx::query_as(
-            "select coalesce(collected_at, reported_at)::date, null::text from document \
-             where id = $1 and profile_id = $2 and status = 'active'",
+            "select coalesce(collected_at, reported_at)::date, null::text, (created_at at time zone 'UTC')::date \
+             from document where id = $1 and profile_id = $2 and status = 'active'",
         )
         .bind(id)
         .bind(profile_id)
@@ -845,7 +861,8 @@ pub async fn evidence(
                where r.id = $1 and r.profile_id = $2 \
                union all \
                select n.id, n.status, n.src_id, n.sensitivity, {} from {t} n join chain c on n.supersedes = c.id) \
-             select day, src_id from chain where status = 'current' and cardinality(sensitivity) = 0 limit 1",
+             select day, src_id, null::date from chain where status = 'current' and cardinality(sensitivity) = 0 \
+             limit 1",
             day("r"),
             day("n"),
         );
@@ -855,11 +872,12 @@ pub async fn evidence(
             .fetch_optional(&mut *conn)
             .await?
     };
-    Ok(found.map(|(day, src)| Evidence {
+    Ok(found.map(|(day, src, uploaded)| Evidence {
         table: table.to_string(),
         id,
         day,
         src,
+        uploaded,
     }))
 }
 
@@ -904,7 +922,11 @@ async fn person_inputs(
             (Some(t), Some(id), _) => evidence(&mut *conn, profile_id, &t, id).await?,
             (_, _, Some(id)) => evidence(&mut *conn, profile_id, "document", id).await?,
             _ => None,
-        };
+        }
+        .map(|mut e| {
+            e.day = e.day_for(&key);
+            e
+        });
         decisions.insert(
             key,
             Decision {
@@ -982,6 +1004,23 @@ fn apply_decisions(
         }
     }
     (shown, hidden)
+}
+
+/// Split the items of another derived document by the person's decisions on `<prefix><key>`, as the
+/// Due list splits its own: (shown, hidden), each decided item carrying its `decision`.
+pub async fn decided(
+    conn: &mut PgConnection,
+    profile_id: uuid::Uuid,
+    items: Vec<Value>,
+    prefix: &str,
+    as_of: NaiveDate,
+) -> Result<(Vec<Value>, Vec<Value>)> {
+    let (_, decisions) = person_inputs(conn, profile_id).await?;
+    let mine: BTreeMap<String, Decision> = decisions
+        .into_iter()
+        .filter_map(|(k, d)| k.strip_prefix(prefix).map(|k| (k.to_string(), d)))
+        .collect();
+    Ok(apply_decisions(items, &mine, &HashSet::new(), as_of))
 }
 
 /// The answer keys some guideline row of this country uses for a person of this sex and age (every
@@ -1177,6 +1216,9 @@ pub async fn document(
         }
         items.push(it);
     }
+    // the record's document gaps are reminders too (`gap:<key>`)
+    let gaps = crate::gaps::document(&mut *conn, profile, as_of).await?;
+    items.extend(crate::gaps::due_items(&gaps));
     let rank = |v: &Value| {
         let s = v.get("status").and_then(Value::as_str).unwrap_or_default();
         STATUSES.iter().position(|x| *x == s).unwrap_or(STATUSES.len())
@@ -1326,6 +1368,9 @@ pub fn render(doc: &Value, pack: &Pack, lang: &str, scopes: &Scopes) -> Result<V
                     );
                 }
                 (pick(Some(&row.name), lang), why)
+            } else if it.get("kind").and_then(Value::as_str) == Some("document_request") {
+                let (title, why) = crate::gaps::due_text(it, lang)?;
+                (Some(title), Some(why))
             } else {
                 let group = it.get("group").map(text).unwrap_or_default();
                 let why = if it.get("kind").and_then(Value::as_str) == Some("never_measured") {
@@ -1395,8 +1440,9 @@ const OPEN: [&str; 3] = ["overdue", "due", "upcoming"];
 /// `{key, status, due, rule}` (rule only when it is not the key), their count `due_total` and the
 /// document's hash. An item due or overdue that was never recorded has no `due`: its date is where
 /// the age window opened, not a deadline. Rule ids, no URLs: the cites stay in the document. The lab gaps are left out, because the
-/// status lists them already under never_measured and stale; an item a lab value shows needs
-/// read:labs. Open items the person's decisions hide are left out and counted in `due_hidden`. None
+/// status lists them already under never_measured and stale, and so are the document gaps, which the
+/// 2 KB page has no room for, not even as a count: with one flag, Alex's demo page is 24 bytes under
+/// 2 KB and a due section costs more (the Due screen and the dashboard list them). An item a lab value shows needs read:labs. Open items the person's decisions hide are left out and counted in `due_hidden`. None
 /// when nothing is open or hidden (the status page has 2 KB and spends none of it on an empty list)
 /// or the profile is not in the store.
 pub async fn status_section(
@@ -1416,7 +1462,7 @@ pub async fn status_section(
             .as_array()
             .into_iter()
             .flatten()
-            .filter(|i| i["area"] != "lab" && visible(i, scopes))
+            .filter(|i| i["area"] != "lab" && i["area"] != "document" && visible(i, scopes))
             .filter(|i| i["status"].as_str().is_some_and(|s| OPEN.contains(&s)))
             .cloned()
             .collect()

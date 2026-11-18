@@ -814,7 +814,7 @@ Every example in the docs, the mockup and the golden tests draws Alex's values f
 | Hepatitis C antibody | never measured (rule `infect.hcv.once_adult`) | |
 | LDL-C (13457-7) series, mg/dL | 2021-11-09 163; 2022-09-15 96; 2023-03-21 88; 2023-10-04 92 (direct, 18262-6); 2024-05-22 84 (direct, 18262-6); 2025-01-20 79; 2025-09-08 101; 2026-03-02 118; 2026-09-14 97 | `src_1a0` ... `src_a12` |
 | Atorvastatin 20 mg | started 2022-06-20, paused 2025-12-01, restarted 2026-03-10, active | `src_m02` |
-| Omeprazole 20 mg | since 2026-04-01, active | `src_m05` |
+| Cenobamate 50 mg | since 2026-04-01, active; a moderate CYP2C19 inhibitor in the FDA table | `src_m05` |
 | SLCO1B1 | decreased function, `call_state: "alt"`; CPIC actionable with atorvastatin | `src_g31` |
 | CYP2C19 | `*1/*2`, intermediate metabolizer, evidence E1, confidence high, `call_state: "alt"` | `src_g07` |
 | Priorities note | "Recheck vitamin D in winter.", author `person`, 2026-10-30 | `src_n41` |

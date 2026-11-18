@@ -1,0 +1,229 @@
+{
+  "alex": {
+    "schema": "ownhealth.next_draw/v1",
+    "profile": "alex",
+    "as_of": "2026-11-07",
+    "rules": [
+      "ownhealth-rules 0.2.0",
+      "es.yaml prevention-es 0.2.0",
+      "draw_prep.yaml draw-prep 0.1.0"
+    ],
+    "state_hash": "sha256:8aa5616a4d3a3aef2535f1628a1c7e904ee62f8a382b09051e6f7c657b90d0c0",
+    "prevention_hash": "sha256:c70577970ae8635b0542ab93456848858dbee1c077fd84a5f6b2bf01e26fd5dd",
+    "count": 6,
+    "sections": [
+      {
+        "prep": [
+          "morning_urine"
+        ],
+        "items": [
+          {
+            "group": "urine_acr",
+            "loinc": "9318-7",
+            "prep": [
+              "morning_urine"
+            ],
+            "reasons": [
+              {
+                "kind": "recency",
+                "rule": "recency.kidney",
+                "cite": "https://kdigo.org/guidelines/ckd-evaluation-and-management/",
+                "src": [
+                  "src_phc894yu"
+                ],
+                "last": "2024-05-22"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "prep": [
+          "biotin"
+        ],
+        "items": [
+          {
+            "group": "ft4",
+            "loinc": "3024-7",
+            "prep": [
+              "biotin"
+            ],
+            "reasons": [
+              {
+                "kind": "recency",
+                "rule": "recency.thyroid",
+                "cite": "https://github.com/GeiserX/OwnHealth/blob/main/docs/design/architecture.md#11-current-state-the-deterministic-rule-pack",
+                "src": [
+                  "src_59rf9tr4"
+                ],
+                "last": "2025-01-20"
+              }
+            ]
+          },
+          {
+            "group": "tsh",
+            "loinc": "3016-3",
+            "prep": [
+              "biotin"
+            ],
+            "reasons": [
+              {
+                "kind": "recency",
+                "rule": "recency.thyroid",
+                "cite": "https://github.com/GeiserX/OwnHealth/blob/main/docs/design/architecture.md#11-current-state-the-deterministic-rule-pack",
+                "src": [
+                  "src_a05"
+                ],
+                "last": "2025-01-20"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "prep": [],
+        "items": [
+          {
+            "group": "hcv_ab",
+            "loinc": "16128-1",
+            "prep": [],
+            "reasons": [
+              {
+                "kind": "never_measured",
+                "rule": "infect.hcv.once_adult",
+                "cite": "https://www.cdc.gov/mmwr/volumes/69/rr/rr6902a1.htm",
+                "src": []
+              }
+            ]
+          },
+          {
+            "group": "lpa",
+            "loinc": "43583-4",
+            "prep": [],
+            "reasons": [
+              {
+                "kind": "lab_range",
+                "rule": "range.lab",
+                "cite": "https://github.com/GeiserX/OwnHealth/blob/main/docs/design/ingestion.md#8-normalisation",
+                "src": [
+                  "src_a07"
+                ],
+                "value": "142",
+                "unit": "nmol/L",
+                "ref": "< 75",
+                "flag": "H",
+                "date": "2025-09-08"
+              }
+            ]
+          },
+          {
+            "group": "vitamin_d_25oh",
+            "loinc": "62292-8",
+            "prep": [],
+            "reasons": [
+              {
+                "kind": "lab_range",
+                "rule": "range.lab",
+                "cite": "https://github.com/GeiserX/OwnHealth/blob/main/docs/design/ingestion.md#8-normalisation",
+                "src": [
+                  "src_a12"
+                ],
+                "value": "24",
+                "unit": "ng/mL",
+                "ref": "30 - 100",
+                "flag": "L",
+                "date": "2026-09-14"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "carmen": {
+    "schema": "ownhealth.next_draw/v1",
+    "profile": "carmen",
+    "as_of": "2026-11-07",
+    "rules": [
+      "ownhealth-rules 0.2.0",
+      "es.yaml prevention-es 0.2.0",
+      "draw_prep.yaml draw-prep 0.1.0"
+    ],
+    "state_hash": "sha256:060aa47e438e19aa8b5254a55ef38e754655f45565f10c2b8629686ff46029f7",
+    "prevention_hash": "sha256:36e1a4063a99f27432737e9fdf8b9cc37dab44b9ca3d2f9ec13384795eded4ec",
+    "count": 4,
+    "sections": [
+      {
+        "prep": [],
+        "items": [
+          {
+            "group": "hcv_ab",
+            "loinc": "16128-1",
+            "prep": [],
+            "reasons": [
+              {
+                "kind": "never_measured",
+                "rule": "infect.hcv.once_adult",
+                "cite": "https://www.cdc.gov/mmwr/volumes/69/rr/rr6902a1.htm",
+                "src": []
+              }
+            ]
+          },
+          {
+            "group": "lpa",
+            "loinc": "43583-4",
+            "prep": [],
+            "reasons": [
+              {
+                "kind": "never_measured",
+                "rule": "lipid.lpa.once_adult",
+                "cite": "https://doi.org/10.1093/eurheartj/ehz455",
+                "src": []
+              }
+            ]
+          },
+          {
+            "group": "hba1c",
+            "loinc": "4548-4",
+            "prep": [],
+            "reasons": [
+              {
+                "kind": "lab_range",
+                "rule": "range.lab",
+                "cite": "https://github.com/GeiserX/OwnHealth/blob/main/docs/design/ingestion.md#8-normalisation",
+                "src": [
+                  "src_zdvf68sw"
+                ],
+                "value": "6.4",
+                "unit": "%",
+                "ref": "4.0 - 5.6",
+                "flag": "H",
+                "date": "2026-07-22"
+              }
+            ]
+          },
+          {
+            "group": "egfr",
+            "loinc": "98979-8",
+            "prep": [],
+            "reasons": [
+              {
+                "kind": "lab_range",
+                "rule": "range.lab",
+                "cite": "https://github.com/GeiserX/OwnHealth/blob/main/docs/design/ingestion.md#8-normalisation",
+                "src": [
+                  "src_z4r23m9p"
+                ],
+                "value": "58",
+                "unit": "mL/min/1.73m2",
+                "ref": "> 60",
+                "flag": "L",
+                "date": "2026-07-22"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

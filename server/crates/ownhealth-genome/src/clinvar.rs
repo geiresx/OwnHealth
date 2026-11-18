@@ -24,7 +24,6 @@ use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
 
 use chrono::NaiveDate;
-use noodles::bgzf;
 use ownhealth_core::access::{get_profile, majority, today};
 use ownhealth_core::blobs::BlobStore;
 use ownhealth_core::review::{ReviewItemIn, create_item};
@@ -237,6 +236,11 @@ pub fn summary(t: &EventText<'_>, lang: &str) -> String {
     s
 }
 
+/// Where a reclassified call is made again: OwnGenome, never OwnHealth, which only compares.
+pub fn rerun_text(lang: &str) -> String {
+    tpl("rerun", lang)
+}
+
 /// The review item's sentence in `lang`: it never names the variant, so any reviewer may read it.
 pub fn review_summary(withheld: bool, unconfirmed: bool, lang: &str) -> String {
     let mut s = tpl(if withheld { "withheld" } else { "changed" }, lang);
@@ -283,13 +287,16 @@ fn bad_file(what: &str, message: impl std::fmt::Display) -> Error {
     Error::Invalid(format!("{what}: {message}"))
 }
 
-/// A bgzipped file (ClinVar ships `clinvar.vcf.gz` bgzipped) or plain text.
+/// A gzipped file or plain text. ClinVar ships `clinvar.vcf.gz` bgzipped, which is a run of gzip
+/// members; a copy compressed again with plain `gzip` is one member. The multi-member reader reads both.
 fn open_text(path: &Path) -> io::Result<Box<dyn BufRead + Send>> {
     let mut magic = [0u8; 2];
     let n = File::open(path)?.read(&mut magic)?;
     let f = File::open(path)?;
     Ok(if n == 2 && magic == [0x1f, 0x8b] {
-        Box::new(bgzf::io::Reader::new(f))
+        Box::new(io::BufReader::new(flate2::read::MultiGzDecoder::new(
+            io::BufReader::new(f),
+        )))
     } else {
         Box::new(io::BufReader::new(f))
     })
@@ -671,6 +678,17 @@ struct DatasetRow {
 /// transaction per dataset. The minor rule counts age with `access::majority` on `access::today`, as
 /// every other minor check does.
 pub async fn diff_release(pool: &PgPool, blobs: &BlobStore, release: &Path) -> Result<DiffReport> {
+    diff_release_in(pool, blobs, release, None).await
+}
+
+/// [`diff_release`] for the genomes of one household only (its weekly ClinVar source), or of every
+/// household when `household` is None.
+pub async fn diff_release_in(
+    pool: &PgPool,
+    blobs: &BlobStore,
+    release: &Path,
+    household: Option<Uuid>,
+) -> Result<DiffReport> {
     // Read the whole release once first: a release that is truncated, corrupt or out of order stops
     // the run before any dataset is compared, so it is never reported as a broken genome.
     let path = release.to_path_buf();
@@ -684,8 +702,10 @@ pub async fn diff_release(pool: &PgPool, blobs: &BlobStore, release: &Path) -> R
         "select d.id, d.profile_id, p.household_id, p.slug, d.document_id, d.assay, d.db_versions, encode(d.vcf_blob, 'hex') as vcf \
          from genome_dataset d join profile p on p.id = d.profile_id where d.status = 'current' and not exists \
          (select 1 from document doc where doc.id = d.document_id and doc.status = 'retracted') \
+         and ($1::uuid is null or p.household_id = $1) \
          order by d.assay in ('chip', 'chip_imputed'), d.imported_at, d.id",
     )
+    .bind(household)
     .fetch_all(&mut *conn)
     .await?;
     drop(conn);
@@ -786,7 +806,14 @@ async fn diff_dataset(
             failed: false,
         };
         match carried_records(&rel, &mut person) {
-            Ok((_, carried)) => Ok(Ok(carried)),
+            Ok((seen, carried)) if seen == date => Ok(Ok(carried)),
+            // A local release replaced while the run read it: stop rather than file the new
+            // release's records under the old date.
+            Ok((seen, _)) => Err(bad_file(
+                &rel.file_name()
+                    .map_or_else(String::new, |n| n.to_string_lossy().into_owned()),
+                format!("the release changed during the run ({seen} instead of {date})"),
+            )),
             Err(e) if person.failed => Ok(Err(e)),
             Err(e) => Err(e),
         }

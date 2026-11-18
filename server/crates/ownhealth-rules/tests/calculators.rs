@@ -66,6 +66,8 @@ fn mismatches(file: &Value) -> Vec<String> {
 }
 
 const FILES: [&str; 4] = ["ckd_epi_2021_cr", "ckd_epi_2021_cr_cys", "fib4", "homa_ir"];
+/// The cardiovascular vectors (tests/cardiovascular.rs checks them); here only for unit coverage.
+const CV_FILES: [&str; 4] = ["score2", "score2_op", "prevent_cvd", "prevent_ascvd"];
 
 #[test]
 fn every_calculator_reproduces_its_vectors() {
@@ -86,7 +88,7 @@ fn every_calculator_reproduces_its_vectors() {
 #[test]
 fn every_accepted_unit_has_a_vector() {
     let mut seen: BTreeMap<(String, String), usize> = BTreeMap::new();
-    for name in FILES {
+    for name in FILES.into_iter().chain(CV_FILES) {
         for case in vectors(name)["cases"].as_array().into_iter().flatten() {
             for (g, v) in case["inputs"].as_object().into_iter().flatten() {
                 *seen
@@ -369,7 +371,7 @@ fn every_refusal_and_note_reads_in_both_languages() -> R {
         obs("ast", "35", "U/L", "2026-06-10", "a"),
         obs("creatinine", "0.09", "mmol/L", "2026-06-10", "c"),
     ])];
-    let doc = calc::build(data(), "carmen", day("2026-11-07"), &p, &draws)?;
+    let doc = calc::build(data(), "carmen", day("2026-11-07"), &p, &draws, &Default::default())?;
     for lang in ["en", "es"] {
         let out = calc::render(&doc, lang)?;
         for it in out["items"].as_array().into_iter().flatten() {

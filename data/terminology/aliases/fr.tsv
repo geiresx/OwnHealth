@@ -177,6 +177,9 @@ Non-HDL cholestérol	non_hdl_c		curated	2026-11-08
 Rapport cholestérol total/HDL	chol_hdl_ratio		curated	2026-11-08
 Cholestérol total/HDL	chol_hdl_ratio		curated	2026-11-08
 Cholestérol VLDL	vldl_c	calculated	curated	2026-11-08
+Pression artérielle systolique	bp_systolic		curated	2026-11-13
+Tension artérielle systolique	bp_systolic		curated	2026-11-13
+Statut tabagique	smoking_status		curated	2026-11-13
 Lipoprotéine (a)	lpa		curated	2026-11-08
 Lp(a)	lpa		curated	2026-11-08
 Apolipoprotéine B	apob		curated	2026-11-08

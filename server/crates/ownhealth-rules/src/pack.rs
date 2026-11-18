@@ -2,7 +2,7 @@
 //! unchanged, plus an optional override directory (`OWNHEALTH_RULES_OVERRIDE_DIR`).
 //!
 //! An override file replaces the shipped file with the same name (or adds a new body system). With any
-//! override the version becomes `ownhealth-rules 0.1.0+local.<sha8>`, so a changed pack never passes
+//! override the version becomes `ownhealth-rules <version>+local.<sha8>`, so a changed pack never passes
 //! for the shipped one. `sha256` is the hash of the canonical JSON of every loaded file, the same bytes
 //! Python hashed (it keys `state_snapshot`).
 
@@ -15,10 +15,11 @@ use serde_json::{Map, Value};
 use sha2::{Digest, Sha256};
 
 pub const OVERRIDE_ENV: &str = "OWNHEALTH_RULES_OVERRIDE_DIR";
-pub const RULE_KINDS: [&str; 7] = [
+pub const RULE_KINDS: [&str; 8] = [
     "lab_range",
     "recency",
     "rcv",
+    "baseline",
     "trend",
     "never_measured",
     "gene_drug",
@@ -358,6 +359,13 @@ fn check(pack: &Pack) -> PackResult<()> {
         let cite = r.get("cite").map(text).unwrap_or_default();
         if !cite.starts_with("https://") {
             return Err(PackError(format!("rule {id}: every rule needs an https cite")));
+        }
+        // a biological-variation number cites the paper it comes from, never a database
+        if matches!(kind, Some("rcv" | "baseline")) && !cite.starts_with("https://doi.org/") {
+            return Err(PackError(format!(
+                "rule {id}: an {} rule cites its paper by DOI (https://doi.org/...)",
+                kind.unwrap_or_default()
+            )));
         }
     }
     for (key, t) in &pack.templates {

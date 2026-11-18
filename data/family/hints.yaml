@@ -1,0 +1,59 @@
+# Cross-profile hints: a result in one relative's profile that a cited source links to a test in another
+# relative. Evaluated on read into the `hints` of ownhealth.family/v1
+# (server/crates/ownhealth-rules/src/family.rs); never stored.
+#
+# A hint fires only on a consented pair: the source profile's manager shares the rule's `category`
+# with the target profile (table family_share, migration 1111). The degree is the one of the target's
+# own relative row linked to the source profile (data/family/relationships.yaml). A minor is never a
+# source. A hint names the rule, the relationship and the analyte or gene, never the source, the
+# value or its src ids.
+#
+# id            stable rule id; the status names it, the templates below give its words
+# category      the share category it needs: labs or cascade
+# source        a short citation label (the same in every language)
+# basis         guideline (the source names it) or pack_default (our own reading of it)
+# degree        the blood degrees of the relative row that count
+# minors        true: a minor target gets it, shown only to the target's guardians; false: adults only
+# labs:         analyte (alias group), at_least and unit (the group's canonical unit)
+# cascade:      finding categories of genome_finding that count; an unconfirmed call never counts
+version: 0.1.0
+rows:
+  - id: lab.ldl_fh
+    category: labs
+    source: "AHA/ACC 2018 cholesterol guideline"
+    basis: guideline
+    cite: "https://doi.org/10.1161/CIR.0000000000000625"
+    degree: [1]
+    minors: true
+    analyte: ldl_c
+    at_least: 190
+    unit: mg/dL
+  - id: genome.cascade
+    category: cascade
+    source: "Roberts et al., Health Aff 2018"
+    basis: pack_default
+    cite: "https://doi.org/10.1377/hlthaff.2017.1630"
+    degree: [1]
+    minors: false
+    findings: [monogenic_pathogenic, acmg_sf]
+templates:
+  title:
+    lab.ldl_fh:
+      en: "A first-degree relative has LDL cholesterol of 190 mg/dL (4.9 mmol/L) or more"
+      es: "Un familiar de primer grado tiene un colesterol LDL de 190 mg/dL (4,9 mmol/L) o más"
+    genome.cascade:
+      en: "A first-degree relative carries a pathogenic variant in {gene}"
+      es: "Un familiar de primer grado porta una variante patógena en {gene}"
+    withheld:
+      en: "A relative shared a genetic finding"
+      es: "Un familiar ha compartido un hallazgo genético"
+  why:
+    lab.ldl_fh:
+      en: "The guideline treats LDL cholesterol of 190 mg/dL (4.9 mmol/L) or more as severe hypercholesterolemia, which can be inherited, and describes lipid testing in the family."
+      es: "La guía considera un colesterol LDL de 190 mg/dL (4,9 mmol/L) o más como hipercolesterolemia grave, que puede ser hereditaria, y describe el análisis de lípidos en la familia."
+    genome.cascade:
+      en: "When a person carries a pathogenic variant, cascade testing is usually offered to relatives. Our own reading of the review cited."
+      es: "Cuando una persona porta una variante patógena, a sus familiares se les suele ofrecer un estudio en cascada. Es nuestra lectura de la revisión citada."
+    withheld:
+      en: "The gene is named only for people who can see sensitive genome results in this profile. When a person carries a pathogenic variant, cascade testing is usually offered to relatives."
+      es: "El gen solo se nombra a quien puede ver los resultados genómicos sensibles de este perfil. Cuando una persona porta una variante patógena, a sus familiares se les suele ofrecer un estudio en cascada."

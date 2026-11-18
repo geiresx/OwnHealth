@@ -35,6 +35,12 @@
             "=direct"
           ]
         },
+        "method_change": {
+          "|": [
+            "absent",
+            "bool"
+          ]
+        },
         "range": {
           "high": "int"
         },

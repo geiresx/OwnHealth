@@ -13,7 +13,8 @@ rules:
   - id: rcv.tsh
     kind: rcv
     match: [tsh]
-    cv_i: "17.7"
-    cv_a: "3.0"
-    cite: https://biologicalvariation.eu/
-    verify: CV values to confirm against the EFLM database
+    cv_i: "18.9"
+    cv_a: "1.46"
+    cite: https://doi.org/10.1515/cclm-2021-0370
+    primary: https://doi.org/10.1515/cclm-2020-1885
+    note: EuBIVAS, TSH on a Roche Cobas e801; CVi 18.9% (17.5-20.5), CVa 1.46% in the summary table (the primary paper's abstract gives CVi 17.7%).

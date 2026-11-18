@@ -1,0 +1,136 @@
+# Document gaps: what the record lacks that a provider holds, and the letter that asks for a copy.
+# Loaded through ownhealth-rules::cited (server/crates/ownhealth-rules/src/gaps.rs). Every row and
+# every law the letter names carries an https cite; every template has es and en text.
+version: "gaps 0.1.0"
+
+rows:
+  # A visit with a provider and no document on file from that provider, dated from the visit day to
+  # window_days after it. Provider names match with case and accents folded, when the words of the
+  # shorter name appear in order in the longer one, other words allowed between them ("Hospital
+  # Norte" matches "Traumatología · Hospital Norte" and "Hospital Universitario Norte").
+  - id: visit_without_report
+    window_days: 30
+    source: GDPR Art. 15
+    cite: https://eur-lex.europa.eu/eli/reg/2016/679/oj#art_15
+  # min_days or more between two dated facts of the record, with nothing dated in between.
+  - id: records_hole
+    min_days: 365
+    source: GDPR Art. 15
+    cite: https://eur-lex.europa.eu/eli/reg/2016/679/oj#art_15
+
+templates:
+  title:
+    visit_without_report:
+      en: "Visit {date} ({provider}) has no report on file"
+      es: "La visita del {date} ({provider}) no tiene informe archivado"
+    records_hole:
+      en: "No records between {from} and {to}"
+      es: "Sin registros entre {from} y {to}"
+  # The Due list shows the gap without the provider's name: its document holds dates and ids only.
+  due_title:
+    visit_without_report:
+      en: "Report of the visit on {date}"
+      es: "Informe de la visita del {date}"
+    records_hole:
+      en: "Records from {from} to {to}"
+      es: "Registros del {from} al {to}"
+  why:
+    visit_without_report:
+      en: "No document from the visit's provider is on file in the {days} days after it. The provider keeps a copy that can be requested."
+      es: "No hay ningún documento del centro de la visita en los {days} días siguientes. El centro guarda una copia que se puede solicitar."
+    records_hole:
+      en: "{days} days with nothing dated in the record. Reports from that time may be held elsewhere."
+      es: "{days} días sin nada fechado en el historial. Los informes de esa época pueden estar en otro sitio."
+
+# The access-request letter, by the profile's country. A country in no list gets the gap with no
+# letter, and so does a deceased person's record (the right of access is the living person's own).
+# The keys are not language codes: a mapping with `en` or `es` reads as a template.
+# The identity document number and the postal address print as blank lines to fill in by
+# hand: the app never asks for them, sends them or stores them.
+# `basis` is the person's own request; `basis_for` is the request a legal representative makes for
+# a minor, whose name prints as a blank line to fill in by hand.
+letters:
+  spain:
+    countries: [ES]
+    laws:
+      - id: gdpr_art15
+        cite: https://eur-lex.europa.eu/eli/reg/2016/679/oj#art_15
+        name:
+          en: "Regulation (EU) 2016/679 (GDPR), Article 15"
+          es: "Reglamento (UE) 2016/679 (RGPD), artículo 15"
+      - id: gdpr_art12
+        cite: https://eur-lex.europa.eu/eli/reg/2016/679/oj#art_12
+        name:
+          en: "Regulation (EU) 2016/679 (GDPR), Article 12(3)"
+          es: "Reglamento (UE) 2016/679 (RGPD), artículo 12.3"
+      - id: ley41_art18
+        cite: https://www.boe.es/buscar/act.php?id=BOE-A-2002-22188#a18
+        name:
+          en: "Law 41/2002 of 14 November on patient autonomy (Spain), Article 18"
+          es: "Ley 41/2002, de 14 de noviembre, básica reguladora de la autonomía del paciente, artículo 18"
+    basis:
+      en: "Under Article 15 of Regulation (EU) 2016/679 (General Data Protection Regulation) and Article 18 of Spanish Law 41/2002 on patient autonomy, I request a copy of the health data that {provider} holds about my visit on {date}: the report of that visit and the results, images and documents produced in it."
+      es: "Al amparo del artículo 15 del Reglamento (UE) 2016/679 (Reglamento General de Protección de Datos) y del artículo 18 de la Ley 41/2002, básica reguladora de la autonomía del paciente, solicito una copia de los datos de salud que {provider} conserva sobre mi visita del {date}: el informe de esa visita y los resultados, imágenes y documentos generados en ella."
+    basis_for:
+      en: "Under Article 15 of Regulation (EU) 2016/679 (General Data Protection Regulation) and Article 18 of Spanish Law 41/2002 on patient autonomy, as the legal representative of {name}, I request a copy of the health data that {provider} holds about the visit of {name} on {date}: the report of that visit and the results, images and documents produced in it."
+      es: "Al amparo del artículo 15 del Reglamento (UE) 2016/679 (Reglamento General de Protección de Datos) y del artículo 18 de la Ley 41/2002, básica reguladora de la autonomía del paciente, como representante legal de {name}, solicito una copia de los datos de salud que {provider} conserva sobre la visita de {name} del {date}: el informe de esa visita y los resultados, imágenes y documentos generados en ella."
+  eu:
+    countries: [AT, BE, BG, CY, CZ, DE, DK, EE, FI, FR, GR, HR, HU, IE, IT, LT, LU, LV, MT, NL, PL, PT, RO, SE, SI, SK, IS, LI, NO]
+    laws:
+      - id: gdpr_art15
+        cite: https://eur-lex.europa.eu/eli/reg/2016/679/oj#art_15
+        name:
+          en: "Regulation (EU) 2016/679 (GDPR), Article 15"
+          es: "Reglamento (UE) 2016/679 (RGPD), artículo 15"
+      - id: gdpr_art12
+        cite: https://eur-lex.europa.eu/eli/reg/2016/679/oj#art_12
+        name:
+          en: "Regulation (EU) 2016/679 (GDPR), Article 12(3)"
+          es: "Reglamento (UE) 2016/679 (RGPD), artículo 12.3"
+    basis:
+      en: "Under Article 15 of Regulation (EU) 2016/679 (General Data Protection Regulation), I request a copy of the health data that {provider} holds about my visit on {date}: the report of that visit and the results, images and documents produced in it."
+      es: "Al amparo del artículo 15 del Reglamento (UE) 2016/679 (Reglamento General de Protección de Datos), solicito una copia de los datos de salud que {provider} conserva sobre mi visita del {date}: el informe de esa visita y los resultados, imágenes y documentos generados en ella."
+    basis_for:
+      en: "Under Article 15 of Regulation (EU) 2016/679 (General Data Protection Regulation), as the legal representative of {name}, I request a copy of the health data that {provider} holds about the visit of {name} on {date}: the report of that visit and the results, images and documents produced in it."
+      es: "Al amparo del artículo 15 del Reglamento (UE) 2016/679 (Reglamento General de Protección de Datos), como representante legal de {name}, solicito una copia de los datos de salud que {provider} conserva sobre la visita de {name} del {date}: el informe de esa visita y los resultados, imágenes y documentos generados en ella."
+  # The words every letter shares.
+  text:
+    title:
+      en: "Request for a copy of my health records"
+      es: "Solicitud de copia de mi historia clínica"
+    title_for:
+      en: "Request for a copy of health records"
+      es: "Solicitud de copia de la historia clínica"
+    to:
+      en: "To: {provider}"
+      es: "A la atención de: {provider}"
+    from:
+      en: "From: {name}"
+      es: "Solicitante: {name}"
+    requester:
+      en: "From (legal representative):"
+      es: "Solicitante (representante legal):"
+    on_behalf:
+      en: "On behalf of: {name}"
+      es: "En nombre de: {name}"
+    id_number:
+      en: "Identity document number:"
+      es: "Número del documento de identidad:"
+    address:
+      en: "Postal address:"
+      es: "Domicilio:"
+    deadline:
+      en: "Article 12(3) of the same Regulation sets a deadline of one month from receipt of this request."
+      es: "El artículo 12.3 del mismo Reglamento fija un plazo de un mes desde la recepción de esta solicitud."
+    format:
+      en: "I would like to receive the copy in electronic form, if possible."
+      es: "Me gustaría recibir la copia en formato electrónico, si es posible."
+    sign:
+      en: "Date and signature:"
+      es: "Fecha y firma:"
+    laws:
+      en: "Legal basis"
+      es: "Base legal"
+    footer:
+      en: "Prepared with OwnHealth from the record of {name}. The identity number and the address are written by hand."
+      es: "Preparada con OwnHealth a partir del historial de {name}. El número de identidad y el domicilio se escriben a mano."

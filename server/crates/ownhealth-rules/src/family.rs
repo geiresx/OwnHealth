@@ -3,9 +3,13 @@
 //! ownhealth.family/v1 document, computed on read and never stored:
 //!
 //! ```text
-//! {schema, profile, as_of, rules: "<file> <version>", items, family_hash}
+//! {schema, profile, as_of, rules: "<file> <version>", items, hints?, family_hash}
 //! item = {rule, status, basis, source, cite, members: [id], rel: [RoleCode], kinds: [kind], src: [src id], reason_code}
+//! hint = {rule, category, rel: RoleCode, analyte | gene | withheld, basis, source, cite}
 //! ```
+//!
+//! `hints` (data/family/hints.yaml, at the end of this file) are present only when one fires: a
+//! relative who shares their results with this profile (`family_share`) and meets a cited test.
 //!
 //! A rule matches the condition `kind` only, never free text: a condition of kind `other` never
 //! counts. Only relatives the caller may read feed a pattern: a row with a sensitivity tag needs
@@ -504,8 +508,8 @@ pub async fn relatives(
     Ok(out)
 }
 
-/// The document of one profile for one caller. Every pattern is a record: without read:records
-/// there is none.
+/// The document of one profile for one caller. Every pattern and hint is a record: without
+/// read:records there is none.
 pub async fn build_document(
     conn: &mut PgConnection,
     principal: &Principal,
@@ -518,7 +522,9 @@ pub async fn build_document(
     } else {
         Vec::new()
     };
-    document(&profile.slug, as_of, &rel)
+    let doc = document(&profile.slug, as_of, &rel)?;
+    let hints = hints(conn, principal, profile, scopes, as_of).await?;
+    with_hints(doc, hints)
 }
 
 /// The words of one template in both languages, as the pedigree's labels are.
@@ -548,6 +554,10 @@ pub fn render(doc: &Value) -> Result<Value> {
         })
         .collect();
     out.insert("items".into(), Value::Array(items));
+    if let Some(hints) = doc["hints"].as_array() {
+        let rules = load_hints()?;
+        out.insert("hints".into(), hints.iter().map(|h| render_hint(rules, h)).collect());
+    }
     Ok(Value::Object(out))
 }
 
@@ -569,13 +579,18 @@ pub const STATUS_REL: usize = 4;
 ///   tell that the patterns changed. The whole hash does not fit beside a full demo page in 2 KB, and
 ///   the key is not `family_hash` so no client mistakes it for the whole one.
 ///
-/// None when no pattern is present or not assessed: the 2 KB page spends nothing on an empty list.
+/// - `hints`: the first `STATUS_HINTS` hints, each `rule`, `rel` and `gene` (or `withheld: true`
+///   when the gene is withheld); a lab hint's analyte is its rule's. `hint_total` when there are more.
+///
+/// None when no pattern is present or not assessed and no hint fires: the 2 KB page spends nothing on
+/// an empty list.
 pub fn status_section(doc: &Value) -> Option<Value> {
     let all: Vec<&Value> = doc["items"].as_array().into_iter().flatten().collect();
     let with = |status: &str| -> Vec<&Value> { all.iter().copied().filter(|i| i["status"] == status).collect() };
     let present = with("present");
     let unchecked: Vec<&Value> = with("not_assessed").iter().map(|i| &i["rule"]).collect();
-    if present.is_empty() && unchecked.is_empty() {
+    let hints: Vec<&Value> = doc["hints"].as_array().into_iter().flatten().collect();
+    if present.is_empty() && unchecked.is_empty() && hints.is_empty() {
         return None;
     }
     let items: Vec<Value> = present
@@ -618,5 +633,473 @@ pub fn status_section(doc: &Value) -> Option<Value> {
     if !unchecked.is_empty() {
         m.insert("not_assessed".into(), json!(unchecked));
     }
+    if hints.len() > STATUS_HINTS {
+        m.insert("hint_total".into(), json!(hints.len()));
+    }
+    if !hints.is_empty() {
+        let short: Vec<Value> = hints
+            .iter()
+            .take(STATUS_HINTS)
+            .map(|h| {
+                let mut s = Map::new();
+                for k in ["rule", "rel", "gene", "withheld"] {
+                    if let Some(v) = h.get(k) {
+                        s.insert(k.into(), v.clone());
+                    }
+                }
+                Value::Object(s)
+            })
+            .collect();
+        m.insert("hints".into(), Value::Array(short));
+    }
     Some(Value::Object(m))
+}
+
+// ---------------------------------------------------------------- hints ----
+//
+// Cross-profile hints (`data/family/hints.yaml`): a result in a relative's own profile that a cited
+// source links to a test in this profile's person, such as LDL-C of 190 mg/dL or more in a mother. A
+// hint fires only on a consented pair (table `family_share`: the source shares the rule's category
+// with this profile) whose relative row here is linked to the source profile. It names the rule, the
+// relationship code and the analyte or gene, never the source, the value or its src ids.
+
+const HINTS_FILE: &str = "hints.yaml";
+const HINTS_SHIPPED: &str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../data/family/hints.yaml"));
+/// What a source can share (`family_share.categories`).
+pub const SHARE_CATEGORIES: [&str; 2] = ["labs", "cascade"];
+/// How many hints the `family` section of get_health_status lists; `hint_total` counts them all.
+pub const STATUS_HINTS: usize = 3;
+
+/// What a hint rule looks for in the source's own record.
+#[derive(Debug, Clone)]
+pub enum HintTest {
+    /// A current observation of `analyte` (an alias group) at or above `at_least` in `unit`, the
+    /// group's canonical unit.
+    Lab {
+        analyte: String,
+        at_least: f64,
+        unit: String,
+    },
+    /// A current genome finding in one of these categories; an unconfirmed call never counts.
+    Finding { categories: Vec<String> },
+}
+
+#[derive(Debug, Clone)]
+pub struct HintRule {
+    pub id: String,
+    /// The share category it needs: `labs` or `cascade`.
+    pub category: String,
+    pub source: String,
+    pub basis: String,
+    pub cite: String,
+    pub degree: Vec<i32>,
+    /// A minor target gets it, shown only to the target's guardians.
+    pub minors: bool,
+    pub test: HintTest,
+}
+
+#[derive(Debug, Clone)]
+pub struct HintRules {
+    pub version: String,
+    pub rules: Vec<HintRule>,
+    pub templates: Value,
+}
+
+fn hint_err(what: impl std::fmt::Display) -> CitedError {
+    CitedError(format!("{HINTS_FILE}: {what}"))
+}
+
+/// Check one hints file.
+pub fn parse_hints(bytes: &[u8]) -> std::result::Result<HintRules, CitedError> {
+    let file = cited::load_bytes(std::path::Path::new(HINTS_FILE), bytes)?;
+    let templates = file.doc.get("templates").cloned().unwrap_or(Value::Null);
+    let mut seen = BTreeSet::new();
+    let mut rules = Vec::new();
+    for row in &file.rows {
+        let id = row
+            .get("id")
+            .and_then(Value::as_str)
+            .filter(|s| !s.is_empty())
+            .ok_or_else(|| hint_err("a row has no id"))?
+            .to_string();
+        if !seen.insert(id.clone()) {
+            return Err(hint_err(format!("{id} appears twice")));
+        }
+        let at = |what: &str| hint_err(format!("{id}: {what}"));
+        let field = |k: &str| {
+            row.get(k)
+                .and_then(Value::as_str)
+                .filter(|s| !s.trim().is_empty())
+                .map(str::to_string)
+                .ok_or_else(|| at(&format!("no {k}")))
+        };
+        let category = field("category")?;
+        if !SHARE_CATEGORIES.contains(&category.as_str()) {
+            return Err(at(&format!("unknown category {category}")));
+        }
+        let basis = field("basis")?;
+        if !BASES.contains(&basis.as_str()) {
+            return Err(at(&format!("unknown basis {basis}")));
+        }
+        let degree: Vec<i32> = row
+            .get("degree")
+            .and_then(Value::as_array)
+            .filter(|a| !a.is_empty())
+            .ok_or_else(|| at("degree is a list of 1, 2 or 3"))?
+            .iter()
+            .map(|d| {
+                d.as_i64()
+                    .and_then(|d| i32::try_from(d).ok())
+                    .filter(|d| (1..=3).contains(d))
+                    .ok_or_else(|| at("degree is a list of 1, 2 or 3"))
+            })
+            .collect::<std::result::Result<_, _>>()?;
+        let minors = row
+            .get("minors")
+            .and_then(Value::as_bool)
+            .ok_or_else(|| at("minors is true or false"))?;
+        let test = if category == "labs" {
+            if row.contains_key("findings") {
+                return Err(at("a labs rule reads no findings"));
+            }
+            HintTest::Lab {
+                analyte: field("analyte")?,
+                at_least: row
+                    .get("at_least")
+                    .and_then(Value::as_f64)
+                    .filter(|v| *v > 0.0)
+                    .ok_or_else(|| at("at_least is a positive number"))?,
+                unit: field("unit")?,
+            }
+        } else {
+            if row.contains_key("analyte") {
+                return Err(at("a cascade rule reads no analyte"));
+            }
+            // a genetic finding never reaches a minor
+            if minors {
+                return Err(at("a cascade rule is for adults only (minors: false)"));
+            }
+            let categories = strings(row.get("findings"))
+                .filter(|c| !c.is_empty())
+                .ok_or_else(|| at("findings is a list of genome categories"))?;
+            if let Some(c) = categories
+                .iter()
+                .find(|c| !ownhealth_genome::CATEGORIES.contains(&c.as_str()))
+            {
+                return Err(at(&format!("unknown finding category {c}")));
+            }
+            HintTest::Finding { categories }
+        };
+        let mut parts = vec![id.clone()];
+        if category == "cascade" {
+            parts.push("withheld".into());
+        }
+        for key in &parts {
+            for part in ["title", "why"] {
+                if templates.get(part).and_then(|t| t.get(key)).is_none() {
+                    return Err(hint_err(format!("{key}: no {part} template")));
+                }
+            }
+        }
+        rules.push(HintRule {
+            source: field("source")?,
+            cite: field("cite")?,
+            id,
+            category,
+            basis,
+            degree,
+            minors,
+            test,
+        });
+    }
+    Ok(HintRules {
+        version: file.version,
+        rules,
+        templates,
+    })
+}
+
+/// The shipped hints file, read once.
+pub fn load_hints() -> Result<&'static HintRules> {
+    static LOADED: OnceLock<std::result::Result<HintRules, String>> = OnceLock::new();
+    LOADED
+        .get_or_init(|| parse_hints(HINTS_SHIPPED.as_bytes()).map_err(|e| e.0))
+        .as_ref()
+        .map_err(|e| ownhealth_core::Error::Other(anyhow::anyhow!("family hints: {e}")))
+}
+
+/// One consented source as this profile's relative row sees it.
+#[derive(Debug, Clone, Default)]
+pub struct HintSource {
+    /// The RoleCode of this profile's relative row linked to the source profile.
+    pub rel: String,
+    /// What the source shares with this profile.
+    pub categories: Vec<String>,
+    /// A minor is never a source.
+    pub minor: bool,
+    /// The lab rules whose test the source's results meet.
+    pub labs: BTreeSet<String>,
+    /// Per cascade rule, the genes of the source's findings, each with whether it is sensitive.
+    pub findings: BTreeMap<String, Vec<(String, bool)>>,
+}
+
+/// What the caller may see of this profile's hints.
+#[derive(Debug, Clone, Default)]
+pub struct HintViewer {
+    /// read:records and read:labs here.
+    pub labs: bool,
+    /// read:genome here.
+    pub genome: bool,
+    /// The genome gate here opens sensitive genes (read:sensitive and this profile's switch).
+    pub sensitive: bool,
+    /// This profile's person is a minor.
+    pub target_minor: bool,
+    /// The caller is this profile's guardian.
+    pub guardian: bool,
+}
+
+/// The hints of one profile, in rule order, then drawing order, then gene. Pure, so the consent and
+/// gate matrix can be checked without a database.
+pub fn hint_items(rules: &HintRules, cat: &Catalog, viewer: &HintViewer, sources: &[HintSource]) -> Vec<Value> {
+    // (rule index, generation, slot, rel, gene or analyte, withheld) for order and dedupe
+    let mut found: BTreeSet<(usize, i32, i32, String, String, bool)> = BTreeSet::new();
+    for s in sources.iter().filter(|s| !s.minor) {
+        let Some(row) = cat.relationship(&s.rel).filter(|r| r.degree > 0) else {
+            continue;
+        };
+        for (i, rule) in rules.rules.iter().enumerate() {
+            if !s.categories.contains(&rule.category) || !rule.degree.contains(&row.degree) {
+                continue;
+            }
+            if viewer.target_minor && !(rule.minors && viewer.guardian) {
+                continue;
+            }
+            let mut add = |what: &str, withheld: bool| {
+                found.insert((i, row.generation, row.slot, s.rel.clone(), what.into(), withheld))
+            };
+            match &rule.test {
+                HintTest::Lab { analyte, .. } => {
+                    if viewer.labs && s.labs.contains(&rule.id) {
+                        add(analyte, false);
+                    }
+                }
+                HintTest::Finding { .. } => {
+                    if !viewer.genome {
+                        continue;
+                    }
+                    for (gene, sensitive) in s.findings.get(&rule.id).into_iter().flatten() {
+                        if *sensitive && !viewer.sensitive {
+                            add("", true);
+                        } else {
+                            add(gene, false);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    found
+        .into_iter()
+        .map(|(i, _, _, rel, what, withheld)| {
+            let rule = &rules.rules[i];
+            let mut m = Map::new();
+            m.insert("rule".into(), json!(rule.id));
+            m.insert("category".into(), json!(rule.category));
+            m.insert("rel".into(), json!(rel));
+            match (&rule.test, withheld) {
+                (HintTest::Lab { .. }, _) => {
+                    m.insert("analyte".into(), json!(what));
+                }
+                (HintTest::Finding { .. }, true) => {
+                    m.insert("withheld".into(), json!(true));
+                }
+                (HintTest::Finding { .. }, false) => {
+                    m.insert("gene".into(), json!(what));
+                }
+            }
+            m.insert("basis".into(), json!(rule.basis));
+            m.insert("source".into(), json!(rule.source));
+            m.insert("cite".into(), json!(rule.cite));
+            Value::Object(m)
+        })
+        .collect()
+}
+
+/// The document with its hints: `hints` only when there is one, so a profile without any keeps the
+/// `family_hash` it had before hints existed, and a revoke brings that hash back.
+pub fn with_hints(doc: Value, hints: Vec<Value>) -> Result<Value> {
+    if hints.is_empty() {
+        return Ok(doc);
+    }
+    let mut doc = doc;
+    if let Some(m) = doc.as_object_mut() {
+        m.shift_remove("family_hash");
+        m.insert("hints".into(), Value::Array(hints));
+    }
+    let hash = family_hash(&doc)?;
+    if let Some(m) = doc.as_object_mut() {
+        m.insert("family_hash".into(), json!(hash));
+    }
+    Ok(doc)
+}
+
+/// The consented sources of one profile with what each may feed, read as of `as_of`. The source's
+/// results are read only for the categories it shares, and never for a minor source.
+pub async fn hint_sources(
+    conn: &mut PgConnection,
+    rules: &HintRules,
+    target: &ownhealth_core::access::Profile,
+    read_sensitive: bool,
+    as_of: NaiveDate,
+) -> Result<Vec<HintSource>> {
+    let sql = format!(
+        "select s.source_profile_id, s.categories, m.relationship from family_share s \
+         join family_member_link l on l.linked_profile_id = s.source_profile_id \
+         join family_member m on m.id = l.family_member_id \
+         where s.target_profile_id = $1 and m.profile_id = $1 and ($3 or m.sensitivity = '{{}}') and {} \
+         order by m.relationship, s.source_profile_id",
+        ownhealth_core::lifecycle::visible_sql("m", "$2")
+    );
+    let shares: Vec<(Uuid, Vec<String>, String)> = sqlx::query_as(sqlx::AssertSqlSafe(sql))
+        .bind(target.id)
+        .bind(day_end(as_of))
+        .bind(read_sensitive)
+        .fetch_all(&mut *conn)
+        .await?;
+    let mut out = Vec::new();
+    for (source_id, categories, rel) in shares {
+        let Some(source) = ownhealth_core::access::get_profile(&mut *conn, source_id).await? else {
+            continue;
+        };
+        let aom = ownhealth_core::access::majority(&mut *conn, source.household_id).await?;
+        let mut s = HintSource {
+            rel,
+            minor: source.is_minor(as_of, aom),
+            categories,
+            ..HintSource::default()
+        };
+        if s.minor {
+            out.push(s);
+            continue;
+        }
+        for rule in rules.rules.iter().filter(|r| s.categories.contains(&r.category)) {
+            match &rule.test {
+                HintTest::Lab {
+                    analyte,
+                    at_least,
+                    unit,
+                } => {
+                    let sql = format!(
+                        "select exists (select 1 from observation o where o.profile_id = $1 \
+                         and o.alias_group = $2 and o.unit_canonical = $3 and o.value_canonical >= $4 \
+                         and (o.value_cmp is null or o.value_cmp in ('>', '>=')) and o.sensitivity = '{{}}' and {})",
+                        ownhealth_core::lifecycle::visible_sql("o", "$5")
+                    );
+                    let hit: bool = sqlx::query_scalar(sqlx::AssertSqlSafe(sql))
+                        .bind(source_id)
+                        .bind(analyte)
+                        .bind(unit)
+                        .bind(at_least)
+                        .bind(day_end(as_of))
+                        .fetch_one(&mut *conn)
+                        .await?;
+                    if hit {
+                        s.labs.insert(rule.id.clone());
+                    }
+                }
+                HintTest::Finding { categories } => {
+                    // a carried variant only, as the couple view counts one (ownhealth-genome couple.rs
+                    // `is_present`): an `alt` call (or none) that no confirmation test refuted
+                    let sql = format!(
+                        "select distinct f.gene, f.sensitive from genome_finding f \
+                         join genome_dataset d on d.id = f.dataset_id where f.profile_id = $1 \
+                         and d.status <> 'retracted' and f.category = any($2) and f.confidence <> 'unconfirmed' \
+                         and (f.call_state is null or f.call_state = 'alt') and f.verification_status <> 'refuted' \
+                         and f.gene is not null and {} order by f.gene",
+                        ownhealth_core::lifecycle::visible_sql("f", "$3")
+                    );
+                    let rows: Vec<(String, bool)> = sqlx::query_as(sqlx::AssertSqlSafe(sql))
+                        .bind(source_id)
+                        .bind(categories)
+                        .bind(day_end(as_of))
+                        .fetch_all(&mut *conn)
+                        .await?;
+                    let mut genes: BTreeMap<String, bool> = BTreeMap::new();
+                    for (gene, sensitive) in rows {
+                        let sensitive = sensitive || ownhealth_genome::is_sensitive_gene(&gene);
+                        *genes.entry(gene).or_default() |= sensitive;
+                    }
+                    if !genes.is_empty() {
+                        s.findings.insert(rule.id.clone(), genes.into_iter().collect());
+                    }
+                }
+            }
+        }
+        out.push(s);
+    }
+    Ok(out)
+}
+
+/// The hints of one profile for one caller: the caller's scopes here, the genome gate of this
+/// profile for the caller's surface (a token is an agent), and the minor rule.
+pub async fn hints(
+    conn: &mut PgConnection,
+    principal: &Principal,
+    target: &ownhealth_core::access::Profile,
+    scopes: &Scopes,
+    as_of: NaiveDate,
+) -> Result<Vec<Value>> {
+    if !scopes.contains("read:records") {
+        return Ok(Vec::new());
+    }
+    let perm = match effective_permission(&mut *conn, principal, target.id).await {
+        Ok(perm) => perm,
+        Err(ownhealth_core::Error::AccessDenied { .. }) => return Ok(Vec::new()),
+        Err(e) => return Err(e),
+    };
+    let perm = ownhealth_core::access::Permission {
+        scopes: scopes.clone(),
+        ..perm
+    };
+    let aom = ownhealth_core::access::majority(&mut *conn, target.household_id).await?;
+    let surface = if principal.kind == ownhealth_core::access::PrincipalKind::Token {
+        "agents"
+    } else {
+        "ui"
+    };
+    let gate = ownhealth_genome::gate_for(&perm, surface, as_of, aom)?;
+    let viewer = HintViewer {
+        labs: perm.has("read:labs"),
+        genome: perm.has("read:genome"),
+        sensitive: gate.sensitive,
+        target_minor: target.is_minor(as_of, aom),
+        guardian: perm.role == "guardian",
+    };
+    let rules = load_hints()?;
+    let sources = hint_sources(conn, rules, target, perm.has("read:sensitive"), as_of).await?;
+    Ok(hint_items(rules, ownhealth_core::family::catalog()?, &viewer, &sources))
+}
+
+/// The words of one hint: `title` and `why` as `{en, es}`, with the gene in the title. A withheld gene
+/// reads as a shared genetic finding, with no gene.
+fn render_hint(rules: &HintRules, h: &Value) -> Value {
+    let key = if h["withheld"] == true {
+        "withheld"
+    } else {
+        h["rule"].as_str().unwrap_or_default()
+    };
+    let gene = h["gene"].as_str().unwrap_or_default();
+    let t = |part: &str| {
+        let v = rules.templates.get(part).and_then(|p| p.get(key));
+        let fill = |lang: &str| {
+            v.and_then(|v| v.get(lang))
+                .and_then(Value::as_str)
+                .map(|s| s.replace("{gene}", gene))
+        };
+        json!({"en": fill("en"), "es": fill("es")})
+    };
+    let mut m = h.as_object().cloned().unwrap_or_default();
+    m.insert("title".into(), t("title"));
+    m.insert("why".into(), t("why"));
+    Value::Object(m)
 }

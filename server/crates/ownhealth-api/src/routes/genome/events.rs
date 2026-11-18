@@ -5,6 +5,10 @@
 //! classifications only when the sensitive switch and read:sensitive open it and the minor rule does
 //! not hold it. Otherwise the event reads "a withheld result changed", with nothing that names it, and
 //! is counted in `withheld`. One audit row per read, identifiers only.
+//!
+//! Beside the events: `release`, the newest ClinVar release compared for this profile's genomes (null
+//! before the first comparison); `weekly`, whether the household's weekly ClinVar check is on; and
+//! `rerun`, where a reclassified call is made again (OwnGenome; OwnHealth only compares).
 
 use axum::Router;
 use axum::extract::{Path, State};
@@ -14,7 +18,7 @@ use ownhealth_core::Runtime;
 use ownhealth_core::access::Principal;
 use ownhealth_core::audit::write_audit;
 use ownhealth_core::pyjson::py_isoformat_utc;
-use ownhealth_genome::clinvar::{Before, EventText, summary};
+use ownhealth_genome::clinvar::{Before, EventText, rerun_text, summary};
 use serde_json::{Value, json};
 use uuid::Uuid;
 
@@ -131,6 +135,19 @@ pub async fn events(rt: &Runtime, principal: &Principal, p: &str) -> R<Value> {
         out.push(e);
     }
     let withheld = json!({"sensitive": withheld_sensitive, "minor_rule": withheld_minor});
+    let release: Option<chrono::NaiveDate> = sqlx::query_scalar(
+        "select max(d.clinvar_compared) from genome_dataset d where d.profile_id = $1 and d.status = 'current' \
+         and not exists (select 1 from document doc where doc.id = d.document_id and doc.status = 'retracted')",
+    )
+    .bind(perm.profile.id)
+    .fetch_one(&mut *tx)
+    .await?;
+    let weekly: bool = sqlx::query_scalar(
+        "select exists (select 1 from source where household_id = $1 and kind = 'clinvar' and enabled)",
+    )
+    .bind(perm.profile.household_id)
+    .fetch_one(&mut *tx)
+    .await?;
     let mut a = event(principal, &perm, "read", "GET /api/profiles/{p}/genome/events");
     a.resource_type = Some("genome_event".into());
     a.resource_ids = Some(rows.iter().map(|r| r.id.to_string()).collect());
@@ -138,7 +155,13 @@ pub async fn events(rt: &Runtime, principal: &Principal, p: &str) -> R<Value> {
     a.withheld = Some(withheld.clone());
     write_audit(&mut tx, &a).await?;
     tx.commit().await?;
-    Ok(json!({"events": out, "withheld": withheld}))
+    Ok(json!({
+        "events": out,
+        "withheld": withheld,
+        "release": release.map(|d| d.to_string()),
+        "weekly": weekly,
+        "rerun": {"en": rerun_text("en"), "es": rerun_text("es")},
+    }))
 }
 
 async fn genome_events(State(rt): State<Runtime>, Caller(c): Caller, Path(p): Path<String>) -> R {

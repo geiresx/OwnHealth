@@ -33,7 +33,7 @@ async fn same_hash_for_every_language_unit_and_identity_setting() -> R {
         }
     }
     assert_eq!(hashes, BTreeSet::from([body["state_hash"].to_string()]));
-    assert_eq!(versions, BTreeSet::from([json!("ownhealth-rules 0.1.0").to_string()]));
+    assert_eq!(versions, BTreeSet::from([json!("ownhealth-rules 0.2.0").to_string()]));
     let text = |lang| -> anyhow::Result<Value> {
         Ok(render(&body, lang, "as_reported", "pseudonymous", None)?["data"]["flags"][0]["text"].clone())
     };

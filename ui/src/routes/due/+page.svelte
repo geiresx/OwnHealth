@@ -5,7 +5,7 @@
 	// A person with write access acts on an item: snooze it to a date, mark it done by pointing at the
 	// record or document that shows it, or dismiss it with a reason (POST /profiles/{p}/due/{key}/decision).
 	import '#lib/components/pages2/pages2.css';
-	import { createRecord, decideDue, getDue, listDocuments, listRecords, undoDue } from '#lib/api';
+	import { createRecord, decideDue, gapLetterUrl, getDue, listDocuments, listRecords, undoDue } from '#lib/api';
 	import { ApiError } from '#lib/api/core';
 	import DueAnswers from '#lib/components/DueAnswers.svelte';
 	import { focusOnOpen } from '#lib/actions/focusOnOpen';
@@ -20,6 +20,7 @@
 	import { addDays, docLabel, dueColor, dueGroups, evidenceDay, evidenceLimit, isOpen, type DueDecisionIn, type DueDoc, type DueItem } from '#lib/logic/due';
 	import { todayIso } from '#lib/logic/people';
 	import { currentProfile } from '#lib/state/app.svelte';
+	import Tabs from './next-draw/Tabs.svelte';
 
 	const prof = $derived(currentProfile());
 	const canWrite = $derived(!!prof && prof.role !== 'viewer');
@@ -45,7 +46,8 @@
 	const ICON: Record<string, string> = {
 		lab: '<path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-9V3"/>',
 		vaccine: '<path d="m18 2 4 4M17 7l-9 9M14 4l6 6M5 19l-3 3M7 13l4 4"/>',
-		screening: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>'
+		screening: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+		document: '<path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4"/>'
 	};
 	// The date beside the status: when it opens, when it is next listed, or since when it is open
 	// again after a record (a row never recorded says so instead of a date from decades ago).
@@ -115,7 +117,8 @@
 	let evidenceErr = $state<unknown>(null);
 	// only the latest load fills the list: a slower one for another item or profile is dropped
 	let evidenceSeq = 0;
-	async function loadEvidence(slug: string) {
+	// `anyDocument`: a document gap takes any document that came, an undated one from its upload day
+	async function loadEvidence(slug: string, anyDocument = false) {
 		const seq = ++evidenceSeq;
 		evidenceList = null;
 		evidenceErr = null;
@@ -141,8 +144,9 @@
 			...imm.items.filter(recDay).map(rec('immunization', t('due_f_vaccine'))),
 			...proc.items.filter(recDay).map(rec('procedure', t('due_f_procedure'))),
 			...docs.items
-				// a document needs a clinical date to count, and this list knows only its collection day
-				.filter((d) => d.status === 'active' && day(d.collected_at))
+				// a document needs a clinical date to count, and this list knows only its collection day; for a
+				// document gap any copy that came counts, from its upload day when it has no date
+				.filter((d) => d.status === 'active' && (day(d.collected_at) || (anyDocument && !d.collected_at)))
 				.map((d) => ({ value: `document:${d.id}`, label: docLabel(d), group: t('due_ev_document') }))
 		];
 	}
@@ -156,7 +160,7 @@
 		reason = '';
 		evidence = '';
 		error = null;
-		if (open && prof) loadEvidence(prof.slug);
+		if (open && prof) loadEvidence(prof.slug, i.area === 'document');
 	}
 	async function saveAct(e: SubmitEvent, i: DueItem) {
 		e.preventDefault();
@@ -215,6 +219,7 @@
 	</div>
 	<div class="right"><PhaseChip phase="v0.3" /></div>
 </div>
+<Tabs />
 
 {#if !prof}
 	<div class="card"><div class="empty">{t('h1_noprofile')} <a href="/family">{t('h1_noprofile_link')}</a></div></div>
@@ -264,7 +269,11 @@
 			<div><b>{i.title ?? i.key}</b></div>
 			<div>{i.reason ?? i.why}</div>
 			<div class="meta">
-				{#if i.last}
+				{#if i.area === 'document'}
+					<!-- a document gap: the letter that asks for the copy, and the gap on the timeline -->
+					{#if i.letter && prof}<a href={gapLetterUrl(prof.slug, i.key.slice(4), i18n.lang)} target="_blank" rel="noopener" title={t('gap_letter_t')}>{t('gap_letter')}</a>{/if}
+					<a href="/timeline">{t('gap_tl_link')}</a>
+				{:else if i.last}
 					<span>{tf('due_last', { d: i.last.date })}</span>
 					{#if i.last.src}<SourceChip label="" name={i.title ?? i.key} src={i.last.src} onopen={openSource} />{/if}
 				{:else if i.status !== 'not_assessed'}
@@ -341,7 +350,7 @@
 				{#if evidenceErr}
 					<div class="p2err" role="alert">
 						{tf('h1_na_d', { code: errCode(evidenceErr) })}
-						<button class="btn sm" type="button" onclick={() => prof && loadEvidence(prof.slug)}>{t('retry')}</button>
+						<button class="btn sm" type="button" onclick={() => prof && loadEvidence(prof.slug, i.area === 'document')}>{t('retry')}</button>
 					</div>
 				{/if}
 			{/if}

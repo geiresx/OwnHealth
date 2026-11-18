@@ -14,6 +14,7 @@
 	import { foreignOrigin, matrixHeads, matrixRowLabel, nameTaken, todayIso } from '#lib/logic/people';
 	import PhaseChip from '#lib/components/PhaseChip.svelte';
 	import Pedigree from '#lib/components/Pedigree.svelte';
+	import FamilyConsent from '#lib/components/FamilyConsent.svelte';
 	import { i18n, t } from '#lib/i18n/index.svelte';
 	import { roleCell } from '#lib/logic/grants';
 	import { backSummary, giveBackGrant, lapsed, localDay, type FormerAccess } from '#lib/logic/transfer';
@@ -336,6 +337,7 @@
 			{/if}
 			<div class="note" style="margin-top:6px">{t('h1_grants_note')}</div>
 		</div>
+		{#if onScreen && hh.data}{#key onScreen.slug}<FamilyConsent profile={onScreen} manages={manages(onScreen.slug)} />{/key}{/if}
 		<div class="card">
 			<h3>{t('h1_bg')}<span class="r">{t('h1_bg_r')}</span></h3>
 			<div class="empty"><PhaseChip phase="v1.0" /> {t('h1_bg_d')}</div>

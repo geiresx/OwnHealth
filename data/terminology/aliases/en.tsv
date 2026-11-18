@@ -240,6 +240,11 @@ Total cholesterol/HDL ratio	chol_hdl_ratio		curated	2026-11-08
 Chol/HDLC ratio	chol_hdl_ratio		curated	2026-11-08
 VLDL cholesterol	vldl_c	calculated	curated	2026-11-08
 VLDL-C	vldl_c	calculated	curated	2026-11-08
+Systolic blood pressure	bp_systolic		curated	2026-11-13
+Blood pressure systolic	bp_systolic		curated	2026-11-13
+Systolic BP	bp_systolic		curated	2026-11-13
+Smoking status	smoking_status		curated	2026-11-13
+Tobacco smoking status	smoking_status		curated	2026-11-13
 Lipoprotein (a)	lpa		curated	2026-11-08
 Lipoprotein(a)	lpa		curated	2026-11-08
 Lp(a)	lpa		curated	2026-11-08

@@ -17,6 +17,7 @@
       "id": "string",
       "kind": {
         "|": [
+          "=baseline",
           "=gene_drug",
           "=gene_lab",
           "=lab_range",
@@ -41,12 +42,6 @@
         ]
       },
       "system": {
-        "|": [
-          "absent",
-          "string"
-        ]
-      },
-      "verify": {
         "|": [
           "absent",
           "string"

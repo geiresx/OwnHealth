@@ -14,12 +14,13 @@ use crate::engine::{parse_date, rcv_percent};
 use crate::num;
 use crate::pack::{P, Pack, PackError, int, text, truthy};
 
-pub const LAB_KINDS: [&str; 3] = ["lab_range", "rcv", "trend"];
+pub const LAB_KINDS: [&str; 4] = ["lab_range", "rcv", "baseline", "trend"];
 
 fn kind_of(reason: &str) -> Option<&'static str> {
     Some(match reason {
         "LAB_HIGH" | "LAB_LOW" | "LAB_ABNORMAL" => "lab_range",
         "RCV_CHANGE" => "rcv",
+        "BASELINE_OUT" => "baseline",
         "TREND_UP" | "TREND_DOWN" => "trend",
         "GENE_DRUG" => "gene_drug",
         _ => return None,
@@ -223,6 +224,29 @@ pub fn render_with(
                         ("change_pct", loc(s(f, "change_pct"))),
                         ("rcv_pct", P::from(num::localized(&rcv_pct.to_string(), lang))),
                         ("prev_date", P::from(when_s(s(f, "prev_date"))?)),
+                    ],
+                )?;
+            } else if kind == "baseline" {
+                // the src list is the earlier results the set point is the mean of, then this one
+                let n = f
+                    .get("src")
+                    .and_then(Value::as_array)
+                    .map_or(0, |a| a.len().saturating_sub(1));
+                for k in ["set_point", "low", "high"] {
+                    out.insert(k.into(), f.get(k).cloned().unwrap_or(Value::Null));
+                }
+                out.insert("points".into(), json!(n));
+                text_out = pack.text(
+                    reason,
+                    lang,
+                    &[
+                        ("name", P::from(&name)),
+                        ("value", loc(value)),
+                        ("unit", P::from(unit_txt)),
+                        ("low", loc(s(f, "low"))),
+                        ("high", loc(s(f, "high"))),
+                        ("n", P::I(i64::try_from(n).unwrap_or(0))),
+                        ("when", P::from(on(s(f, "date"))?)),
                     ],
                 )?;
             } else {

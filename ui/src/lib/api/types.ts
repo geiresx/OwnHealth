@@ -244,6 +244,7 @@ export interface TrendPoint {
 	src: string;
 	src_label: string | null;
 	status?: Status; // lane E's status word as of the point's date
+	method_change?: boolean; // another method or lab than the point before it
 }
 
 export interface Trend {
@@ -254,7 +255,19 @@ export interface Trend {
 	unit_options: string[];
 	points: TrendPoint[];
 	annotations: { date: IsoDate; end: IsoDate | null; label: string; src: string }[];
-	stats: { n: number; last_vs_previous_pct: number | null; rcv_pct: number | null; exceeds_rcv: boolean | null };
+	stats: {
+		n: number;
+		last_vs_previous_pct: number | null;
+		rcv_pct: number | null;
+		exceeds_rcv: boolean | null;
+		// rule pack 0.2.0: the last two points differ in method or lab, so the change is not judged
+		method_change?: boolean;
+		cv_i?: string | null;
+		cv_a?: string | null;
+		rcv_cite?: string | null;
+		// the person's usual level: mean of 3 to 5 earlier points with the same method and lab
+		baseline?: { set_point: number; low: number; high: number; n: number; outside: boolean; rule: string; cite: string } | null;
+	};
 	limitations: string[];
 }
 
@@ -640,6 +653,12 @@ export interface GenomeEvent {
 export interface GenomeEvents {
 	events: GenomeEvent[];
 	withheld: { sensitive: number; minor_rule: number };
+	/** The newest ClinVar release compared for this profile's genomes; null before the first. */
+	release?: string | null;
+	/** The household's weekly ClinVar check is on. */
+	weekly?: boolean;
+	/** Where a reclassified call is made again: OwnGenome's command, in both languages. */
+	rerun?: { en: string; es: string };
 }
 
 export interface GenomeView {
@@ -724,6 +743,8 @@ export interface CalcInput {
 	src: string;
 	/** the value in the formula's unit, when the formula needed another one */
 	converted?: { value: string; unit: string };
+	/** a line that is no lab value, as words: 'no diabetes recorded', 'never smoked', a wearable mean with its window */
+	text?: string;
 }
 
 export interface CalcItem {
@@ -742,6 +763,10 @@ export interface CalcItem {
 	cite: string;
 	src: string[];
 	reason_code?: string;
+	/** the reason's parameters: `groups` names the missing inputs */
+	reason?: { groups?: string[] };
+	/** SCORE2's risk region, from the profile's country */
+	region?: string;
 	/** why it was not computed */
 	text?: string;
 	limitations?: string[];
@@ -763,4 +788,86 @@ export interface Calculators {
 	lang: string;
 	items: CalcItem[];
 	calculators_hash: string;
+}
+
+// v0.3 document gaps (GET /profiles/{p}/gaps): ownhealth.gaps/v1 in one language, trimmed to the caller's scopes.
+export interface GapItem {
+	key: string;
+	rule: 'visit_without_report' | 'records_hole';
+	source: string;
+	cite: string;
+	src: string[];
+	documents?: Uuid[];
+	labs?: boolean;
+	/** visit_without_report: the visit day, its provider and the letter of the profile's country, if any */
+	date?: IsoDate;
+	provider?: string;
+	letter?: string;
+	/** records_hole: the dated facts on each side and the days between */
+	from?: IsoDate;
+	to?: IsoDate;
+	days?: number;
+	title: string;
+	why: string;
+	/** In `hidden`: what the person decided about it on the Due list (item `gap:<key>`). */
+	decision?: { kind: 'snooze' | 'dismiss' | 'done'; until?: IsoDate };
+}
+
+export interface Gaps {
+	schema: string;
+	profile: string;
+	as_of: IsoDate;
+	rules: string;
+	country?: string;
+	lang: string;
+	items: GapItem[];
+	/** Gaps snoozed, dismissed or marked done on the Due list; absent when there are none. */
+	hidden?: GapItem[];
+	withheld: number;
+	withheld_scopes: string[];
+	/** Absent for a caller without read:records. */
+	gaps_hash?: string;
+}
+
+// v0.4.0 next-draw planner: GET /profiles/{p}/next-draw (read:labs), in one language.
+export interface NextDrawReason {
+	kind: 'recency' | 'never_measured' | 'lab_range';
+	rule: string;
+	cite?: string;
+	src: string[];
+	/** why the test is listed, in the reader's language */
+	text: string;
+	last?: IsoDate;
+	value?: string;
+	unit?: string;
+	ref?: string;
+	flag?: string;
+	date?: IsoDate;
+}
+export interface NextDrawItem {
+	group: string;
+	name: string;
+	loinc?: string;
+	prep: string[];
+	reasons: NextDrawReason[];
+}
+export interface NextDrawSection {
+	/** the preparation rows this group of tests shares; empty for the tests with none */
+	prep: string[];
+	title: string;
+	notes: { id: string; name: string; text: string; source: string; cite: string }[];
+	items: NextDrawItem[];
+}
+export interface NextDraw {
+	schema: string;
+	profile: string;
+	as_of: IsoDate;
+	lang: string;
+	rules: string[];
+	state_hash: string;
+	prevention_hash?: string;
+	count: number;
+	sections: NextDrawSection[];
+	/** the words of the sheet (title, notice, empty, ...) */
+	labels: Record<string, string>;
 }

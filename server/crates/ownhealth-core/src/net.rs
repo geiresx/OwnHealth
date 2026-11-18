@@ -42,6 +42,17 @@ impl Egress {
             max_bytes: 50 * 1024 * 1024,
         }
     }
+
+    /// A public reference file streamed to disk (the ClinVar weekly VCF, about 200 MB): 1 hour, 1 GiB.
+    /// `allow_private` for a mirror on the person's network; plain http only there.
+    pub fn reference_file(allow_private: bool) -> Egress {
+        Egress {
+            allow_private,
+            https_only: !allow_private,
+            timeout: Duration::from_secs(3600),
+            max_bytes: 1024 * 1024 * 1024,
+        }
+    }
 }
 
 /// Why a fetch did not happen or did not finish. Messages carry the host, never a body or a header.
@@ -61,6 +72,8 @@ pub enum NetError {
     Timeout(String),
     #[error("request to {host} failed: {message}")]
     Http { host: String, message: String },
+    #[error("could not write the download: {0}")]
+    Write(String),
 }
 
 impl From<NetError> for crate::Error {
@@ -143,8 +156,9 @@ pub async fn resolve_checked(host: &str, port: u16, allow_private: bool) -> Resu
     Ok(addrs)
 }
 
-/// GET `url` under `egress`, with extra request headers (a token for the person's own service).
-pub async fn get(url: &str, egress: &Egress, headers: &[(&str, &str)]) -> Result<Fetched, NetError> {
+/// Send a GET under `egress`: the checks every fetch shares. Returns the response and the host, for
+/// error messages.
+async fn send(url: &str, egress: &Egress, headers: &[(&str, &str)]) -> Result<(reqwest::Response, String), NetError> {
     let parsed = url::Url::parse(url).map_err(|_| NetError::BadUrl)?;
     match parsed.scheme() {
         "https" => {}
@@ -163,16 +177,7 @@ pub async fn get(url: &str, egress: &Egress, headers: &[(&str, &str)]) -> Result
     if parsed.scheme() == "http" && addrs.iter().any(|a| is_public(a.ip())) {
         return Err(NetError::NotHttps);
     }
-    let http = |e: reqwest::Error| {
-        if e.is_timeout() {
-            NetError::Timeout(host.clone())
-        } else {
-            NetError::Http {
-                host: host.clone(),
-                message: e.without_url().to_string(),
-            }
-        }
-    };
+    let http = |e: reqwest::Error| body_error(&host, e);
     let client = reqwest::Client::builder()
         .redirect(reqwest::redirect::Policy::none())
         // a proxy would look the name up again and connect past the addresses we checked
@@ -185,17 +190,34 @@ pub async fn get(url: &str, egress: &Egress, headers: &[(&str, &str)]) -> Result
     for (k, v) in headers {
         req = req.header(*k, *v);
     }
-    let mut resp = req.send().await.map_err(http)?;
+    let resp = req.send().await.map_err(http)?;
     if resp.content_length().is_some_and(|n| n > egress.max_bytes as u64) {
         return Err(NetError::TooLarge(egress.max_bytes));
     }
+    Ok((resp, host))
+}
+
+fn body_error(host: &str, e: reqwest::Error) -> NetError {
+    if e.is_timeout() {
+        NetError::Timeout(host.to_string())
+    } else {
+        NetError::Http {
+            host: host.to_string(),
+            message: e.without_url().to_string(),
+        }
+    }
+}
+
+/// GET `url` under `egress`, with extra request headers (a token for the person's own service).
+pub async fn get(url: &str, egress: &Egress, headers: &[(&str, &str)]) -> Result<Fetched, NetError> {
+    let (mut resp, host) = send(url, egress, headers).await?;
     let header =
         |name: reqwest::header::HeaderName| resp.headers().get(name).and_then(|v| v.to_str().ok()).map(String::from);
     let content_type = header(reqwest::header::CONTENT_TYPE);
     let cache_control = header(reqwest::header::CACHE_CONTROL);
     let status = resp.status().as_u16();
     let mut body = Vec::new();
-    while let Some(chunk) = resp.chunk().await.map_err(http)? {
+    while let Some(chunk) = resp.chunk().await.map_err(|e| body_error(&host, e))? {
         if body.len() + chunk.len() > egress.max_bytes {
             return Err(NetError::TooLarge(egress.max_bytes));
         }
@@ -207,6 +229,31 @@ pub async fn get(url: &str, egress: &Egress, headers: &[(&str, &str)]) -> Result
         cache_control,
         body,
     })
+}
+
+/// GET `url` under `egress` into a new file at `dest`, chunk by chunk, so memory stays flat whatever
+/// the size (a ClinVar release is about 200 MB). Only a 200 answer is written; any other status is
+/// returned with nothing written. Returns the status and the bytes written. On an error the partial
+/// file is left for the caller to delete.
+pub async fn download(url: &str, egress: &Egress, dest: &std::path::Path) -> Result<(u16, u64), NetError> {
+    use tokio::io::AsyncWriteExt;
+    let (mut resp, host) = send(url, egress, &[]).await?;
+    let status = resp.status().as_u16();
+    if status != 200 {
+        return Ok((status, 0));
+    }
+    let write = |e: std::io::Error| NetError::Write(e.kind().to_string());
+    let mut file = tokio::fs::File::create(dest).await.map_err(write)?;
+    let mut written: u64 = 0;
+    while let Some(chunk) = resp.chunk().await.map_err(|e| body_error(&host, e))? {
+        written += chunk.len() as u64;
+        if written > egress.max_bytes as u64 {
+            return Err(NetError::TooLarge(egress.max_bytes));
+        }
+        file.write_all(&chunk).await.map_err(write)?;
+    }
+    file.flush().await.map_err(write)?;
+    Ok((status, written))
 }
 
 #[cfg(test)]
@@ -317,6 +364,52 @@ mod tests {
         assert_eq!(ok.content_type.as_deref(), Some("application/json"));
         assert_eq!(get(&url, &home, &[]).await, Err(NetError::TooLarge(1000)));
         assert_eq!(get(&url, &home, &[]).await?.status, 302);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn a_download_streams_to_a_file_and_writes_nothing_but_a_200() -> anyhow::Result<()> {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
+        let port = listener.local_addr()?.port();
+        let big = "v".repeat(300_000);
+        let answers = [
+            format!("HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n{big}", big.len()),
+            "HTTP/1.1 404 Not Found\r\nContent-Length: 9\r\n\r\nnot found".to_string(),
+            "HTTP/1.1 200 OK\r\nContent-Length: 5000\r\n\r\n".to_string() + &"x".repeat(5000),
+        ];
+        tokio::spawn(async move {
+            for answer in answers {
+                let Ok((mut s, _)) = listener.accept().await else {
+                    return;
+                };
+                let mut buf = [0u8; 2048];
+                let _ = s.read(&mut buf).await;
+                let _ = s.write_all(answer.as_bytes()).await;
+            }
+        });
+        let dir = tempfile::tempdir()?;
+        let url = format!("http://127.0.0.1:{port}/clinvar.vcf.gz");
+        let dest = dir.path().join("release");
+        let egress = Egress::reference_file(true);
+        assert_eq!(download(&url, &egress, &dest).await?, (200, 300_000));
+        assert_eq!(std::fs::read(&dest)?.len(), 300_000);
+        let missing = dir.path().join("missing");
+        assert_eq!(download(&url, &egress, &missing).await?, (404, 0));
+        assert!(!missing.exists(), "a 404 body is never written");
+        let small = Egress {
+            max_bytes: 1000,
+            ..egress
+        };
+        assert_eq!(
+            download(&url, &small, &dir.path().join("big")).await,
+            Err(NetError::TooLarge(1000))
+        );
+        // Public addresses only by default, and https only there.
+        assert_eq!(
+            download(&url, &Egress::reference_file(false), &dest).await,
+            Err(NetError::NotHttps)
+        );
         Ok(())
     }
 
