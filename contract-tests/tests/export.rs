@@ -126,6 +126,25 @@ async fn the_demo_export_of_alex() -> anyhow::Result<()> {
     }
     let patient = ndjson(&entries, "fhir/Patient.ndjson")?;
     assert_eq!(patient.len(), 1);
+    // each line of a raw table is its whole row (a column named `t` once made it a bare timestamp)
+    for (name, _) in entries.iter().filter(|(n, _)| n.starts_with("ownhealth/")) {
+        for line in ndjson(&entries, name)? {
+            assert!(line.is_object(), "{name}: a line is not a row: {line}");
+        }
+    }
+    let raw = |name: &str| -> anyhow::Result<Value> {
+        let lines = ndjson(&entries, &format!("ownhealth/{name}.ndjson"))?;
+        assert!(!lines.is_empty(), "the demo has {name} rows");
+        Ok(Value::Array(lines))
+    };
+    assert_shape(
+        "export_raw_wearables_alex",
+        &json!({
+            "wearable_source": raw("wearable_source")?,
+            "wearable_sample": raw("wearable_sample")?,
+            "wearable_rollup": raw("wearable_rollup")?,
+        }),
+    )?;
     assert_eq!(patient[0]["resourceType"], "Patient");
     let counts = &manifest["counts"];
     assert_eq!(

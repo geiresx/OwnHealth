@@ -350,7 +350,7 @@ async fn rows(conn: &mut PgConnection, table: &str, ids: &[Uuid]) -> Result<Vec<
         return Ok(Vec::new());
     }
     let sql = format!(
-        "select to_jsonb(t) || jsonb_build_object('import_ref', s.import_ref) from {table} t \
+        "select to_jsonb(t.*) || jsonb_build_object('import_ref', s.import_ref) from {table} t \
          left join src s on s.id = t.src_id where t.id = any($1)"
     );
     let found: Vec<Value> = sqlx::query_scalar(AssertSqlSafe(sql)).bind(ids).fetch_all(conn).await?;

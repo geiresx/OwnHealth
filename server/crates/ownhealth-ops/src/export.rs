@@ -529,7 +529,9 @@ pub async fn export_profile<W: Write + Seek>(
     for table in &raw_tables {
         let path = format!("ownhealth/{table}.ndjson");
         w.touch(&path);
-        let q = format!("select to_jsonb(t) from {} t where profile_id = $1", quote(table));
+        // `t.*`, not `t`: in a table with a column named t (wearable_sample, wearable_rollup,
+        // vendor_score), `to_jsonb(t)` reads that column and each line would be a bare timestamp
+        let q = format!("select to_jsonb(t.*) from {} t where profile_id = $1", quote(table));
         let mut rows = sqlx::query_scalar::<_, Value>(AssertSqlSafe(q))
             .bind(profile_id)
             .fetch(&mut *conn);
@@ -545,7 +547,7 @@ pub async fn export_profile<W: Write + Seek>(
         let path = "ownhealth/medication_label.ndjson";
         w.touch(path);
         let mut rows = sqlx::query_scalar::<_, Value>(
-            "select to_jsonb(l) from medication_label l join medication_statement m on m.id = l.medication_id \
+            "select to_jsonb(l.*) from medication_label l join medication_statement m on m.id = l.medication_id \
              where m.profile_id = $1 order by l.medication_id, l.document_id",
         )
         .bind(profile_id)

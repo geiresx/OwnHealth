@@ -4,6 +4,7 @@
 //! |---|---|---|
 //! | `POST /ingest/health-auto-export` | `Authorization: Bearer oh_ing_...` (or `X-OwnHealth-Secret`) of a `health_auto_export` source | Health Auto Export JSON v2 -> `{seen, new, duplicate}` |
 //! | `GET /profiles/{p}/cgm/summary?days=14&end=` | session, `read:wearables` | the CGM summary (`ownhealth_devices::cgm::CgmSummary`) with its LOINC codes |
+//! | `GET /profiles/{p}/vendor-scores?days=30` | session, `read:wearables` | the vendor's own scores (`ownhealth_devices::scores::Stored`), each tagged with its provider and its connection |
 //!
 //! The Gadgetbridge export goes through the normal upload (`POST /ingest/upload`, sniffed as
 //! `gadgetbridge_db`); a Nightscout site is a `nightscout` source (`/inboxes`).
@@ -16,12 +17,12 @@ use axum::extract::{DefaultBodyLimit, Path, Query, State};
 use axum::http::StatusCode;
 use axum::routing::{get, post};
 use axum::{Json, Router};
-use chrono::{DateTime, NaiveDate, Utc};
+use chrono::{DateTime, NaiveDate, TimeDelta, Utc};
 use ownhealth_core::access::PrincipalKind;
 use ownhealth_core::audit::{AuditEvent, write_audit};
 use ownhealth_core::sources::{begin_run, finish_run};
 use ownhealth_core::{Error, Runtime};
-use ownhealth_devices::{cgm, hae};
+use ownhealth_devices::{cgm, hae, scores};
 use serde_json::{Value, json};
 
 use crate::error::ApiError;
@@ -123,6 +124,42 @@ async fn cgm_summary(
     Ok(Json(out))
 }
 
+/// The vendor's own scores of the last `days` (1 to 365, default 30), each with its provider and
+/// `computed_by: provider`. Never mixed into the wearables summary, the rule pack or MCP.
+async fn vendor_scores(
+    caller: Caller,
+    State(rt): State<Runtime>,
+    Path(p): Path<String>,
+    Query(q): Query<Vec<(String, String)>>,
+) -> Result<Json<Value>, ApiError> {
+    let days = match q.iter().find(|(k, _)| k == "days") {
+        None => 30,
+        Some((_, v)) => v
+            .parse::<i64>()
+            .ok()
+            .filter(|d| (1..=365).contains(d))
+            .ok_or_else(|| bad("days must be a whole number from 1 to 365."))?,
+    };
+    let mut tx = rt.pool.begin().await?;
+    let perm = caller.require(&mut tx, &p, Some("read:wearables"), None).await?;
+    let rows = scores::list(&mut tx, perm.profile.id, Utc::now() - TimeDelta::days(days)).await?;
+    let principal = &caller.0;
+    let via = if principal.kind == PrincipalKind::Token {
+        "api"
+    } else {
+        "ui"
+    };
+    let mut ev = AuditEvent::new(principal.actor_kind(), via, "read");
+    ev.actor_id = principal.user_id;
+    ev.token_id = principal.token_id;
+    ev.tool = Some("wearables.vendor_scores".into());
+    ev.profile_id = Some(perm.profile.id);
+    ev.resource_type = Some("vendor_score".into());
+    write_audit(&mut tx, &ev).await?;
+    tx.commit().await?;
+    Ok(Json(json!({"days": days, "scores": rows})))
+}
+
 pub fn router() -> Router<Runtime> {
     Router::new()
         .route(
@@ -130,6 +167,7 @@ pub fn router() -> Router<Runtime> {
             post(health_auto_export).layer(DefaultBodyLimit::max(hae::MAX_BODY_BYTES)),
         )
         .route("/profiles/{p}/cgm/summary", get(cgm_summary))
+        .route("/profiles/{p}/vendor-scores", get(vendor_scores))
 }
 
 #[cfg(test)]

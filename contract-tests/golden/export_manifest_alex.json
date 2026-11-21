@@ -21,6 +21,7 @@
     "ownhealth/source_priority": "int",
     "ownhealth/src": "int",
     "ownhealth/state_snapshot": "int",
+    "ownhealth/vendor_score": "int",
     "ownhealth/wearable_rollup": "int",
     "ownhealth/wearable_sample": "int",
     "ownhealth/wearable_source": "int"

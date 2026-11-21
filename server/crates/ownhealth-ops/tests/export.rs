@@ -351,3 +351,73 @@ async fn a_large_export_does_not_stall_the_runtime() -> R {
     );
     Ok(())
 }
+
+/// Each line of a raw table is the whole row, never one column of it. Three exported tables have a
+/// column named `t`, and `to_jsonb(t) from <table> t` reads that column, so each of their lines was
+/// only a timestamp.
+#[tokio::test]
+async fn every_raw_line_is_the_whole_row() -> R {
+    let db = TestDb::new().await?;
+    let dir = tempfile::tempdir()?;
+    let blobs = BlobStore::new(dir.path())?;
+    let mut c = db.pool.acquire().await?;
+    let f = create_rivera_family(&mut c, "Rivera (raw lines)").await?;
+    let pid = f.profile("alex");
+    sqlx::query(
+        "with w as (insert into wearable_source (profile_id, provider, device) values ($1, 'garmin', 'Forerunner') \
+          returning id), \
+         s as (insert into wearable_sample (profile_id, metric, t, v, source_id) \
+          select $1, 'hr_resting', '2026-11-20T07:00:00Z', 52, id from w), \
+         r as (insert into wearable_rollup (profile_id, metric, source_id, bucket, t, n, v_avg, coverage) \
+          select $1, 'hr_resting', id, 'day', '2026-11-20T00:00:00Z', 1, 52, 1 from w) \
+         insert into vendor_score (profile_id, provider, category, t, value, qualifier) \
+          values ($1, 'garmin', 'body_battery', '2026-11-20T08:00:00Z', 62, 'High')",
+    )
+    .bind(pid)
+    .execute(&mut *c)
+    .await?;
+    let mut out = Cursor::new(Vec::new());
+    let manifest = export_profile(&mut c, &blobs, pid, &mut out, "zip").await?;
+    let mut z = zip::ZipArchive::new(Cursor::new(out.into_inner()))?;
+    let raw: Vec<String> = z
+        .file_names()
+        .map(|n| n.map(|n| n.into_owned()))
+        .collect::<Result<Vec<_>, _>>()?
+        .into_iter()
+        .filter(|n| n.starts_with("ownhealth/"))
+        .collect();
+    assert!(raw.len() > 3, "{raw:?}");
+    for name in &raw {
+        for line in ndjson(&read(&mut z, name)?)? {
+            assert!(line.is_object(), "{name}: a line is not a row: {line}");
+        }
+    }
+    for (name, keys) in [
+        (
+            "ownhealth/vendor_score.ndjson",
+            &["provider", "category", "t", "value", "qualifier", "source_id"][..],
+        ),
+        (
+            "ownhealth/wearable_sample.ndjson",
+            &["metric", "t", "v", "source_id"][..],
+        ),
+        (
+            "ownhealth/wearable_rollup.ndjson",
+            &["metric", "bucket", "t", "n", "v_avg", "coverage"][..],
+        ),
+    ] {
+        let lines = ndjson(&read(&mut z, name)?)?;
+        assert_eq!(lines.len(), 1, "{name}");
+        for k in keys {
+            assert!(lines[0].get(*k).is_some(), "{name} has no {k}: {}", lines[0]);
+        }
+        assert_eq!(lines[0]["profile_id"], json!(pid), "{name}");
+    }
+    let vs = ndjson(&read(&mut z, "ownhealth/vendor_score.ndjson")?)?;
+    assert_eq!(
+        (vs[0]["value"].clone(), vs[0]["qualifier"].clone()),
+        (json!(62), json!("High"))
+    );
+    assert_eq!(manifest["counts"]["ownhealth/vendor_score"], json!(1));
+    Ok(())
+}

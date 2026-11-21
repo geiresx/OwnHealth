@@ -1,0 +1,97 @@
+{
+  "wearable_rollup": {
+    "[]": {
+      "bucket": "string",
+      "coverage": {
+        "|": [
+          "float",
+          "int"
+        ]
+      },
+      "metric": "string",
+      "n": "int",
+      "profile_id": "uuid",
+      "source_id": "int",
+      "t": "datetime_offset",
+      "v_avg": {
+        "|": [
+          "float",
+          "int"
+        ]
+      },
+      "v_max": {
+        "|": [
+          "float",
+          "int"
+        ]
+      },
+      "v_min": {
+        "|": [
+          "float",
+          "int"
+        ]
+      },
+      "v_p10": {
+        "|": [
+          "float",
+          "int"
+        ]
+      },
+      "v_p50": {
+        "|": [
+          "float",
+          "int"
+        ]
+      },
+      "v_p90": {
+        "|": [
+          "float",
+          "int"
+        ]
+      },
+      "v_sum": {
+        "|": [
+          "float",
+          "int"
+        ]
+      }
+    }
+  },
+  "wearable_sample": {
+    "[]": {
+      "document_id": {
+        "|": [
+          "null",
+          "uuid"
+        ]
+      },
+      "metric": "string",
+      "profile_id": "uuid",
+      "source_id": "int",
+      "t": "datetime_offset",
+      "t_end": {
+        "|": [
+          "datetime_offset",
+          "null"
+        ]
+      },
+      "tz_offset_min": "int",
+      "v": {
+        "|": [
+          "float",
+          "int"
+        ]
+      }
+    }
+  },
+  "wearable_source": {
+    "[]": {
+      "device": "string",
+      "external_id": "null",
+      "id": "int",
+      "profile_id": "uuid",
+      "provider": "string",
+      "source_id": "null"
+    }
+  }
+}

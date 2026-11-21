@@ -16,6 +16,7 @@
 	import { sliceStats } from '#lib/logic/health';
 	import { ago } from '#lib/components/pages2/fmt';
 	import { currentProfile } from '#lib/state/app.svelte';
+	import VendorScores from './VendorScores.svelte';
 
 	// How each known metric draws, as in the mockup. Unknown metrics get a plain line.
 	// `max` and `minSpan` keep an axis honest: SpO2 never passes 100 %, and a 1 bpm change is not a cliff.
@@ -224,6 +225,9 @@
 		{/if}
 	</div>
 </div>
+
+<!-- The vendor's own scores, apart from the measurements above (slice 27). -->
+<VendorScores slug={profile?.slug} {days} />
 
 <style>
 	.cgm {

@@ -7,6 +7,7 @@
 //! | `nightscout` | pull `/api/v1/entries/sgv.json` (and the v3 API) from the person's own Nightscout with a read token; FreeStyle Libre arrives the same way through nightscout-connect |
 //! | `cgm` | CGM readings as LOINC 99504-3; the HL7 CGM IG summary (mean glucose 97507-8, GMI, times in ranges 106793-3); valid only with >= 70% sensor wear over 14 days |
 //! | `store` | the one write path into `wearable_sample`, idempotent, then the rollups |
+//! | `scores` | vendor scores (readiness, Body Battery, ...) in `vendor_score`, tagged `computed_by` provider, never samples |
 //! | `synthetic`, `demo` | synthetic CGM for the demo seed (order 1040) and the tests |
 //!
 //! Samples go to `wearable_sample` through lane C's (0.2.0) wearables store, with a `wearable_source`
@@ -18,6 +19,7 @@ pub mod demo;
 pub mod gadgetbridge;
 pub mod hae;
 pub mod nightscout;
+pub mod scores;
 pub mod store;
 pub mod synthetic;
 
