@@ -124,10 +124,15 @@
 	// Delete a profile: type its short name to confirm, then step-up.
 	let deleting = $state<string | null>(null);
 	let confirmSlug = $state('');
+	// The name of the profile just deleted: its card is gone, so a line above the cards says it went.
+	let deletedName = $state<string | null>(null);
 	function removeProfile(e: SubmitEvent, slug: string) {
 		e.preventDefault();
+		const name = profileName(slug);
+		deletedName = null;
 		act(slug, async () => {
 			await deleteProfile(slug);
+			deletedName = name;
 			deleting = null;
 			confirmSlug = '';
 			app.me = await getMe();
@@ -287,6 +292,7 @@
 	</div>
 
 	<div class="grid" style="align-content:start">
+		<div role="status">{#if deletedName}<div class="note">{tf('st_deleted', { name: deletedName })}</div>{/if}</div>
 		{#each managed as p (p.id)}
 			<section class="card">
 				<h3>{p.display_name}<span class="r">{t('r_' + p.role)}{p.is_minor ? ' · ' + t('i2_minor') : ''}</span></h3>

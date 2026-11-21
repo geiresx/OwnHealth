@@ -1,5 +1,6 @@
 {
   "blobs": "int",
+  "blobs_pending": "int",
   "deleted": "string",
   "rows": {
     "observation": "int",

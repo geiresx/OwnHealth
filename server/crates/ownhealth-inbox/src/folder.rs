@@ -29,7 +29,7 @@ use ownhealth_core::arrive::{Arrival, Arrived, arrive};
 use ownhealth_core::blobs::BlobStore;
 use ownhealth_core::config::Settings;
 use ownhealth_core::error::{Error, Result};
-use ownhealth_core::jobs::{JobContext, JobError};
+use ownhealth_core::jobs::{EnqueueOptions, HandlerResult, Job, JobContext, JobError, enqueue, register_handler};
 use ownhealth_core::sources::{RunOutcome, RunProblem, Source};
 use sqlx::PgPool;
 use uuid::Uuid;
@@ -71,6 +71,289 @@ fn subdir(config: &serde_json::Value) -> Result<Option<&Path>> {
         ));
     }
     Ok(Some(p))
+}
+
+/// After a profile is deleted, remove its files from a folder source: its drop folder
+/// `<root>/<slug>/` and the copies filed in `.done/<slug>/` and `.failed/<slug>/` when `slug_folders`,
+/// plus `.done/_root/` and `.failed/_root/` when `root_buckets` (the source was the profile's own, so its
+/// root files went to that profile). [`forget_folders`] decides both, so a new person or a new folder
+/// inbox that took over a name keeps its files. The paths are built from the checked subdir and slug
+/// only. A root that leads out of the inbox folder is skipped, never an error: OwnHealth never filed
+/// anything there. Nothing below the root is followed: a link in the way is removed, never its target,
+/// and a folder reached through a link below the root is left alone.
+pub fn forget_profile(
+    settings: &Settings,
+    config: &serde_json::Value,
+    slug: &str,
+    slug_folders: bool,
+    root_buckets: bool,
+) -> Result<()> {
+    if slug.is_empty()
+        || !slug
+            .bytes()
+            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
+    {
+        return Err(Error::Invalid("not a profile's short name".into()));
+    }
+    let Some(base) = settings.inbox_dir.clone() else {
+        return Ok(());
+    };
+    let root = match subdir(config)? {
+        Some(sub) => base.join(sub),
+        None => base.clone(),
+    };
+    // the same test as check_root: the root must resolve inside the inbox folder
+    let root = match (root.canonicalize(), base.canonicalize()) {
+        (Ok(root), Ok(base)) if root.starts_with(&base) => root,
+        (Ok(_), Ok(_)) => {
+            tracing::warn!("a folder inbox leads out of the inbox folder: its folders are left alone");
+            return Ok(());
+        }
+        // no folder, so nothing to remove
+        (Err(e), _) | (_, Err(e)) if e.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        (Err(e), _) | (_, Err(e)) => return Err(e.into()),
+    };
+    let mut gone = Vec::new();
+    if slug_folders {
+        gone.extend([vec![slug], vec![DONE_DIR, slug], vec![FAILED_DIR, slug]]);
+    }
+    if root_buckets {
+        gone.extend([vec![DONE_DIR, ROOT_BUCKET], vec![FAILED_DIR, ROOT_BUCKET]]);
+    }
+    let mut first = None;
+    for parts in gone {
+        if let Err(e) = remove_below(&root, &parts) {
+            first.get_or_insert(e);
+        }
+    }
+    first.map_or(Ok(()), |e| Err(e.into()))
+}
+
+/// The job that retries removing a deleted profile's files from the folder inboxes when the first try
+/// after the delete failed (a busy or read-only disk).
+pub const FORGET_JOB: &str = "folder.forget";
+
+/// Queue the retry of [`forget_profile`] for each folder inbox (its settings, and whether it was the
+/// profile's own), in the delete's own transaction. It waits a minute, so the delete's own try comes
+/// first; the caller then drops it, or keeps it when a folder could not be cleaned. The payload holds the
+/// household (a retry that runs out of attempts shows in its review queue), the short name and the
+/// inbox settings, never a file name.
+pub async fn queue_forget(
+    conn: &mut sqlx::PgConnection,
+    household_id: Uuid,
+    slug: &str,
+    folders: &[(serde_json::Value, bool)],
+) -> Result<Option<i64>> {
+    let folders: Vec<serde_json::Value> = folders
+        .iter()
+        .map(|(config, own)| serde_json::json!({"config": config, "own": own}))
+        .collect();
+    Ok(enqueue(
+        conn,
+        FORGET_JOB,
+        &serde_json::json!({"household_id": household_id, "slug": slug, "folders": folders}),
+        EnqueueOptions {
+            run_after: Some(chrono::Utc::now() + chrono::Duration::seconds(60)),
+            ..EnqueueOptions::default()
+        },
+    )
+    .await?)
+}
+
+/// Run [`forget_profile`] on each folder inbox off the async runtime; returns the ones that failed.
+/// The short name is free again once the delete commits, so it checks each folder first, on the
+/// delete's own try and on every retry. It keeps `<slug>/` and its filed copies when a profile with that
+/// short name now lives in the household, or in a household whose folder inbox reads the same folder,
+/// or when a folder inbox now reads a folder inside `<slug>/`. It keeps `_root` when a folder inbox, in
+/// any household, now reads that folder. "The same folder" is the real one on disk ([`what_to_remove`]).
+pub async fn forget_folders(
+    pool: &PgPool,
+    settings: &Settings,
+    household_id: Uuid,
+    slug: &str,
+    folders: Vec<(serde_json::Value, bool)>,
+) -> Vec<(serde_json::Value, bool)> {
+    if folders.is_empty() {
+        return folders;
+    }
+    // the households with a profile of that short name, and every folder inbox with its household
+    let named: sqlx::Result<Vec<Uuid>> = sqlx::query_scalar("select household_id from profile where slug = $1")
+        .bind(slug)
+        .fetch_all(pool)
+        .await;
+    let readers: sqlx::Result<Vec<(Uuid, serde_json::Value)>> =
+        sqlx::query_as("select household_id, config from source where kind = 'folder'")
+            .fetch_all(pool)
+            .await;
+    let (named, readers) = match (named, readers) {
+        (Ok(named), Ok(readers)) => (named, readers),
+        (Err(e), _) | (_, Err(e)) => {
+            tracing::warn!(error = %e, "could not check who uses the folders now: a job retries them");
+            return folders;
+        }
+    };
+    let readers: Vec<(Uuid, PathBuf)> = readers
+        .into_iter()
+        .filter_map(|(h, config)| rel(&config).map(|p| (h, p)))
+        .collect();
+    let (named, readers) = (std::sync::Arc::new(named), std::sync::Arc::new(readers));
+    let mut failed = Vec::new();
+    for (config, own) in folders {
+        let (s, c, sl) = (settings.clone(), config.clone(), slug.to_string());
+        let (named, readers) = (named.clone(), readers.clone());
+        // the checks read the disk too, so they run off the async runtime with the removal
+        let run = move || {
+            let (slug_folders, root_buckets) = what_to_remove(&s, household_id, &sl, &named, &readers, &c, own);
+            forget_profile(&s, &c, &sl, slug_folders, root_buckets)
+        };
+        match tokio::task::spawn_blocking(run).await {
+            Ok(Ok(())) => {}
+            Ok(Err(e)) => {
+                tracing::warn!(error = %e, "removing a deleted profile's folder failed: a job retries it");
+                failed.push((config, own));
+            }
+            Err(e) => {
+                tracing::warn!(error = %e, "removing a deleted profile's folder failed: a job retries it");
+                failed.push((config, own));
+            }
+        }
+    }
+    failed
+}
+
+/// A folder inbox's settings as a path below the inbox folder ("" for the root), or None when they do
+/// not parse.
+fn rel(config: &serde_json::Value) -> Option<PathBuf> {
+    subdir(config)
+        .ok()
+        .map(|p| p.map(Path::to_path_buf).unwrap_or_default())
+}
+
+/// What one folder inbox may lose of a deleted profile: (`slug_folders`, `root_buckets`) for
+/// [`forget_profile`], by the rules of [`forget_folders`]. Another inbox reads the same folder, or a
+/// folder inside the drop, when its settings say so or when its real folder on disk does: through a
+/// link, or a letter-case variant on a file system that ignores case. An inbox folder whose place
+/// cannot be read counts as the same folder, so the files stay.
+fn what_to_remove(
+    settings: &Settings,
+    household_id: Uuid,
+    slug: &str,
+    named: &[Uuid],
+    readers: &[(Uuid, PathBuf)],
+    config: &serde_json::Value,
+    own: bool,
+) -> (bool, bool) {
+    let Some(mine) = rel(config) else {
+        // forget_profile refuses the settings itself
+        return (true, own);
+    };
+    let Some(base) = settings.inbox_dir.as_deref() else {
+        // no inbox folder, so forget_profile has nothing to remove
+        return (false, false);
+    };
+    let drop = mine.join(slug);
+    let (mine_at, drop_at) = (real(&base.join(&mine)), real(&base.join(&drop)));
+    // whether a reader's real folder is `to` (`exact`) or a folder inside it
+    let leads = |r: &Path, to: &Option<PathBuf>, exact: bool| match (real(&base.join(r)), to) {
+        (Some(at), Some(to)) if exact => at == *to,
+        (Some(at), Some(to)) => at.starts_with(to),
+        _ => true,
+    };
+    let on_it: Vec<Uuid> = readers
+        .iter()
+        .filter(|(_, r)| *r == mine || leads(r, &mine_at, true))
+        .map(|(h, _)| *h)
+        .collect();
+    let taken = named.iter().any(|h| *h == household_id || on_it.contains(h));
+    let inside = readers
+        .iter()
+        .any(|(_, r)| r.starts_with(&drop) || leads(r, &drop_at, false));
+    (!taken && !inside, own && on_it.is_empty())
+}
+
+/// Where `path` leads on disk: the real path of the longest part of it that exists (links followed,
+/// letter case as stored), then the rest as written, which is where a folder not made yet would be
+/// made. None when a part of it cannot be read.
+fn real(path: &Path) -> Option<PathBuf> {
+    let mut rest = Vec::new();
+    let mut at = path;
+    loop {
+        match at.canonicalize() {
+            Ok(found) => return Some(rest.iter().rev().fold(found, |p, part| p.join(part))),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                rest.push(at.file_name()?);
+                at = at.parent()?;
+            }
+            Err(_) => return None,
+        }
+    }
+}
+
+async fn forget_job(ctx: JobContext, job: Job) -> HandlerResult {
+    // The demo never reads a folder, and its stack shares the inbox folder with the real install.
+    if ctx.settings.demo {
+        return Ok(Some(serde_json::json!({"skipped": "demo"})));
+    }
+    // a job that ended once has no short name left: nothing to redo
+    let Some(slug) = job.str("slug") else {
+        return Ok(Some(serde_json::json!({"skipped": "no short name"})));
+    };
+    let household_id = job.uuid("household_id")?;
+    let folders: Vec<(serde_json::Value, bool)> = job
+        .payload
+        .get("folders")
+        .and_then(serde_json::Value::as_array)
+        .map(|a| {
+            a.iter()
+                .map(|f| {
+                    let own = f.get("own").and_then(serde_json::Value::as_bool).unwrap_or(false);
+                    (f.get("config").cloned().unwrap_or_default(), own)
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    let n = folders.len();
+    let failed = forget_folders(&ctx.pool, &ctx.settings, household_id, slug, folders).await;
+    let last = failed.is_empty() || job.attempts >= job.max_attempts;
+    if last {
+        // the job ends now, done or dead, and its row stays: it keeps no trace of the person's name
+        sqlx::query("update job set payload = payload - 'slug' where id = $1")
+            .bind(job.id)
+            .execute(&ctx.pool)
+            .await?;
+    }
+    if !failed.is_empty() {
+        return Err(JobError::retry(format!(
+            "{} folder inboxes could not be cleaned yet",
+            failed.len()
+        )));
+    }
+    Ok(Some(serde_json::json!({"folders": n})))
+}
+
+/// Remove `root/<parts>` without following a link: a link among the parents stops it, and a link at
+/// the end is removed itself.
+fn remove_below(root: &Path, parts: &[&str]) -> std::io::Result<()> {
+    let mut path = root.to_path_buf();
+    for (i, part) in parts.iter().enumerate() {
+        path.push(part);
+        let meta = match std::fs::symlink_metadata(&path) {
+            Ok(m) => m,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+            Err(e) => return Err(e),
+        };
+        let last = i + 1 == parts.len();
+        if meta.file_type().is_symlink() {
+            return if last { std::fs::remove_file(&path) } else { Ok(()) };
+        }
+        if !meta.is_dir() {
+            return Ok(());
+        }
+        if last {
+            return std::fs::remove_dir_all(&path);
+        }
+    }
+    Ok(())
 }
 
 /// Checks a `folder` source config before it is saved.
@@ -608,6 +891,7 @@ fn demo_hook<'c>(
 
 pub fn register() {
     ownhealth_core::sources::register_poller("folder", |ctx, source| Box::pin(poll_folder(ctx, source)));
+    register_handler(FORGET_JOB, |ctx, job| Box::pin(forget_job(ctx, job)));
     ownhealth_core::demo::register_demo_hook("inbox_folder", 1020, demo_hook);
 }
 

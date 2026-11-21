@@ -291,7 +291,7 @@ pub async fn import_push(
     }
     let (sha, _) = ownhealth_core::arrive::store_bytes(blobs, body.to_vec()).await?;
     let item = format!("push:{sha}");
-    ownhealth_core::dedup::record_item(&mut *conn, source.id, &item, Some(&sha), None, None).await?;
+    ownhealth_core::dedup::record_item(&mut *conn, source.id, &item, Some(&sha), None, None, Some(profile_id)).await?;
     prune_pushes(&mut *conn, blobs, source.id, &item).await?;
     let raw = body.to_vec();
     let parsed = tokio::task::spawn_blocking(move || parse(&raw))

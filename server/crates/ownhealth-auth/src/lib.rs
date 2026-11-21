@@ -111,7 +111,9 @@ pub fn truncate_chars(s: &str, n: usize) -> &str {
 }
 
 /// Register lane G's demo hook (none: the demo family needs no login).
-pub fn register() {}
+pub fn register() {
+    household::register();
+}
 
 #[cfg(test)]
 mod tests {

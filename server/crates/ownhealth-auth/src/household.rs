@@ -14,6 +14,8 @@ use ownhealth_core::access::{
     set_grant,
 };
 use ownhealth_core::audit::{AuditEvent, write_audit};
+use ownhealth_core::blobs::sha256_hex_to_bytes;
+use ownhealth_core::jobs::{EnqueueOptions, HandlerResult, Job, JobContext, JobError, enqueue, register_handler};
 use ownhealth_core::{Error, Result};
 use serde_json::{Map, Value, json};
 use sqlx::{AssertSqlSafe, Connection, PgConnection};
@@ -559,15 +561,82 @@ pub async fn add_relative(conn: &mut PgConnection, r: &RelativeIn<'_>) -> AuthRe
 
 // ------------------------------------------------------------------- deletion ----
 
-/// Tables that hold blob hashes, and their columns: a blob is deleted only when no row still names it.
-pub const BLOB_COLUMNS: [(&str, &[&str]); 3] = [
-    ("document", &["blob_sha256"]),
-    ("document_page", &["words_blob", "image_blob"]),
+/// Every column that names a blob by its sha256, with the condition that picks the rows profile `$1`
+/// owns. A blob is collected from those rows and deleted only when no row of any of these columns
+/// still names it. `tests/blob_columns_mirror.rs` fails when the schema has a blob column missing here
+/// and in [`HOUSEHOLD_BLOB_COLUMNS`].
+pub const BLOB_COLUMNS: &[(&str, &[&str], &str)] = &[
+    ("document", &["blob_sha256"], "profile_id = $1"),
+    (
+        "document_page",
+        &["words_blob", "image_blob"],
+        "document_id in (select id from document where profile_id = $1)",
+    ),
     (
         "genome_dataset",
-        &["facts_blob", "vcf_blob", "tbi_blob", "coverage_blob"],
+        &[
+            "facts_blob",
+            "vcf_blob",
+            "tbi_blob",
+            "coverage_blob",
+            "gvcf_blob",
+            "gvcf_tbi_blob",
+            "sites_blob",
+            "sites_tbi_blob",
+        ],
+        "profile_id = $1",
+    ),
+    (
+        "ocr_run",
+        &["words_blob"],
+        "document_id in (select id from document where profile_id = $1)",
+    ),
+    // The raw bytes an inbox handed us: a push or export of the profile's own source (Health Auto
+    // Export, Gadgetbridge), and what a household inbox (a shared mailbox, Paperless, the scanner
+    // folder) filed to the profile: an item the inbox routed to it (a mail with nothing to import keeps
+    // its .eml and no document), the item of one of its documents, the whole .eml of a mail released to
+    // it, a structured file of its household's inboxes whose document the importer made (only for an item
+    // that names no profile: rows older than migration 1249; an item that names someone else is theirs),
+    // and a file in the profile's folder of a scanner folder.
+    (
+        "source_item",
+        &["blob_sha256"],
+        "profile_id = $1 \
+         or source_id in (select id from source where profile_id = $1) \
+         or document_id in (select id from document where profile_id = $1) \
+         or quarantine_id in (select id from quarantine_item where released_document_ids \
+            && array(select id from document where profile_id = $1)) \
+         or (document_id is null and profile_id is null \
+            and blob_sha256 in (select blob_sha256 from document where profile_id = $1) \
+            and source_id in (select s.id from source s join profile p on p.household_id = s.household_id \
+            where p.id = $1 and s.profile_id is null)) \
+         or (source_id in (select s.id from source s join profile p on p.household_id = s.household_id \
+            where p.id = $1 and s.kind = 'folder') \
+            and starts_with(external_id, (select slug from profile where id = $1) || '/'))",
+    ),
+    // mail held on a profile's own mailbox, and mail a person released into the profile (its documents,
+    // or its item when nothing in it became a document)
+    (
+        "quarantine_item",
+        &["raw_blob"],
+        "source_id in (select id from source where profile_id = $1) \
+         or released_document_ids && array(select id from document where profile_id = $1) \
+         or id in (select quarantine_id from source_item where profile_id = $1 and quarantine_id is not null)",
     ),
 ];
+
+/// The condition of `table` in [`BLOB_COLUMNS`].
+fn owned(table: &str) -> &'static str {
+    BLOB_COLUMNS
+        .iter()
+        .find(|(t, _, _)| *t == table)
+        .map_or("false", |(_, _, owned)| owned)
+}
+
+/// The job that retries removing the files a profile delete could not remove at once.
+pub const UNLINK_JOB: &str = "blobs.unlink";
+/// Blob columns that never belong to one profile, so a profile delete leaves them alone. None yet.
+pub const HOUSEHOLD_BLOB_COLUMNS: &[(&str, &str)] = &[];
 const KEEP: [&str; 3] = ["profile", "profile_grant", "audit_event"];
 
 /// Every table with a profile_id column (other lanes add their own), minus the ones we keep.
@@ -585,23 +654,19 @@ async fn profile_tables(conn: &mut PgConnection) -> Result<Vec<String>> {
 
 async fn profile_blobs(conn: &mut PgConnection, profile_id: Uuid) -> Result<BTreeSet<Vec<u8>>> {
     let mut shas = BTreeSet::new();
-    for sql in [
-        "select blob_sha256, null::bytea, null::bytea, null::bytea from document where profile_id = $1",
-        "select words_blob, image_blob, null::bytea, null::bytea from document_page dp \
-         join document d on d.id = dp.document_id where d.profile_id = $1",
-        "select facts_blob, vcf_blob, tbi_blob, coverage_blob from genome_dataset where profile_id = $1",
-    ] {
-        type Four = (Option<Vec<u8>>, Option<Vec<u8>>, Option<Vec<u8>>, Option<Vec<u8>>);
-        let rows: Vec<Four> = sqlx::query_as(sql).bind(profile_id).fetch_all(&mut *conn).await?;
-        for (a, b, c, d) in rows {
-            shas.extend([a, b, c, d].into_iter().flatten());
-        }
+    for (table, cols, owned) in BLOB_COLUMNS {
+        let sql = format!("select unnest(array[{}]) from {table} where {owned}", cols.join(", "));
+        let rows: Vec<Option<Vec<u8>>> = sqlx::query_scalar(AssertSqlSafe(sql))
+            .bind(profile_id)
+            .fetch_all(&mut *conn)
+            .await?;
+        shas.extend(rows.into_iter().flatten());
     }
     Ok(shas)
 }
 
 async fn still_referenced(conn: &mut PgConnection, sha: &[u8]) -> Result<bool> {
-    for (table, cols) in BLOB_COLUMNS {
+    for (table, cols, _) in BLOB_COLUMNS {
         let cond: Vec<String> = cols.iter().map(|c| format!("{c} = $1")).collect();
         let sql = format!("select 1 from {table} where {} limit 1", cond.join(" or "));
         let hit: Option<i32> = sqlx::query_scalar(AssertSqlSafe(sql))
@@ -616,11 +681,25 @@ async fn still_referenced(conn: &mut PgConnection, sha: &[u8]) -> Result<bool> {
 }
 
 /// What `delete_profile` removed: rows per table (only tables with rows) and the blob hashes nobody
-/// references any more, which the caller deletes after the transaction commits.
+/// references any more, which the caller deletes after the transaction commits, with the profile's
+/// folders of the folder inboxes.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Deleted {
+    pub household_id: Uuid,
     pub rows: Vec<(String, u64)>,
     pub blobs: Vec<String>,
+    /// The queued retry of `blobs`, for the caller to trim after its own unlinks.
+    pub unlink_job: Option<i64>,
+    /// The household's folder inboxes, read before the delete: their folders may hold the profile's files.
+    pub folders: Vec<FolderInbox>,
+}
+
+/// A folder inbox's settings, and whether it was the deleted profile's own (its root files were the
+/// profile's).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FolderInbox {
+    pub config: Value,
+    pub own: bool,
 }
 
 impl Deleted {
@@ -639,6 +718,78 @@ impl Deleted {
 /// no profile is deleted.
 pub async fn delete_profile(conn: &mut PgConnection, profile_id: Uuid) -> AuthResult<Deleted> {
     let candidates = profile_blobs(&mut *conn, profile_id).await?;
+    // The credentials the profile's inboxes keep (a mailbox password, a Nightscout token) and the PDF
+    // passwords of the sender rules that file mail to it, as removing the inbox does: the source and
+    // sender rows go with the profile, and `secret` would keep the sealed values with nothing naming them.
+    let secrets: Vec<Uuid> = sqlx::query_scalar(
+        "select secret_id from source where profile_id = $1 and secret_id is not null union \
+         select pr.secret_id from pdf_password_rule pr join sender_rule r on r.id = pr.sender_rule_id \
+         where r.profile_id = $1 or r.source_id in (select id from source where profile_id = $1)",
+    )
+    .bind(profile_id)
+    .fetch_all(&mut *conn)
+    .await?;
+    // A household inbox stays, and so do its items, but the bytes it filed to the profile are the
+    // profile's. A scanner folder item names the person's short name and file name, and the file itself
+    // goes, so the item goes. A mailbox or Paperless item keeps only its message or document id, so the
+    // next poll does not import it again into another profile. This runs before the documents and the
+    // released mail go, since the conditions read them. The held mail is picked first: a message released
+    // with nothing to import is found through its item, which the update below detaches.
+    let mail: Vec<Uuid> = sqlx::query_scalar(AssertSqlSafe(format!(
+        "select id from quarantine_item where {}",
+        owned("quarantine_item")
+    )))
+    .bind(profile_id)
+    .fetch_all(&mut *conn)
+    .await?;
+    let items = owned("source_item");
+    sqlx::query(AssertSqlSafe(format!(
+        "delete from source_item where source_id in (select id from source where kind = 'folder') and ({items})"
+    )))
+    .bind(profile_id)
+    .execute(&mut *conn)
+    .await?;
+    // The item forgets the profile too, or the delete of every profile_id row below would take it.
+    sqlx::query(AssertSqlSafe(format!(
+        "update source_item set blob_sha256 = null, profile_id = null \
+         where (blob_sha256 is not null or profile_id is not null) and ({items})"
+    )))
+    .bind(profile_id)
+    .execute(&mut *conn)
+    .await?;
+    // Mail held on the profile's own mailbox (`quarantine_item.source_id` is set null when the source
+    // goes, which would keep the message and its raw blob), and mail released into the profile.
+    let held = sqlx::query("delete from quarantine_item where id = any($1)")
+        .bind(&mail)
+        .execute(&mut *conn)
+        .await?
+        .rows_affected();
+    // A Paperless tag rule that files to the profile goes; the household inbox keeps its other rules. The
+    // settings route takes any id form `Uuid::parse_str` reads (hyphens or not, braces, a URN), so the
+    // value is compared without those; a value that is no id at all stays and never stops the delete.
+    sqlx::query(
+        "update source set config = jsonb_set(config, '{profile_by_tag}', coalesce((select jsonb_object_agg(k, v) \
+         from jsonb_each(config->'profile_by_tag') e(k, v) \
+         where regexp_replace(lower(v #>> '{}'), '^urn:uuid:|[{}-]', '', 'g') is distinct from $1), '{}'::jsonb)) \
+         where jsonb_typeof(config->'profile_by_tag') = 'object' \
+         and exists (select 1 from jsonb_each(config->'profile_by_tag') e(k, v) \
+         where regexp_replace(lower(v #>> '{}'), '^urn:uuid:|[{}-]', '', 'g') = $1)",
+    )
+    .bind(profile_id.simple().to_string())
+    .execute(&mut *conn)
+    .await?;
+    let household_id: Uuid = sqlx::query_scalar("select household_id from profile where id = $1")
+        .bind(profile_id)
+        .fetch_one(&mut *conn)
+        .await?;
+    // The folder inboxes whose folders hold the profile's files: the caller removes them after the commit.
+    let folders: Vec<(Value, bool)> = sqlx::query_as(
+        "select s.config, coalesce(s.profile_id = $1, false) from source s join profile p \
+         on p.household_id = s.household_id where p.id = $1 and s.kind = 'folder' order by s.created_at",
+    )
+    .bind(profile_id)
+    .fetch_all(&mut *conn)
+    .await?;
     // candidate_row -> observation -> src -> candidate_row is a cycle: cut it first.
     sqlx::query(
         "update candidate_row set observation_id = null where observation_id in \
@@ -649,7 +800,7 @@ pub async fn delete_profile(conn: &mut PgConnection, profile_id: Uuid) -> AuthRe
     .execute(&mut *conn)
     .await?;
     let mut todo = profile_tables(&mut *conn).await?;
-    let mut counts: Vec<(String, u64)> = Vec::new();
+    let mut counts: Vec<(String, u64)> = vec![("quarantine_item".into(), held)];
     while !todo.is_empty() {
         let mut failed = Vec::new();
         for table in &todo {
@@ -721,6 +872,12 @@ pub async fn delete_profile(conn: &mut PgConnection, profile_id: Uuid) -> AuthRe
         .execute(&mut *conn)
         .await?;
     }
+    let sealed = sqlx::query("delete from secret where id = any($1)")
+        .bind(&secrets)
+        .execute(&mut *conn)
+        .await?
+        .rows_affected();
+    counts.push(("secret".into(), sealed));
     sqlx::query("delete from profile where id = $1")
         .bind(profile_id)
         .execute(&mut *conn)
@@ -732,10 +889,81 @@ pub async fn delete_profile(conn: &mut PgConnection, profile_id: Uuid) -> AuthRe
         }
     }
     orphans.sort();
+    // The retry of a file the caller cannot remove after the commit (a busy or read-only disk), queued
+    // here so it commits with the rows: a crash between the commit and the unlinks leaves the job.
+    // The caller trims it to the files that stuck, or drops it when none did.
+    let unlink_job = if orphans.is_empty() {
+        None
+    } else {
+        enqueue(
+            &mut *conn,
+            UNLINK_JOB,
+            // the household, so a retry that runs out of attempts shows in its review queue
+            &json!({"household_id": household_id, "blobs": orphans}),
+            EnqueueOptions {
+                run_after: Some(chrono::Utc::now() + chrono::Duration::seconds(60)),
+                ..EnqueueOptions::default()
+            },
+        )
+        .await?
+    };
     Ok(Deleted {
+        household_id,
+        unlink_job,
         rows: counts.into_iter().filter(|(_, n)| *n > 0).collect(),
         blobs: orphans,
+        folders: folders
+            .into_iter()
+            .map(|(config, own)| FolderInbox { config, own })
+            .collect(),
     })
+}
+
+async fn unlink_job(ctx: JobContext, job: Job) -> HandlerResult {
+    let shas: Vec<String> = job
+        .payload
+        .get("blobs")
+        .and_then(Value::as_array)
+        .map(|a| a.iter().filter_map(Value::as_str).map(str::to_string).collect())
+        .unwrap_or_default();
+    let mut conn = ctx.pool.acquire().await?;
+    let (mut removed, mut failed) = (0i32, 0usize);
+    for sha in &shas {
+        let Ok(bytes) = sha256_hex_to_bytes(sha) else {
+            continue;
+        };
+        if still_referenced(&mut conn, &bytes).await? {
+            continue;
+        }
+        match ctx.blobs.delete(sha) {
+            Ok(true) => removed += 1,
+            Ok(false) => {}
+            Err(e) => {
+                tracing::warn!(error = %e, "blob delete failed again");
+                failed += 1;
+            }
+        }
+    }
+    if removed > 0 {
+        write_audit(
+            &mut conn,
+            &AuditEvent {
+                resource_type: Some("blob".into()),
+                rows_out: Some(removed),
+                args_summary: Some(format!("blobs={removed}")),
+                ..AuditEvent::new("system", "job", "purge")
+            },
+        )
+        .await?;
+    }
+    if failed > 0 {
+        return Err(JobError::retry(format!("{failed} files could not be removed yet")));
+    }
+    Ok(Some(json!({"removed": removed})))
+}
+
+pub fn register() {
+    register_handler(UNLINK_JOB, |ctx, job| Box::pin(unlink_job(ctx, job)));
 }
 
 /// Slugs of profiles nobody else could manage once this login closes (no other owner or guardian;

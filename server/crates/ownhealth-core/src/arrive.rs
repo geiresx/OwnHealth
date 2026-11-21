@@ -113,7 +113,16 @@ async fn sniff_blob(blobs: &BlobStore, sha256: &str, filename: String) -> Result
 
 async fn remember(conn: &mut PgConnection, a: &Arrival<'_>, document_id: Option<Uuid>) -> Result<()> {
     if let (Some(source_id), Some(ext)) = (a.source_id, a.external_id) {
-        record_item(conn, source_id, ext, Some(a.sha256), document_id, None).await?;
+        record_item(
+            conn,
+            source_id,
+            ext,
+            Some(a.sha256),
+            document_id,
+            None,
+            Some(a.profile_id),
+        )
+        .await?;
     }
     Ok(())
 }

@@ -793,7 +793,16 @@ pub async fn ingest_message(
             }
             Routing::Quarantine { reason } => {
                 out.quarantine_id = Some(hold(&mut *conn, source, &parsed, &raw_sha, reason).await?);
-                record_item(&mut *conn, source.id, &ext, Some(&raw_sha), None, out.quarantine_id).await?;
+                record_item(
+                    &mut *conn,
+                    source.id,
+                    &ext,
+                    Some(&raw_sha),
+                    None,
+                    out.quarantine_id,
+                    None,
+                )
+                .await?;
                 return Ok(out);
             }
         },
@@ -813,6 +822,7 @@ pub async fn ingest_message(
         Some(&raw_sha),
         out.document_ids.first().copied(),
         None,
+        Some(profile_id),
     )
     .await?;
     Ok(out)
@@ -860,7 +870,7 @@ pub async fn hold_too_large(
     }
     let (sha, _) = store_bytes(blobs, owned).await?;
     out.quarantine_id = Some(hold(&mut *conn, source, &parsed, &sha, "too_large").await?);
-    record_item(&mut *conn, source.id, &ext, Some(&sha), None, out.quarantine_id).await?;
+    record_item(&mut *conn, source.id, &ext, Some(&sha), None, out.quarantine_id, None).await?;
     Ok(out)
 }
 

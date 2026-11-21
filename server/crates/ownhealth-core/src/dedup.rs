@@ -60,7 +60,10 @@ pub async fn seen_item(conn: &mut PgConnection, source_id: Uuid, external_id: &s
     .await?)
 }
 
-/// Remember an item. True when it was new; a second call for the same id changes nothing.
+/// Remember an item, with the profile it was filed to (none for held mail). True when it was new. A
+/// second call for the same id changes nothing, except the profile: the item names the profile it was
+/// last filed to (a held message released into a profile, a push that came again after its inbox moved
+/// to another profile), so a profile delete takes only the files that are that profile's.
 pub async fn record_item(
     conn: &mut PgConnection,
     source_id: Uuid,
@@ -68,21 +71,24 @@ pub async fn record_item(
     blob_sha256: Option<&str>,
     document_id: Option<Uuid>,
     quarantine_id: Option<Uuid>,
+    profile_id: Option<Uuid>,
 ) -> Result<bool> {
     let sha = blob_sha256.map(sha256_hex_to_bytes).transpose()?;
-    let n = sqlx::query(
-        "insert into source_item (source_id, external_id, blob_sha256, document_id, quarantine_id) \
-         values ($1, $2, $3, $4, $5) on conflict do nothing",
+    let inserted: Option<bool> = sqlx::query_scalar(
+        "insert into source_item (source_id, external_id, blob_sha256, document_id, quarantine_id, profile_id) \
+         values ($1, $2, $3, $4, $5, $6) on conflict (source_id, external_id) do update \
+         set profile_id = excluded.profile_id where excluded.profile_id is not null \
+         and source_item.profile_id is distinct from excluded.profile_id returning (xmax = 0)",
     )
     .bind(source_id)
     .bind(external_id)
     .bind(sha)
     .bind(document_id)
     .bind(quarantine_id)
-    .execute(conn)
-    .await?
-    .rows_affected();
-    Ok(n == 1)
+    .bind(profile_id)
+    .fetch_optional(conn)
+    .await?;
+    Ok(inserted == Some(true))
 }
 
 // --------------------------------------------------- level 1: file hash ----
